@@ -1,0 +1,8 @@
+*.pyc
+*.db
+*.sqlite3
+__pycache__/
+Scrapper.py
+media/
+.idea/
+.DS_Store
