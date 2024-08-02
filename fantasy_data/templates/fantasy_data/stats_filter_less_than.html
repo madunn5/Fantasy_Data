@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stats Charts</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <!-- Hyperlinks for navigation -->
+    <ul class="nav">
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'stats_charts' %}">Stats Charts</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater Than</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'stats_charts_filter_less_than' %}">Stats Charts Filter Less Than</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
+        </li>
+    </ul>
+    <div class="container mt-5">
+        <h1 class="mb-4">Counts by Team by Point Category</h1>
+
+        <!-- Dropdown for selecting points category -->
+        <div class="form-group">
+            <label for="points_category">Select Points Category:</label>
+            <select class="form-control" id="points_category">
+                <option value="k_points">Kicker Points</option>
+                <option value="qb_points">Quarterback Points</option>
+                <option value="wr_points_total">Wide Receiver Points</option>
+                <option value="rb_points_total">Running Back Points</option>
+                <option value="te_points_total">Tight End Points</option>
+                <option value="def_points">Defense Points</option>
+                <!-- Add more options for other points categories -->
+            </select>
+        </div>
+
+        <!-- Filter input -->
+        <div class="form-group">
+            <label for="filter_value">Filter by Points Less Than or Equal:</label>
+            <input type="number" step="0.10" class="form-control" id="filter_value" placeholder="Enter filter value">
+        </div>
+
+        <!-- Apply Filter button -->
+        <button type="button" class="btn btn-primary" onclick="applyFilter()">Apply Filter</button>
+
+        <!-- Chart -->
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script>
+        // Function to initialize the chart
+        var ctx = document.getElementById('myChart').getContext('2d');
+        var myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Number of Times',
+                    data: [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Win Counts', // Add label for win counts dataset
+                    data: [], // Leave data empty for now
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)', // Choose a different color for visibility
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1 // Set the step size to 1
+                        }
+                    }
+                }
+            }
+        });
+
+        // Function to apply filter and update chart data
+        function applyFilter() {
+            var pointsCategory = $('#points_category').val();
+            var filterValue = parseFloat($('#filter_value').val());
+
+            $.ajax({
+                url: '/stats/filter/less_than/',
+                type: 'GET',
+                data: {
+                    'points_category': pointsCategory,
+                    'filter_value': filterValue,
+                    'ajax': true
+                },
+                success: function(response) {
+                    updateChart(response.labels, response.counts, response.winCounts); // Include winCounts in the updateChart function call
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error:', error);
+                }
+            });
+        }
+
+        // Function to update the chart with new data
+        function updateChart(labels, counts, winCounts) {
+            myChart.data.labels = labels;
+            myChart.data.datasets[0].data = counts;
+            myChart.data.datasets[1].data = winCounts; // Add win counts dataset
+            myChart.update();
+        }
+    </script>
+</body>
+</html>

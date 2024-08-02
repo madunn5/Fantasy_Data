@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Team Performance Charts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .chart-container {
+            text-align: center;
+            margin: 20px auto;
+        }
+        .chart-container img {
+            width: 80%;
+            max-width: 800px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+        .chart-container h2 {
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fantasy Team Performance Charts</h1>
+    <div>
+        <h2>Total Points Distribution</h2>
+        <img src="{{ MEDIA_URL }}media/charts/total_points_distribution.png" alt="Total Points Distribution">
+    </div>
+    <div>
+        <h2>Projected vs Actual Wins</h2>
+        <img src="{{ MEDIA_URL }}media/charts/projected_vs_actual_wins.png" alt="Projected vs Actual Wins">
+    </div>
+    <div>
+        <h2>Points Against Distribution</h2>
+        <img src="{{ MEDIA_URL }}media/charts/points_against_distribution.png" alt="Points Against Distribution">
+    </div>
+    <div>
+        <h2>Total Points by Result</h2>
+        <img src="{{ MEDIA_URL }}media/charts/total_points_by_result.png" alt="Total Points by Result">
+    </div>
+    <div>
+        <h2>Total WR Points by Result</h2>
+        <img src="{{ MEDIA_URL }}media/charts/total_wr_points_by_result.png" alt="Total WR Points by Result">
+    </div>
+    <div>
+        <h2>Total QB Points by Result</h2>
+        <img src="{{ MEDIA_URL }}media/charts/total_qb_points_by_result.png" alt="Total QB Points by Result">
+    </div>
+    <div>
+        <h2>Total RB Points by Result</h2>
+        <img src="{{ MEDIA_URL }}media/charts/total_rb_points_by_result.png" alt="Total RB Points by Result">
+    </div>
+    <div>
+        <h2>Total TE Points by Result</h2>
+        <img src="{{ MEDIA_URL }}media/charts/total_te_points_by_result.png" alt="Total TE Points by Result">
+    </div>
+</body>
+</html>

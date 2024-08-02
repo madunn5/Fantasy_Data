@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Team Performance</title>
+</head>
+<body>
+    <h1>Team Performance List</h1>
+    <ul>
+        {% for team in teams %}
+            <li><a href="{% url 'team_detail' team.id %}">{{ team.team_name }}</a></li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

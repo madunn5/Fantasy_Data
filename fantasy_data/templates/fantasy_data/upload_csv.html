@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload CSV</title>
+    <!-- Add Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Hyperlinks for navigation -->
+    <ul class="nav">
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'stats_charts' %}">Stats Charts</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater Than</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'stats_charts_filter_less_than' %}">Stats Charts Filter Less Than</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
+        </li>
+    </ul>
+
+    <!-- Display success messages -->
+    {% if messages %}
+        <div class="container mt-3">
+            {% for message in messages %}
+                <div class="alert alert-success" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <h1>Upload CSV File</h1>
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="file" accept=".csv">
+        <button type="submit" class="btn btn-primary">Upload</button>
+    </form>
+</body>
+</html>

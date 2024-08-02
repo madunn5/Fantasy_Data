@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stats Charts</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .table th, .table td {
+            text-align: center; /* Align content to the center */
+        }
+
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: #f5f5f5; /* Alternate row colors */
+        }
+    </style>
+</head>
+<body>
+        <!-- Hyperlinks for navigation -->
+        <ul class="nav">
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stats_charts' %}">Stats Charts</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater Than</a>
+            </li>
+            <li class="nav-item">
+            <a class="nav-link" href="{% url 'stats_charts_filter_less_than' %}">Stats Charts Filter Less Than</a>
+            </li>
+            <li class="nav-item">
+            <a class="nav-link" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
+            </li>
+        </ul>
+    <div class="container mt-5">
+        <h1 class="mb-4">Statistics</h1>
+
+        <h2>Average Differential</h2>
+        <div class="table-responsive" id="average_differential_table">
+            {{ average_differential_table|safe }}
+        </div>
+
+        <h2>Average by Team</h2>
+        <div class="table-responsive" id="average_by_team_table">
+            {{ average_by_team_table|safe }}
+        </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        function applyFilter() {
+            var filterValue = document.getElementById("filter_value").value;
+            console.log("Filter value: " + filterValue); // Check if value is retrieved correctly
+            // Perform AJAX request to update all charts based on filterValue
+            updateCharts(parseFloat(filterValue));
+        }
+
+        function updateCharts(filterValue) {
+            $.ajax({
+                url: '/stats/',
+                type: 'GET',
+                data: {
+                    'filter_value': filterValue
+                },
+                success: function(response) {
+                    // Update each chart section with the corresponding HTML content
+                    $('#average_differential_table').html(response.average_differential_table);
+                    $('#average_by_team_table').html(response.average_by_team_table);
+                    $('#kicker_more_than_table').html(response.kicker_more_than_table);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error:', error);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
