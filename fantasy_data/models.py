@@ -16,7 +16,7 @@ class TeamPerformance(models.Model):
     expected_total = models.FloatField()
     difference = models.FloatField()
     points_against = models.FloatField()
-    projected_wins = models.IntegerField(null=True, blank=True)
+    projected_wins = models.CharField(max_length=100, null=True, blank=True)
     actual_wins = models.IntegerField(null=True, blank=True)
     wins_diff = models.IntegerField(null=True, blank=True)
     result = models.CharField(max_length=100, null=True, blank=True)
