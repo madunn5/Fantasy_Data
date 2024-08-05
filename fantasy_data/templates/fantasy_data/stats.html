@@ -4,161 +4,274 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stats Charts</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- Add Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .table th, .table td {
-            text-align: center; /* Align content to the center */
+        /* Styling for top navigation */
+        .top-nav {
+            margin-bottom: 1rem; /* Space between nav and content */
         }
 
-        .table-striped tbody tr:nth-of-type(odd) {
-            background-color: #f5f5f5; /* Alternate row colors */
+        .top-nav .nav-link {
+            padding: .5rem 1rem; /* Adjust padding for better spacing */
+        }
+
+        .top-nav .nav-link.active {
+            font-weight: bold; /* Highlight active link */
+        }
+
+        .tab-content > .tab-pane {
+            padding: 1rem; /* Padding inside the tab content */
+        }
+
+        .card {
+            margin-bottom: 1rem; /* Space between cards */
         }
     </style>
 </head>
 <body>
-        <!-- Hyperlinks for navigation -->
-        <ul class="nav">
-            <li class="nav-item">
-                <a class="nav-link" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{% url 'stats_charts' %}">Stats Charts</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater Than</a>
-            </li>
-            <li class="nav-item">
+    <!-- Hyperlinks for navigation -->
+    <ul class="nav top-nav nav-pills">
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'stats_charts' %}">Stats Charts</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater Than</a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" href="{% url 'stats_charts_filter_less_than' %}">Stats Charts Filter Less Than</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
+        </li>
+    </ul>
+
+    <div class="container mt-4">
+        <h1 class="mb-4 text-center">Statistics</h1>
+
+        <!-- Tabs navigation -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="average-differential-tab" data-toggle="tab" href="#average-differential" role="tab" aria-controls="average-differential" aria-selected="true">Average Differential</a>
             </li>
             <li class="nav-item">
-            <a class="nav-link" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
+                <a class="nav-link" id="average-by-team-tab" data-toggle="tab" href="#average-by-team" role="tab" aria-controls="average-by-team" aria-selected="false">Average by Team</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="wins-tab" data-toggle="tab" href="#wins" role="tab" aria-controls="wins" aria-selected="false">Wins by Team</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="max-points-by-team-tab" data-toggle="tab" href="#max-points-by-team" role="tab" aria-controls="max-points-by-team" aria-selected="false">Max Points by Team</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="best-possible-tab" data-toggle="tab" href="#best-possible" role="tab" aria-controls="best-possible" aria-selected="false">Best Possible Score by Team</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="worst-possible-tab" data-toggle="tab" href="#worst-possible" role="tab" aria-controls="worst-possible" aria-selected="false">Worst Possible Score by Team</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="avg-points-week-tab" data-toggle="tab" href="#avg-points-week" role="tab" aria-controls="avg-points-week" aria-selected="false">Average Points by Team</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="median-possible-tab" data-toggle="tab" href="#median-possible" role="tab" aria-controls="median-possible" aria-selected="false">Median Possible Score by Team</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="average-by-team-win-loss-tab" data-toggle="tab" href="#average-by-team-win-loss" role="tab" aria-controls="average-by-team-win-loss" aria-selected="false">Average of Win and Loss by Team</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="median-margin-tab" data-toggle="tab" href="#median-margin" role="tab" aria-controls="median-margin" aria-selected="false">Median Winning/Losing Margin</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="median-points-tab" data-toggle="tab" href="#median-points" role="tab" aria-controls="median-points" aria-selected="false">Median Points For/Against</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="max-points-single-game-tab" data-toggle="tab" href="#max-points-single-game" role="tab" aria-controls="max-points-single-game" aria-selected="false">Max Points Scored in A Single Game</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="max-qb-points-tab" data-toggle="tab" href="#max-qb-points" role="tab" aria-controls="max-qb-points" aria-selected="false">Max Points Scored in A Single Game by QB</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="max-wr-points-tab" data-toggle="tab" href="#max-wr-points" role="tab" aria-controls="max-wr-points" aria-selected="false">Max Points Scored in A Single Game by WR</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="max-rb-points-tab" data-toggle="tab" href="#max-rb-points" role="tab" aria-controls="max-rb-points" aria-selected="false">Max Points Scored in A Single Game by RB</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="max-te-points-tab" data-toggle="tab" href="#max-te-points" role="tab" aria-controls="max-te-points" aria-selected="false">Max Points Scored in A Single Game by TE</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="max-k-points-tab" data-toggle="tab" href="#max-k-points" role="tab" aria-controls="max-k-points" aria-selected="false">Max Points Scored in A Single Game by K</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="max-def-points-tab" data-toggle="tab" href="#max-def-points" role="tab" aria-controls="max-def-points" aria-selected="false">Max Points Scored in A Single Game by DEF</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="min-points-single-game-tab" data-toggle="tab" href="#min-points-single-game" role="tab" aria-controls="min-points-single-game" aria-selected="false">Min Points Scored in A Single Game</a>
             </li>
         </ul>
-    <div class="container mt-5">
-        <h1 class="mb-4">Statistics</h1>
 
-        <h2>Average Differential</h2>
-        <div class="table-responsive" id="average_differential_table">
-            {{ average_differential_table|safe }}
+        <div class="tab-content mt-3">
+            <div class="tab-pane fade show active" id="average-differential" role="tabpanel" aria-labelledby="average-differential-tab">
+                <div class="card">
+                    <div class="card-header">Average Differential</div>
+                    <div class="card-body table-responsive" id="average_differential_table">
+                        {{ average_differential_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="average-by-team" role="tabpanel" aria-labelledby="average-by-team-tab">
+                <div class="card">
+                    <div class="card-header">Average by Team</div>
+                    <div class="card-body table-responsive" id="average_by_team_table">
+                        {{ average_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="wins" role="tabpanel" aria-labelledby="wins-tab">
+                <div class="card">
+                    <div class="card-header">Wins by Team</div>
+                    <div class="card-body table-responsive" id="wins_table">
+                        {{ wins_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="max-points-by-team" role="tabpanel" aria-labelledby="max-points-by-team-tab">
+                <div class="card">
+                    <div class="card-header">Max Points by Team</div>
+                    <div class="card-body table-responsive" id="max_points_table">
+                        {{ max_points_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="best-possible" role="tabpanel" aria-labelledby="best-possible-tab">
+                <div class="card">
+                    <div class="card-header">Best Possible Score by Team</div>
+                    <div class="card-body table-responsive" id="best_possible_table">
+                        {{ best_possible_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="worst-possible" role="tabpanel" aria-labelledby="worst-possible-tab">
+                <div class="card">
+                    <div class="card-header">Worst Possible Score by Team</div>
+                    <div class="card-body table-responsive" id="worst_possible_table">
+                        {{ worst_possible_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="avg-points-week" role="tabpanel" aria-labelledby="avg-points-week-tab">
+                <div class="card">
+                    <div class="card-header">Average Points by Team</div>
+                    <div class="card-body table-responsive" id="avg_points_week_table">
+                        {{ avg_points_week_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="median-possible" role="tabpanel" aria-labelledby="median-possible-tab">
+                <div class="card">
+                    <div class="card-header">Median Possible Score by Team</div>
+                    <div class="card-body table-responsive" id="median_possible_table">
+                        {{ median_possible_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="average-by-team-win-loss" role="tabpanel" aria-labelledby="average-by-team-win-loss-tab">
+                <div class="card">
+                    <div class="card-header">Average of Win and Loss by Team</div>
+                    <div class="card-body table-responsive" id="average_by_team_table_win_and_loss">
+                        {{ average_by_team_table_win_and_loss|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="median-margin" role="tabpanel" aria-labelledby="median-margin-tab">
+                <div class="card">
+                    <div class="card-header">Median Winning/Losing Margin</div>
+                    <div class="card-body table-responsive" id="median_by_team_result_table">
+                        {{ median_by_team_result_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="median-points" role="tabpanel" aria-labelledby="median-points-tab">
+                <div class="card">
+                    <div class="card-header">Median Points For/Against</div>
+                    <div class="card-body table-responsive" id="median_by_team_table">
+                        {{ median_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="max-points-single-game" role="tabpanel" aria-labelledby="max-points-single-game-tab">
+                <div class="card">
+                    <div class="card-header">Max Points Scored in A Single Game</div>
+                    <div class="card-body table-responsive" id="max_points_by_team_table">
+                        {{ max_points_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="max-qb-points" role="tabpanel" aria-labelledby="max-qb-points-tab">
+                <div class="card">
+                    <div class="card-header">Max Points Scored in A Single Game by QB</div>
+                    <div class="card-body table-responsive" id="max_qb_points_by_team_table">
+                        {{ max_qb_points_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="max-wr-points" role="tabpanel" aria-labelledby="max-wr-points-tab">
+                <div class="card">
+                    <div class="card-header">Max Points Scored in A Single Game by WR</div>
+                    <div class="card-body table-responsive" id="max_wr_points_by_team_table">
+                        {{ max_wr_points_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="max-rb-points" role="tabpanel" aria-labelledby="max-rb-points-tab">
+                <div class="card">
+                    <div class="card-header">Max Points Scored in A Single Game by RB</div>
+                    <div class="card-body table-responsive" id="max_rb_points_by_team_table">
+                        {{ max_rb_points_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="max-te-points" role="tabpanel" aria-labelledby="max-te-points-tab">
+                <div class="card">
+                    <div class="card-header">Max Points Scored in A Single Game by TE</div>
+                    <div class="card-body table-responsive" id="max_te_points_by_team_table">
+                        {{ max_te_points_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="max-k-points" role="tabpanel" aria-labelledby="max-k-points-tab">
+                <div class="card">
+                    <div class="card-header">Max Points Scored in A Single Game by K</div>
+                    <div class="card-body table-responsive" id="max_k_points_by_team_table">
+                        {{ max_k_points_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="max-def-points" role="tabpanel" aria-labelledby="max-def-points-tab">
+                <div class="card">
+                    <div class="card-header">Max Points Scored in A Single Game by DEF</div>
+                    <div class="card-body table-responsive" id="max_def_points_by_team_table">
+                        {{ max_def_points_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="min-points-single-game" role="tabpanel" aria-labelledby="min-points-single-game-tab">
+                <div class="card">
+                    <div class="card-header">Min Points Scored in A Single Game</div>
+                    <div class="card-body table-responsive" id="min_points_by_team_table">
+                        {{ min_points_by_team_table|safe }}
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <h2>Average by Team</h2>
-        <div class="table-responsive" id="average_by_team_table">
-            {{ average_by_team_table|safe }}
-        </div>
-
-        <h2>Wins by Team</h2>
-        <div class="table-responsive" id="wins_table">
-            {{ wins_table|safe }}
-        </div>
-
-        <h2>Max Points by Team</h2>
-        <div class="table-responsive" id="max_points_table">
-            {{ max_points_table|safe }}
-        </div>
-
-        <h2>Best Possible Score by Team</h2>
-        <div class="table-responsive" id="best_possible_table">
-            {{ best_possible_table|safe }}
-        </div>
-
-        <h2>Worst Possible Score by Team</h2>
-        <div class="table-responsive" id="worst_possible_table">
-            {{ worst_possible_table|safe }}
-        </div>
-
-        <h2>Average Points by Team</h2>
-        <div class="table-responsive" id="avg_points_week_table">
-            {{ avg_points_week_table|safe }}
-        </div>
-
-        <h2>Median Possible Score by Team</h2>
-        <div class="table-responsive" id="median_possible_table">
-            {{ median_possible_table|safe }}
-        </div>
-
-        <h2>Average of Win and Loss by Team</h2>
-        <div class="table-responsive" id="average_by_team_table_win_and_loss">
-            {{ average_by_team_table_win_and_loss|safe }}
-        </div>
-
-        <h2>Median Winning/Losing Margin</h2>
-        <div class="table-responsive" id="median_by_team_result_table">
-            {{ median_by_team_result_table|safe }}
-        </div>
-
-        <h2>Median Points For/Against</h2>
-        <div class="table-responsive" id="median_by_team_table">
-            {{ median_by_team_table|safe }}
-        </div>
-
-        <h2>Max Points Scored in A Single Game</h2>
-        <div class="table-responsive" id="max_points_by_team_table">
-            {{ max_points_by_team_table|safe }}
-        </div>
-
-        <h2>Max Points Scored in A Single Game by QB</h2>
-        <div class="table-responsive" id="max_qb_points_by_team_table">
-            {{ max_qb_points_by_team_table|safe }}
-        </div>
-
-        <h2>Max Points Scored in A Single Game by WR</h2>
-        <div class="table-responsive" id="max_wr_points_by_team_table">
-            {{ max_wr_points_by_team_table|safe }}
-        </div>
-
-        <h2>Max Points Scored in A Single Game by RB</h2>
-        <div class="table-responsive" id="max_rb_points_by_team_table">
-            {{ max_rb_points_by_team_table|safe }}
-        </div>
-
-        <h2>Max Points Scored in A Single Game by TE</h2>
-        <div class="table-responsive" id="max_te_points_by_team_table">
-            {{ max_te_points_by_team_table|safe }}
-        </div>
-
-        <h2>Max Points Scored in A Single Game by K</h2>
-        <div class="table-responsive" id="max_k_points_by_team_table">
-            {{ max_k_points_by_team_table|safe }}
-        </div>
-
-        <h2>Max Points Scored in A Single Game by DEF</h2>
-        <div class="table-responsive" id="max_def_points_by_team_table">
-            {{ max_def_points_by_team_table|safe }}
-        </div>
-
-        <h2>Min Points Scored in A Single Game</h2>
-        <div class="table-responsive" id="min_points_by_team_table">
-            {{ min_points_by_team_table|safe }}
-        </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script>
-        function applyFilter() {
-            var filterValue = document.getElementById("filter_value").value;
-            console.log("Filter value: " + filterValue); // Check if value is retrieved correctly
-            // Perform AJAX request to update all charts based on filterValue
-            updateCharts(parseFloat(filterValue));
-        }
-
-        function updateCharts(filterValue) {
-            $.ajax({
-                url: '/stats/',
-                type: 'GET',
-                data: {
-                    'filter_value': filterValue
-                },
-                success: function(response) {
-                    // Update each chart section with the corresponding HTML content
-                    $('#average_differential_table').html(response.average_differential_table);
-                    $('#average_by_team_table').html(response.average_by_team_table);
-                    $('#kicker_more_than_table').html(response.kicker_more_than_table);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error:', error);
-                }
-            });
-        }
-    </script>
+    <!-- Add Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
