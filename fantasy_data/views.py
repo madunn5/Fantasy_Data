@@ -1003,7 +1003,6 @@ def train_model():
     return model, label_encoder_team, label_encoder_opponent, label_encoder_result
 
 
-
 def versus(request):
     teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct()
     team1 = request.GET.get('team1', None)
@@ -1040,12 +1039,13 @@ def versus(request):
         return render(request, 'fantasy_data/versus.html',
                       {'teams': teams, 'error': f"Team '{team2}' not found in training data."})
 
-    df['team_name'] = label_encoder_team.transform(df['team_name'].astype(str))
-    df['opponent'] = label_encoder_opponent.transform(df['opponent'].astype(str))
+    df['team_name'] = df['team_name'].astype(str)  # Keep team names as strings
+
+    df['team_name_encoded'] = label_encoder_team.transform(df['team_name'])
 
     # Prepare the feature vectors for the teams
-    df_team1 = df[df['team_name'] == label_encoder_team.transform([team1])[0]].mean(numeric_only=True)
-    df_team2 = df[df['team_name'] == label_encoder_team.transform([team2])[0]].mean(numeric_only=True)
+    df_team1 = df[df['team_name'] == team1].mean(numeric_only=True)
+    df_team2 = df[df['team_name'] == team2].mean(numeric_only=True)
 
     X_team1 = pd.DataFrame([df_team1[numeric_columns].values], columns=numeric_columns)
     X_team2 = pd.DataFrame([df_team2[numeric_columns].values], columns=numeric_columns)
