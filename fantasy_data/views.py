@@ -62,7 +62,7 @@ def upload_csv(request):
                     'expected_total': row['Expected Total'],
                     'difference': row['Difference'],
                     'points_against': row['Points Against'],
-                    'projected_wins': row.get('Projected Wins', 0),
+                    'projected_wins': row['Projected Result'],
                     'actual_wins': row.get('Actual Wins', 0),
                     'wins_diff': row.get('Wins Over/(Wins Below)', 0),
                     'result': row.get('Result', 'N/A'),
@@ -600,7 +600,9 @@ def stats_charts(request):
         print("No data retrieved from TeamPerformance model.")
         context = {
             'average_differential_table': "<p>No data available for average differential.</p>",
-            'average_by_team_table': "<p>No data available for average by team.</p>"
+            'average_by_team_table': "<p>No data available for average by team.</p>",
+            'wins_table': "<p>No data available for wins above/below projected wins.</p>",
+            'max_points_table': "<p>No data available for max points scored in a single game.</p>"
         }
         return render(request, 'fantasy_data/stats.html', context)
 
@@ -618,7 +620,7 @@ def stats_charts(request):
     else:
         average_differential_table = "<p>Columns 'team_name' or 'difference' not found in data.</p>"
 
-    # Compute average by team
+    # Compute average points for and against by team
     if 'team_name' in data.columns and 'total_points' in data.columns and 'points_against' in data.columns:
         data_avg_by_team = data[['team_name', 'total_points', 'points_against']]
         data_avg_by_team = data_avg_by_team.groupby('team_name').mean()
@@ -629,12 +631,252 @@ def stats_charts(request):
     else:
         average_by_team_table = "<p>Columns 'team_name', 'total_points', or 'points_against' not found in data.</p>"
 
+    # Wins Above/Below Projected Wins
+    if 'team_name' in data.columns and 'projected_wins' in data.columns and 'result' in data.columns:
+        data_wins = data[['team_name', 'projected_wins', 'result']]
+        data_wins = data_wins.groupby('team_name').agg(
+            projected_result_count=('projected_wins', lambda x: (x == 'W').sum()),
+            result_count=('result', lambda x: (x == 'W').sum())
+        ).reset_index()
+
+        # Rename columns for clarity
+        data_wins.columns = ['team_name', 'projected_result_count', 'result_count']
+        data_wins['Wins Over/(Wins Below)'] = data_wins['result_count'] - data_wins['projected_result_count']
+        data_wins = data_wins.sort_values(by=['Wins Over/(Wins Below)'], ascending=False).reset_index()
+        del data_wins['index']
+        wins_table = data_wins.to_html(classes='table table-striped', index=False)
+    else:
+        wins_table = "<p>Columns 'team_name', 'projected_result_count', or 'result_count' not found in data.</p>"
+
+    # Max Points Scored in a Single Game
+    if 'team_name' in data.columns and 'total_points' in data.columns:
+        data_avg_by_team = data[['team_name', 'week', 'total_points', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['total_points'].idxmax()
+        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'total_points', 'result', 'opponent']]
+        result = result.sort_values(by=['total_points'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        max_points_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        max_points_table = ("<p>Columns 'team_name', 'week', 'total_points', 'result', or 'opponent' not found in "
+                            "data.</p>")
+
+    # Best Possible Score to Date
+    if all(col in data.columns for col in
+           ['team_name', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points',
+            'def_points']):
+        data_best_possible = data[
+            ['team_name', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points',
+             'def_points']]
+        data_best_possible = data_best_possible.groupby('team_name').max()
+        data_best_possible['Total'] = (data_best_possible['qb_points'] + data_best_possible['wr_points_total'] +
+                                       data_best_possible['rb_points_total'] + data_best_possible['te_points_total'] +
+                                       data_best_possible['k_points'] + data_best_possible['def_points'])
+        data_best_possible = data_best_possible.sort_values(by=['Total'], ascending=False).reset_index()
+        data_best_possible.index = data_best_possible.index + 1
+        best_possible_table = data_best_possible.to_html(classes='table table-striped', index=False)
+    else:
+        best_possible_table = "<p>Necessary columns not found in data.</p>"
+
+    # Worst Possible Score to Date
+    if all(col in data.columns for col in
+           ['team_name', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points',
+            'def_points']):
+        data_worst_possible = data[
+            ['team_name', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points',
+             'def_points']]
+        data_worst_possible = data_worst_possible.groupby('team_name').min()
+        data_worst_possible['Total'] = (data_worst_possible['qb_points'] + data_worst_possible['wr_points_total'] +
+                                        data_worst_possible['rb_points_total'] + data_worst_possible[
+                                            'te_points_total'] +
+                                        data_worst_possible['k_points'] + data_worst_possible['def_points'])
+        data_worst_possible = data_worst_possible.sort_values(by=['Total'], ascending=False).reset_index()
+        data_worst_possible.index = data_worst_possible.index + 1
+        worst_possible_table = data_worst_possible.to_html(classes='table table-striped', index=False)
+    else:
+        worst_possible_table = "<p>Necessary columns not found in data.</p>"
+
+    # Median Possible Score to Date
+    if all(col in data.columns for col in
+           ['team_name', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points',
+            'def_points']):
+        data_avg_possible = data[
+            ['team_name', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points',
+             'def_points']]
+        data_avg_possible = data_avg_possible.groupby('team_name').median()
+        data_avg_possible['Total'] = (data_avg_possible['qb_points'] + data_avg_possible['wr_points_total'] +
+                                      data_avg_possible['rb_points_total'] + data_avg_possible[
+                                          'te_points_total'] + data_avg_possible['k_points'] + data_avg_possible['def_points'])
+        data_avg_possible = data_avg_possible.sort_values(by=['Total'], ascending=False).reset_index()
+        data_avg_possible.index = data_avg_possible.index + 1
+        median_possible_table = data_avg_possible.to_html(classes='table table-striped', index=False)
+    else:
+        median_possible_table = "<p>Necessary columns not found in data.</p>"
+
+    # Average Points per Week
+    if all(col in data.columns for col in
+           ['team_name', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points',
+            'def_points']):
+        data_avg_possible = data[
+            ['team_name', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points',
+             'def_points']]
+        data_avg_possible = data_avg_possible.groupby('team_name').mean()
+        data_avg_possible['Total'] = (data_avg_possible['qb_points'] + data_avg_possible['wr_points_total'] +
+                                      data_avg_possible['rb_points_total'] + data_avg_possible[
+                                          'te_points_total'] + data_avg_possible['k_points'] + data_avg_possible[
+                                          'def_points'])
+        data_avg_possible = data_avg_possible.sort_values(by=['Total'], ascending=False).reset_index()
+        data_avg_possible.index = data_avg_possible.index + 1
+        avg_points_week_table = data_avg_possible.to_html(classes='table table-striped', index=False)
+    else:
+        avg_points_week_table = "<p>Necessary columns not found in data.</p>"
+
+    # Compute average points for and against by team, grouped by result
+    if all(col in data.columns for col in ['team_name', 'total_points', 'points_against', 'result']):
+        data_avg_by_team = data[['team_name', 'total_points', 'points_against', 'result']]
+        data_avg_by_team = data_avg_by_team.groupby(['team_name', 'result']).mean()
+        data_avg_by_team = data_avg_by_team.sort_values(by=['total_points'], ascending=False).reset_index()
+        data_avg_by_team['Diff'] = data_avg_by_team['total_points'] - data_avg_by_team['points_against']
+        data_avg_by_team.index = data_avg_by_team.index + 1
+        average_by_team_table_win_and_loss = data_avg_by_team.to_html(classes='table table-striped', index=False)
+    else:
+        average_by_team_table_win_and_loss = "<p>Necessary columns not found in data.</p>"
+
+    # Median points for and against by team, grouped by result
+    if all(col in data.columns for col in ['team_name', 'total_points', 'points_against', 'result']):
+        data_avg_by_team = data[['team_name', 'total_points', 'points_against', 'result']]
+        data_avg_by_team = data_avg_by_team.groupby(['team_name', 'result']).median()
+        data_avg_by_team = data_avg_by_team.sort_values(by=['total_points'], ascending=False).reset_index()
+        data_avg_by_team['Diff'] = data_avg_by_team['total_points'] - data_avg_by_team['points_against']
+        data_avg_by_team.index = data_avg_by_team.index + 1
+        median_by_team_result_table = data_avg_by_team.to_html(classes='table table-striped', index=False)
+    else:
+        median_by_team_result_table = "<p>Necessary columns not found in data.</p>"
+
+    # Median points for and against by team
+    if all(col in data.columns for col in ['team_name', 'total_points', 'points_against']):
+        data_avg_by_team = data[['team_name', 'total_points', 'points_against']]
+        data_avg_by_team = data_avg_by_team.groupby('team_name').median()
+        data_avg_by_team = data_avg_by_team.sort_values(by=['total_points'], ascending=False).reset_index()
+        data_avg_by_team['Diff'] = data_avg_by_team['total_points'] - data_avg_by_team['points_against']
+        data_avg_by_team.index = data_avg_by_team.index + 1
+        median_by_team_table = data_avg_by_team.to_html(classes='table table-striped', index=False)
+    else:
+        median_by_team_table = "<p>Necessary columns not found in data.</p>"
+
+    # Max points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'total_points', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['total_points'].idxmax()
+        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'total_points', 'result', 'opponent']]
+        result = result.sort_values(by=['total_points'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        max_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        max_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
+    # Max QB points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'qb_points', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'qb_points', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['qb_points'].idxmax()
+        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'qb_points', 'result', 'opponent']]
+        result = result.sort_values(by=['qb_points'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        max_qb_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        max_qb_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
+    # Max WR points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'wr_points_total', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'wr_points_total', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['wr_points_total'].idxmax()
+        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'wr_points_total', 'result', 'opponent']]
+        result = result.sort_values(by=['wr_points_total'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        max_wr_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        max_wr_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
+    # Max RB points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'rb_points_total', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'rb_points_total', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['rb_points_total'].idxmax()
+        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'rb_points_total', 'result', 'opponent']]
+        result = result.sort_values(by=['rb_points_total'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        max_rb_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        max_rb_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
+    # Max TE points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'te_points_total', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'te_points_total', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['te_points_total'].idxmax()
+        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'te_points_total', 'result', 'opponent']]
+        result = result.sort_values(by=['te_points_total'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        max_te_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        max_te_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
+    # Max K points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'k_points', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'k_points', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['k_points'].idxmax()
+        result = data_avg_by_team.loc[
+            max_total_rows, ['team_name', 'week', 'k_points', 'result', 'opponent']]
+        result = result.sort_values(by=['k_points'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        max_k_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        max_k_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
+    # Max DEF points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'def_points', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'def_points', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['def_points'].idxmax()
+        result = data_avg_by_team.loc[
+            max_total_rows, ['team_name', 'week', 'def_points', 'result', 'opponent']]
+        result = result.sort_values(by=['def_points'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        max_def_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        max_def_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
+    # Min points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'total_points', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['total_points'].idxmin()
+        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'total_points', 'result', 'opponent']]
+        result = result.sort_values(by=['total_points'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        min_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        min_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
     # Prepare context with the HTML tables
     context = {
         'average_differential_table': average_differential_table,
-        'average_by_team_table': average_by_team_table
+        'average_by_team_table': average_by_team_table,
+        'wins_table': wins_table,
+        'max_points_table': max_points_table,
+        'best_possible_table': best_possible_table,
+        'worst_possible_table': worst_possible_table,
+        'median_possible_table': median_possible_table,
+        'avg_points_week_table': avg_points_week_table,
+        'average_by_team_table_win_and_loss': average_by_team_table_win_and_loss,
+        'median_by_team_result_table': median_by_team_result_table,
+        'median_by_team_table': median_by_team_table,
+        'max_points_by_team_table': max_points_by_team_table,
+        'max_qb_points_by_team_table': max_qb_points_by_team_table,
+        'max_wr_points_by_team_table': max_wr_points_by_team_table,
+        'max_rb_points_by_team_table': max_rb_points_by_team_table,
+        'max_te_points_by_team_table': max_te_points_by_team_table,
+        'max_k_points_by_team_table': max_k_points_by_team_table,
+        'max_def_points_by_team_table': max_def_points_by_team_table,
+        'min_points_by_team_table': min_points_by_team_table,
     }
 
+    # Render the HTML content using the context
     html_content = render_to_string('fantasy_data/stats.html', context)
     return HttpResponse(html_content)
 
