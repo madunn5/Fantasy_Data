@@ -957,22 +957,40 @@ def prepare_data():
     team_performance = TeamPerformance.objects.all()
     df = pd.DataFrame(list(team_performance.values()))
 
-    label_encoder = LabelEncoder()
-    df['result'] = label_encoder.fit_transform(df['result'].astype(str))
-    df['team_name'] = label_encoder.fit_transform(df['team_name'].astype(str))
-    df['opponent'] = label_encoder.fit_transform(df['opponent'].astype(str))
+    # Drop rows with missing values in key columns
+    df = df.dropna(subset=[
+        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
+        'k_points', 'def_points', 'total_points', 'result'
+    ])
 
-    df = df.dropna()
+    # Ensure numerical columns are in numeric format
+    numeric_columns = [
+        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
+        'k_points', 'def_points', 'total_points'
+    ]
+    for column in numeric_columns:
+        df[column] = pd.to_numeric(df[column], errors='coerce')
 
-    X = df[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
-            'points_against']]
-    y = df['result']
+    df = df.dropna(subset=numeric_columns)  # Drop rows with NaNs in numeric columns
 
-    return X, y, label_encoder
+    # Encode categorical columns
+    label_encoder_team = LabelEncoder()
+    df['team_name'] = label_encoder_team.fit_transform(df['team_name'].astype(str))
+    label_encoder_opponent = LabelEncoder()
+    df['opponent'] = label_encoder_opponent.fit_transform(df['opponent'].astype(str))
+    label_encoder_result = LabelEncoder()
+    df['result'] = label_encoder_result.fit_transform(df['result'].astype(str))
+
+    return df, label_encoder_team, label_encoder_opponent, label_encoder_result
 
 
 def train_model():
-    X, y, label_encoder = prepare_data()
+    df, label_encoder_team, label_encoder_opponent, label_encoder_result = prepare_data()
+
+    X = df[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
+            'total_points']]
+    y = df['result']
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
     model = LogisticRegression()
@@ -982,7 +1000,8 @@ def train_model():
     accuracy = accuracy_score(y_test, y_pred)
     print(f"Model Accuracy: {accuracy:.2f}")
 
-    return model, label_encoder
+    return model, label_encoder_team, label_encoder_opponent, label_encoder_result
+
 
 
 def versus(request):
@@ -994,72 +1013,113 @@ def versus(request):
         return render(request, 'fantasy_data/versus.html', {'teams': teams})
 
     # Load and prepare data for prediction
-    model, label_encoder = train_model()
+    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model()
 
     team_performance = TeamPerformance.objects.filter(team_name__in=[team1, team2])
     df = pd.DataFrame(list(team_performance.values()))
-    df_sorted = df.sort_values(by=['week'])
 
-    df_team1 = df_sorted[df_sorted['team_name'] == team1]
-    df_team2 = df_sorted[df_sorted['team_name'] == team2]
+    # Drop rows with missing values and ensure numeric columns are cleaned
+    df = df.dropna(subset=[
+        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
+        'k_points', 'def_points', 'total_points'
+    ])
+    numeric_columns = [
+        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
+        'k_points', 'def_points', 'total_points'
+    ]
+    for column in numeric_columns:
+        df[column] = pd.to_numeric(df[column], errors='coerce')
 
-    X_team1 = df_team1[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
-                        'points_against']]
-    X_team2 = df_team2[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
-                        'points_against']]
+    df = df.dropna(subset=numeric_columns)  # Drop rows with NaNs in numeric columns
 
-    prediction_team1 = model.predict(X_team1)
-    print(prediction_team1.mean())
-    prediction_team2 = model.predict(X_team2)
-    print(prediction_team2.mean())
+    # Encode categorical columns
+    if team1 not in label_encoder_team.classes_:
+        return render(request, 'fantasy_data/versus.html',
+                      {'teams': teams, 'error': f"Team '{team1}' not found in training data."})
+    if team2 not in label_encoder_team.classes_:
+        return render(request, 'fantasy_data/versus.html',
+                      {'teams': teams, 'error': f"Team '{team2}' not found in training data."})
 
-    prediction_text_team1 = "Win" if prediction_team1.mean() > prediction_team2.mean() else "Lose"
-    prediction_text_team2 = "Win" if prediction_team2.mean() > prediction_team1.mean() else "Lose"
+    df['team_name'] = label_encoder_team.transform(df['team_name'].astype(str))
+    df['opponent'] = label_encoder_opponent.transform(df['opponent'].astype(str))
 
-    if prediction_text_team1 == 'Win':
-        prediction = f"{team1} is projected to win this match up."
+    # Prepare the feature vectors for the teams
+    df_team1 = df[df['team_name'] == label_encoder_team.transform([team1])[0]].mean(numeric_only=True)
+    df_team2 = df[df['team_name'] == label_encoder_team.transform([team2])[0]].mean(numeric_only=True)
+
+    X_team1 = pd.DataFrame([df_team1[numeric_columns].values], columns=numeric_columns)
+    X_team2 = pd.DataFrame([df_team2[numeric_columns].values], columns=numeric_columns)
+
+    # Debugging: Print feature vectors
+    print("Feature Vector for Team 1:")
+    print(X_team1)
+    print("Feature Vector for Team 2:")
+    print(X_team2)
+
+    # Predict the probability of winning for each team
+    prob_team1 = model.predict_proba(X_team1)[:, 1].mean()
+    prob_team2 = model.predict_proba(X_team2)[:, 1].mean()
+
+    # Debugging: Print probabilities
+    print(f"Probability Team 1 Wins: {prob_team1:.2%}")
+    print(f"Probability Team 2 Wins: {prob_team2:.2%}")
+
+    # Generate prediction messages
+    if prob_team1 > prob_team2:
+        prediction = (
+            f"{team1} is more likely to win with a probability of {prob_team1:.2%}. "
+            f"{team2} has a probability of {prob_team2:.2%} to win."
+        )
+    elif prob_team1 < prob_team2:
+        prediction = (
+            f"{team2} is more likely to win with a probability of {prob_team2:.2%}. "
+            f"{team1} has a probability of {prob_team1:.2%} to win."
+        )
     else:
-        prediction = f"{team2} is projected to win this match up."
+        prediction = (
+            "It's too close to call! Both teams have similar chances with "
+            f"{team1} at {prob_team1:.2%} and {team2} at {prob_team2:.2%}."
+        )
 
     # Create comparison charts
     fig_total_points = px.box(
-        df_sorted, x='team_name', y='total_points', color='team_name',
+        df, x='team_name', y='total_points', color='team_name',
         title=f'Total Points Comparison: {team1} vs {team2}'
     )
     chart_total_points = fig_total_points.to_html(full_html=False)
 
     fig_wr_points = px.box(
-        df_sorted, x='team_name', y='wr_points', color='team_name',
+        df, x='team_name', y='wr_points', color='team_name',
         title=f'WR Points Comparison: {team1} vs {team2}'
     )
     chart_wr_points = fig_wr_points.to_html(full_html=False)
 
     fig_qb_points = px.box(
-        df_sorted, x='team_name', y='qb_points', color='team_name',
+        df, x='team_name', y='qb_points', color='team_name',
         title=f'QB Points Comparison: {team1} vs {team2}'
     )
     chart_qb_points = fig_qb_points.to_html(full_html=False)
 
     fig_rb_points = px.box(
-        df_sorted, x='team_name', y='rb_points', color='team_name',
+        df, x='team_name', y='rb_points', color='team_name',
         title=f'RB Points Comparison: {team1} vs {team2}'
     )
     chart_rb_points = fig_rb_points.to_html(full_html=False)
 
     fig_te_points = px.box(
-        df_sorted, x='team_name', y='te_points', color='team_name',
+        df, x='team_name', y='te_points', color='team_name',
         title=f'TE Points Comparison: {team1} vs {team2}'
     )
     chart_te_points = fig_te_points.to_html(full_html=False)
 
     fig_k_points = px.box(
-        df_sorted, x='team_name', y='k_points', color='team_name',
+        df, x='team_name', y='k_points', color='team_name',
         title=f'K Points Comparison: {team1} vs {team2}'
     )
     chart_k_points = fig_k_points.to_html(full_html=False)
 
     fig_def_points = px.box(
-        df_sorted, x='team_name', y='def_points', color='team_name',
+        df, x='team_name', y='def_points', color='team_name',
         title=f'DEF Points Comparison: {team1} vs {team2}'
     )
     chart_def_points = fig_def_points.to_html(full_html=False)
@@ -1075,9 +1135,7 @@ def versus(request):
         'chart_te_points': chart_te_points,
         'chart_k_points': chart_k_points,
         'chart_def_points': chart_def_points,
-        'prediction_team1': prediction_text_team1,
-        'prediction_team2': prediction_text_team2,
-        'prediction': prediction,
+        'prediction': prediction
     }
 
     return render(request, 'fantasy_data/versus.html', context)
