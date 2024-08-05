@@ -19,6 +19,11 @@ from django.shortcuts import redirect
 from django.contrib import messages
 import logging
 
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -705,7 +710,8 @@ def stats_charts(request):
         data_avg_possible = data_avg_possible.groupby('team_name').median()
         data_avg_possible['Total'] = (data_avg_possible['qb_points'] + data_avg_possible['wr_points_total'] +
                                       data_avg_possible['rb_points_total'] + data_avg_possible[
-                                          'te_points_total'] + data_avg_possible['k_points'] + data_avg_possible['def_points'])
+                                          'te_points_total'] + data_avg_possible['k_points'] + data_avg_possible[
+                                          'def_points'])
         data_avg_possible = data_avg_possible.sort_values(by=['Total'], ascending=False).reset_index()
         data_avg_possible.index = data_avg_possible.index + 1
         median_possible_table = data_avg_possible.to_html(classes='table table-striped', index=False)
@@ -945,3 +951,133 @@ def stats_charts_filter_less_than(request):
     else:
         context = {'labels': labels, 'counts': counts, 'winCounts': win_counts}
         return render(request, 'fantasy_data/stats_filter_less_than.html', context)
+
+
+def prepare_data():
+    team_performance = TeamPerformance.objects.all()
+    df = pd.DataFrame(list(team_performance.values()))
+
+    label_encoder = LabelEncoder()
+    df['result'] = label_encoder.fit_transform(df['result'].astype(str))
+    df['team_name'] = label_encoder.fit_transform(df['team_name'].astype(str))
+    df['opponent'] = label_encoder.fit_transform(df['opponent'].astype(str))
+
+    df = df.dropna()
+
+    X = df[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
+            'points_against']]
+    y = df['result']
+
+    return X, y, label_encoder
+
+
+def train_model():
+    X, y, label_encoder = prepare_data()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    model = LogisticRegression()
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f"Model Accuracy: {accuracy:.2f}")
+
+    return model, label_encoder
+
+
+def versus(request):
+    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct()
+    team1 = request.GET.get('team1', None)
+    team2 = request.GET.get('team2', None)
+
+    if not team1 or not team2:
+        return render(request, 'fantasy_data/versus.html', {'teams': teams})
+
+    # Load and prepare data for prediction
+    model, label_encoder = train_model()
+
+    team_performance = TeamPerformance.objects.filter(team_name__in=[team1, team2])
+    df = pd.DataFrame(list(team_performance.values()))
+    df_sorted = df.sort_values(by=['week'])
+
+    df_team1 = df_sorted[df_sorted['team_name'] == team1]
+    df_team2 = df_sorted[df_sorted['team_name'] == team2]
+
+    X_team1 = df_team1[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
+                        'points_against']]
+    X_team2 = df_team2[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
+                        'points_against']]
+
+    prediction_team1 = model.predict(X_team1)
+    print(prediction_team1.mean())
+    prediction_team2 = model.predict(X_team2)
+    print(prediction_team2.mean())
+
+    prediction_text_team1 = "Win" if prediction_team1.mean() > prediction_team2.mean() else "Lose"
+    prediction_text_team2 = "Win" if prediction_team2.mean() > prediction_team1.mean() else "Lose"
+
+    if prediction_text_team1 == 'Win':
+        prediction = f"{team1} is projected to win this match up."
+    else:
+        prediction = f"{team2} is projected to win this match up."
+
+    # Create comparison charts
+    fig_total_points = px.box(
+        df_sorted, x='team_name', y='total_points', color='team_name',
+        title=f'Total Points Comparison: {team1} vs {team2}'
+    )
+    chart_total_points = fig_total_points.to_html(full_html=False)
+
+    fig_wr_points = px.box(
+        df_sorted, x='team_name', y='wr_points', color='team_name',
+        title=f'WR Points Comparison: {team1} vs {team2}'
+    )
+    chart_wr_points = fig_wr_points.to_html(full_html=False)
+
+    fig_qb_points = px.box(
+        df_sorted, x='team_name', y='qb_points', color='team_name',
+        title=f'QB Points Comparison: {team1} vs {team2}'
+    )
+    chart_qb_points = fig_qb_points.to_html(full_html=False)
+
+    fig_rb_points = px.box(
+        df_sorted, x='team_name', y='rb_points', color='team_name',
+        title=f'RB Points Comparison: {team1} vs {team2}'
+    )
+    chart_rb_points = fig_rb_points.to_html(full_html=False)
+
+    fig_te_points = px.box(
+        df_sorted, x='team_name', y='te_points', color='team_name',
+        title=f'TE Points Comparison: {team1} vs {team2}'
+    )
+    chart_te_points = fig_te_points.to_html(full_html=False)
+
+    fig_k_points = px.box(
+        df_sorted, x='team_name', y='k_points', color='team_name',
+        title=f'K Points Comparison: {team1} vs {team2}'
+    )
+    chart_k_points = fig_k_points.to_html(full_html=False)
+
+    fig_def_points = px.box(
+        df_sorted, x='team_name', y='def_points', color='team_name',
+        title=f'DEF Points Comparison: {team1} vs {team2}'
+    )
+    chart_def_points = fig_def_points.to_html(full_html=False)
+
+    context = {
+        'teams': teams,
+        'team1': team1,
+        'team2': team2,
+        'chart_total_points': chart_total_points,
+        'chart_wr_points': chart_wr_points,
+        'chart_qb_points': chart_qb_points,
+        'chart_rb_points': chart_rb_points,
+        'chart_te_points': chart_te_points,
+        'chart_k_points': chart_k_points,
+        'chart_def_points': chart_def_points,
+        'prediction_team1': prediction_text_team1,
+        'prediction_team2': prediction_text_team2,
+        'prediction': prediction,
+    }
+
+    return render(request, 'fantasy_data/versus.html', context)
