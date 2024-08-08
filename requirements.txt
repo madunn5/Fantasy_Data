@@ -8,3 +8,6 @@ plotly==5.22.0
 Requests==2.32.3
 scikit_learn==1.5.1
 seaborn==0.13.2
+psycopg2-binary==2.9.9
+whitenoise==6.7.0
+gunicorn==22.0.0
