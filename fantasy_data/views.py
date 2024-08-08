@@ -981,6 +981,9 @@ def prepare_data():
     label_encoder_result = LabelEncoder()
     df['result'] = label_encoder_result.fit_transform(df['result'].astype(str))
 
+    # Binary outcome: 1 if the team won, 0 otherwise
+    df['win'] = df['result'].apply(lambda x: 1 if x == 1 else 0)
+
     return df, label_encoder_team, label_encoder_opponent, label_encoder_result
 
 
@@ -989,7 +992,7 @@ def train_model():
 
     X = df[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
             'total_points']]
-    y = df['result']
+    y = df['win']
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
@@ -1031,54 +1034,56 @@ def versus(request):
 
     df = df.dropna(subset=numeric_columns)  # Drop rows with NaNs in numeric columns
 
-    # Encode categorical columns
-    if team1 not in label_encoder_team.classes_:
+    if team1 not in label_encoder_team.classes_ or team2 not in label_encoder_team.classes_:
         return render(request, 'fantasy_data/versus.html',
-                      {'teams': teams, 'error': f"Team '{team1}' not found in training data."})
-    if team2 not in label_encoder_team.classes_:
-        return render(request, 'fantasy_data/versus.html',
-                      {'teams': teams, 'error': f"Team '{team2}' not found in training data."})
-
-    df['team_name'] = df['team_name'].astype(str)  # Keep team names as strings
-
-    df['team_name_encoded'] = label_encoder_team.transform(df['team_name'])
+                      {'teams': teams,
+                       'error': f"One or both teams '{team1}' and '{team2}' not found in training data."})
 
     # Prepare the feature vectors for the teams
     df_team1 = df[df['team_name'] == team1].mean(numeric_only=True)
     df_team2 = df[df['team_name'] == team2].mean(numeric_only=True)
 
+    # Calculate the absolute difference between the two feature vectors
+    feature_differences = df_team1[numeric_columns] - df_team2[numeric_columns]
+
+    # Prepare the data for the template
+    difference_between_teams = []
+    for col in numeric_columns:
+        difference_between_teams.append({
+            'Position': col,
+            'team1': df_team1[col],
+            'team2': df_team2[col],
+            'Difference': feature_differences[col]
+        })
+
+    # Prepare the feature vectors for prediction
     X_team1 = pd.DataFrame([df_team1[numeric_columns].values], columns=numeric_columns)
     X_team2 = pd.DataFrame([df_team2[numeric_columns].values], columns=numeric_columns)
 
-    # Debugging: Print feature vectors
-    print("Feature Vector for Team 1:")
-    print(X_team1)
-    print("Feature Vector for Team 2:")
-    print(X_team2)
-
     # Predict the probability of winning for each team
-    prob_team1 = model.predict_proba(X_team1)[:, 1].mean()
-    prob_team2 = model.predict_proba(X_team2)[:, 1].mean()
+    prob_team1 = model.predict_proba(X_team1)[:, 1][0]
+    prob_team2 = model.predict_proba(X_team2)[:, 1][0]
 
-    # Debugging: Print probabilities
-    print(f"Probability Team 1 Wins: {prob_team1:.2%}")
-    print(f"Probability Team 2 Wins: {prob_team2:.2%}")
+    # Normalize probabilities
+    total_prob = prob_team1 + prob_team2
+    prob_team1_normalized = prob_team1 / total_prob
+    prob_team2_normalized = prob_team2 / total_prob
 
     # Generate prediction messages
-    if prob_team1 > prob_team2:
+    if prob_team1_normalized > prob_team2_normalized:
         prediction = (
-            f"{team1} is more likely to win with a probability of {prob_team1:.2%}. "
-            f"{team2} has a probability of {prob_team2:.2%} to win."
+            f"{team1} is more likely to win with a probability of {prob_team1_normalized:.2%}. "
+            f"{team2} has a probability of {prob_team2_normalized:.2%} to win."
         )
-    elif prob_team1 < prob_team2:
+    elif prob_team1_normalized < prob_team2_normalized:
         prediction = (
-            f"{team2} is more likely to win with a probability of {prob_team2:.2%}. "
-            f"{team1} has a probability of {prob_team1:.2%} to win."
+            f"{team2} is more likely to win with a probability of {prob_team2_normalized:.2%}. "
+            f"{team1} has a probability of {prob_team1_normalized:.2%} to win."
         )
     else:
         prediction = (
             "It's too close to call! Both teams have similar chances with "
-            f"{team1} at {prob_team1:.2%} and {team2} at {prob_team2:.2%}."
+            f"{team1} at {prob_team1_normalized:.2%} and {team2} at {prob_team2_normalized:.2%}."
         )
 
     # Create comparison charts
@@ -1089,7 +1094,7 @@ def versus(request):
     chart_total_points = fig_total_points.to_html(full_html=False)
 
     fig_wr_points = px.box(
-        df, x='team_name', y='wr_points', color='team_name',
+        df, x='team_name', y='wr_points_total', color='team_name',
         title=f'WR Points Comparison: {team1} vs {team2}'
     )
     chart_wr_points = fig_wr_points.to_html(full_html=False)
@@ -1101,13 +1106,13 @@ def versus(request):
     chart_qb_points = fig_qb_points.to_html(full_html=False)
 
     fig_rb_points = px.box(
-        df, x='team_name', y='rb_points', color='team_name',
+        df, x='team_name', y='rb_points_total', color='team_name',
         title=f'RB Points Comparison: {team1} vs {team2}'
     )
     chart_rb_points = fig_rb_points.to_html(full_html=False)
 
     fig_te_points = px.box(
-        df, x='team_name', y='te_points', color='team_name',
+        df, x='team_name', y='te_points_total', color='team_name',
         title=f'TE Points Comparison: {team1} vs {team2}'
     )
     chart_te_points = fig_te_points.to_html(full_html=False)
@@ -1135,7 +1140,8 @@ def versus(request):
         'chart_te_points': chart_te_points,
         'chart_k_points': chart_k_points,
         'chart_def_points': chart_def_points,
-        'prediction': prediction
+        'prediction': prediction,
+        'difference_between_teams': difference_between_teams
     }
 
     return render(request, 'fantasy_data/versus.html', context)

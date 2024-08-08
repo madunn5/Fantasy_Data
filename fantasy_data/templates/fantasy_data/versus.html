@@ -63,6 +63,30 @@
                 <strong>Prediction:</strong> {{ prediction }}
             </div>
 
+          <!-- Differences Table -->
+            <h3 class="mb-4">Comparison of Team Stats and Differences</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Position</th>
+                        <th>{{ team1 }}</th>
+                        <th>{{ team2 }}</th>
+                        <th>Difference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in difference_between_teams %}
+                    <tr>
+                        <td>{{ row.Position }}</td>
+                        <td>{{ row.team1|floatformat:2 }}</td>
+                        <td>{{ row.team2|floatformat:2 }}</td>
+                        <td>{{ row.Difference|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
             <!-- Comparison Charts -->
             <div class="container mt-5">
                 <h1 class="mb-4">Team Comparison: {{ team1 }} vs {{ team2 }}</h1>
