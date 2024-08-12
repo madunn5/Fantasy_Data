@@ -902,14 +902,17 @@ def stats_charts(request):
 
 
 def stats_charts_filter(request):
-    # Get selected points category
+    # Get selected points category and comparison operator
     selected_category = request.GET.get('points_category')
+    comparison_operator = request.GET.get('comparison_operator', 'gte')  # Default to 'gte' if not specified
 
     # Filter data based on user input
     filter_value = request.GET.get('filter_value')
     if filter_value:
         filter_value = float(filter_value)
-        filtered_data = TeamPerformance.objects.filter(**{f"{selected_category}__gte": filter_value})
+        # Use the comparison operator chosen by the user
+        filter_key = f"{selected_category}__{comparison_operator}"
+        filtered_data = TeamPerformance.objects.filter(**{filter_key: filter_value})
     else:
         filtered_data = TeamPerformance.objects.all()
 
@@ -932,6 +935,7 @@ def stats_charts_filter(request):
     else:
         context = {'labels': labels, 'counts': counts, 'winCounts': win_counts}
         return render(request, 'fantasy_data/stats_filter.html', context)
+
 
 
 def stats_charts_filter_less_than(request):
