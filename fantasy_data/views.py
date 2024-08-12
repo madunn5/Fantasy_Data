@@ -337,7 +337,9 @@ def box_plots_filter(request):
                     ]
                 ],
                 'direction': 'down',
-                'showactive': True
+                'showactive': True,
+                'x': 0.1,  # Adjust the position as needed
+                'y': 1.15,  # Adjust the position as needed
             }
         ]
     )
@@ -377,7 +379,9 @@ def box_plots_filter(request):
                     ]
                 ],
                 'direction': 'down',
-                'showactive': True
+                'showactive': True,
+                'x': 0.1,  # Adjust the position as needed
+                'y': 1.15,  # Adjust the position as needed
             }
         ]
     )
@@ -417,7 +421,9 @@ def box_plots_filter(request):
                     ]
                 ],
                 'direction': 'down',
-                'showactive': True
+                'showactive': True,
+                'x': 0.1,  # Adjust the position as needed
+                'y': 1.15,  # Adjust the position as needed
             }
         ]
     )
@@ -457,7 +463,9 @@ def box_plots_filter(request):
                     ]
                 ],
                 'direction': 'down',
-                'showactive': True
+                'showactive': True,
+                'x': 0.1,  # Adjust the position as needed
+                'y': 1.15,  # Adjust the position as needed
             }
         ]
     )
@@ -497,7 +505,9 @@ def box_plots_filter(request):
                     ]
                 ],
                 'direction': 'down',
-                'showactive': True
+                'showactive': True,
+                'x': 0.1,  # Adjust the position as needed
+                'y': 1.15,  # Adjust the position as needed
             }
         ]
     )
@@ -537,7 +547,9 @@ def box_plots_filter(request):
                     ]
                 ],
                 'direction': 'down',
-                'showactive': True
+                'showactive': True,
+                'x': 0.1,  # Adjust the position as needed
+                'y': 1.15,  # Adjust the position as needed
             }
         ]
     )
@@ -577,7 +589,9 @@ def box_plots_filter(request):
                     ]
                 ],
                 'direction': 'down',
-                'showactive': True
+                'showactive': True,
+                'x': 0.1,  # Adjust the position as needed
+                'y': 1.15,  # Adjust the position as needed
             }
         ]
     )
