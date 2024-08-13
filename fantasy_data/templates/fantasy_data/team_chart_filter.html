@@ -17,20 +17,17 @@
             overflow-x: auto;
         }
 
-        /* Custom styles for scrollable dropdown menus */
+        /* Ensure dropdown menus are clickable */
         .plotly-dropdown-menu {
             max-height: 200px;  /* Set a max height */
             overflow-y: auto;   /* Enable vertical scrolling */
+            overflow-x: hidden; /* Hide horizontal scroll if not needed */
+            pointer-events: auto; /* Ensure dropdowns are clickable */
         }
 
         .scrollable-chart {
             overflow-x: auto;
         }
-        .plotly-dropdown-menu {
-        max-height: 200px;
-        overflow-y: auto;
-        pointer-events: auto; /* Ensure dropdowns are clickable */
-    }
     </style>
 </head>
 <body>
