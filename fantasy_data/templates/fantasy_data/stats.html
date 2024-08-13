@@ -31,24 +31,32 @@
     </style>
 </head>
 <body>
-    <!-- Hyperlinks for navigation -->
-    <ul class="nav top-nav nav-pills">
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'stats_charts' %}">Stats Charts</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater/Less Than</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'versus' %}">Team Comparisons</a>
-        </li>
-    </ul>
+    <!-- Collapsible Navbar for mobile responsiveness -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Fantasy Stat Tables</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'stats_charts' %}">Stats Charts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater/Less Than</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'versus' %}">Team Comparisons</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
 
     <div class="container mt-4">
         <h1 class="mb-4 text-center">Statistics</h1>

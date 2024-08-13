@@ -5,29 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team Comparison</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        /* Custom styles for better responsiveness */
+        .container {
+            margin-top: 2rem;
+        }
+        table {
+            overflow-x: auto;
+        }
+    </style>
 </head>
 <body>
-    <!-- Navigation Bar -->
-    <ul class="nav">
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'stats_charts' %}">Stats Charts</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater/Less Than</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'versus' %}">Team Comparisons</a>
-        </li>
-    </ul>
+    <!-- Collapsible Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Team Comparison</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'stats_charts' %}">Stats Charts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater/Less Than</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'versus' %}">Team Comparisons</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
 
-    <div class="container mt-5">
-        <h1 class="mb-4">Team Comparison: {{ team1 }} vs {{ team2 }}</h1>
+    <div class="container">
+        <h1 class="mb-4 text-center">Team Comparison: {{ team1 }} vs {{ team2 }}</h1>
 
         <!-- Form for selecting two teams to compare -->
         <form method="get" class="mb-4">
@@ -53,44 +70,39 @@
         </form>
 
         {% if team1 and team2 %}
-            <h2>Comparing {{ team1 }} vs {{ team2 }}</h2>
+            <h2 class="mb-4 text-center">Comparing {{ team1 }} vs {{ team2 }}</h2>
 
             <!-- Prediction Section -->
-            <div class="alert alert-info">
+            <div class="alert alert-info text-center">
                 <strong>Prediction:</strong> {{ prediction }}
             </div>
 
-          <!-- Differences Table -->
-            <h3 class="mb-4">Comparison of Team Stats and Differences</h3>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Position</th>
-                        <th>{{ team1 }}</th>
-                        <th>{{ team2 }}</th>
-                        <th>Difference</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in difference_between_teams %}
-                    <tr>
-                        <td>{{ row.Position }}</td>
-                        <td>{{ row.team1|floatformat:2 }}</td>
-                        <td>{{ row.team2|floatformat:2 }}</td>
-                        <td>{{ row.Difference|floatformat:2 }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
+            <!-- Differences Table -->
+            <h3 class="mb-4 text-center">Comparison of Team Stats and Differences</h3>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Position</th>
+                            <th>{{ team1 }}</th>
+                            <th>{{ team2 }}</th>
+                            <th>Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in difference_between_teams %}
+                        <tr>
+                            <td>{{ row.Position }}</td>
+                            <td>{{ row.team1|floatformat:2 }}</td>
+                            <td>{{ row.team2|floatformat:2 }}</td>
+                            <td>{{ row.Difference|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
 
             <!-- Comparison Charts -->
-            <div class="container mt-5">
-                <h1 class="mb-4">Team Comparison: {{ team1 }} vs {{ team2 }}</h1>
-<!--                <h2>{{ team1 }} is predicted to: {{ prediction_team1 }}</h2>-->
-<!--                <h2>{{ team2 }} is predicted to: {{ prediction_team2 }}</h2>-->
-                <!-- Rest of the comparison charts -->
-            </div>
             <div class="mb-5">
                 <h3>Total Points Comparison</h3>
                 <div>{{ chart_total_points|safe }}</div>
@@ -119,14 +131,13 @@
                 <h3>Defense Points Comparison</h3>
                 <div>{{ chart_def_points|safe }}</div>
             </div>
-            <!-- Add other comparison sections as needed -->
         {% else %}
-            <p>Please select two teams to compare.</p>
+            <p class="text-center">Please select two teams to compare.</p>
         {% endif %}
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
-    <!-- You can add custom JS here if needed for chart manipulation or other dynamic interactions -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>

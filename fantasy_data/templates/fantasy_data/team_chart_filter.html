@@ -1,62 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fantasy Team Performance Charts</title>
     <!-- Add Plotly JS library -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- Add Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .chart-container {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            border-radius: .25rem;
+            box-shadow: 0 0 1rem rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        /* Custom styles for scrollable dropdown menus */
+        .plotly-dropdown-menu {
+            max-height: 200px;  /* Set a max height */
+            overflow-y: auto;   /* Enable vertical scrolling */
+        }
+
+        .scrollable-chart {
+            overflow-x: auto;
+        }
+    </style>
 </head>
 <body>
-    <!-- Hyperlinks for navigation -->
-    <ul class="nav">
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'stats_charts' %}">Stats Charts</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater/Less Than</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'versus' %}">Team Comparisons</a>
-        </li>
-    </ul>
-    <div class="container">
+    <!-- Collapsible Navbar for mobile responsiveness -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Boxplot Charts Comparison</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'stats_charts' %}">Stats Charts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater/Less Than</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'versus' %}">Team Comparisons</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
         <h1 class="my-4 text-center">Fantasy Team Performance Charts</h1>
 
-        <!-- Box plot chart with dropdown filter -->
-        <div class="mb-5">
+        <!-- Chart containers with scrollable content -->
+        <div class="chart-container">
             <h2 class="text-center">Total Points by Result</h2>
-            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart|safe }}</div>
+            <div class="border p-3 rounded scrollable-chart">{{ chart|safe }}</div>
         </div>
-        <div class="mb-5">
+
+        <div class="chart-container">
             <h2 class="text-center">Total QB Points by Result</h2>
-            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_qb|safe }}</div>
+            <div class="border p-3 rounded scrollable-chart">{{ chart_qb|safe }}</div>
         </div>
-        <div class="mb-5">
+
+        <div class="chart-container">
             <h2 class="text-center">Total RB Points by Result</h2>
-            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_rb|safe }}</div>
+            <div class="border p-3 rounded scrollable-chart">{{ chart_rb|safe }}</div>
         </div>
-        <div class="mb-5">
+
+        <div class="chart-container">
             <h2 class="text-center">Total WR Points by Result</h2>
-            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_wr|safe }}</div>
+            <div class="border p-3 rounded scrollable-chart">{{ chart_wr|safe }}</div>
         </div>
-        <div class="mb-5">
+
+        <div class="chart-container">
             <h2 class="text-center">Total TE Points by Result</h2>
-            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_te|safe }}</div>
+            <div class="border p-3 rounded scrollable-chart">{{ chart_te|safe }}</div>
         </div>
-        <div class="mb-5">
+
+        <div class="chart-container">
             <h2 class="text-center">Total K Points by Result</h2>
-            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_k|safe }}</div>
+            <div class="border p-3 rounded scrollable-chart">{{ chart_k|safe }}</div>
         </div>
-        <div class="mb-5">
+
+        <div class="chart-container">
             <h2 class="text-center">Total DEF Points by Result</h2>
-            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_def|safe }}</div>
+            <div class="border p-3 rounded scrollable-chart">{{ chart_def|safe }}</div>
         </div>
     </div>
 
@@ -66,12 +102,6 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
     <!-- Custom JS for scrollable dropdown -->
-    <style>
-    .plotly-dropdown-menu {
-        max-height: 200px;  /* Set a max height */
-        overflow-y: auto;   /* Enable vertical scrolling */
-    }
-    </style>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         var dropdownMenus = document.querySelectorAll('.plotly-dropdown-menu');
