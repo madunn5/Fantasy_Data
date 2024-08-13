@@ -304,10 +304,9 @@ def box_plots_filter(request):
     team_performance = TeamPerformance.objects.all()
     df = pd.DataFrame(list(team_performance.values()))
 
-    # Create the box plot with dropdown filter
+    # Create the box plot for total points
     fig = go.Figure()
 
-    # Add traces for each team
     for team in teams:
         filtered_df = df[df['team_name'] == team]
         fig.add_trace(go.Box(
@@ -316,40 +315,17 @@ def box_plots_filter(request):
             name=team
         ))
 
-    # Update layout with dropdown menu
     fig.update_layout(
-        title='Total Points by Result with Team Filter',
-        updatemenus=[
-            {
-                'buttons': [
-                    {
-                        'label': 'All Teams',
-                        'method': 'update',
-                        'args': [{'visible': [True] * len(teams)}, {'title': 'Total Points by Result: All Teams'}]
-                    },
-                    *[
-                        {
-                            'label': team,
-                            'method': 'update',
-                            'args': [{'visible': [team == t for t in teams]},
-                                     {'title': f'Total Points by Result: {team}'}]
-                        } for team in teams
-                    ]
-                ],
-                'direction': 'down',
-                'showactive': True,
-                'x': 0.1,  # Adjust the position as needed
-                'y': 1.15,  # Adjust the position as needed
-            }
-        ]
+        title='Total Points by Result',
+        xaxis_title='Result',
+        yaxis_title='Total Points'
     )
 
     chart = fig.to_html(full_html=False)
 
-    # Create the box plot with dropdown filter
+    # Create the box plot for QB points
     fig_qb_points = go.Figure()
 
-    # Add traces for each team
     for team in teams:
         filtered_df = df[df['team_name'] == team]
         fig_qb_points.add_trace(go.Box(
@@ -358,40 +334,17 @@ def box_plots_filter(request):
             name=team
         ))
 
-    # Update layout with dropdown menu
     fig_qb_points.update_layout(
-        title='Total QB Points by Result with Team Filter',
-        updatemenus=[
-            {
-                'buttons': [
-                    {
-                        'label': 'All Teams',
-                        'method': 'update',
-                        'args': [{'visible': [True] * len(teams)}, {'title': 'Total QB Points by Result: All Teams'}]
-                    },
-                    *[
-                        {
-                            'label': team,
-                            'method': 'update',
-                            'args': [{'visible': [team == t for t in teams]},
-                                     {'title': f'Total QB Points by Result: {team}'}]
-                        } for team in teams
-                    ]
-                ],
-                'direction': 'down',
-                'showactive': True,
-                'x': 0.1,  # Adjust the position as needed
-                'y': 1.15,  # Adjust the position as needed
-            }
-        ]
+        title='Total QB Points by Result',
+        xaxis_title='Result',
+        yaxis_title='QB Points'
     )
 
     chart_qb = fig_qb_points.to_html(full_html=False)
 
-    # Create the box plot with dropdown filter
+    # Create the box plot for RB points
     fig_rb_points = go.Figure()
 
-    # Add traces for each team
     for team in teams:
         filtered_df = df[df['team_name'] == team]
         fig_rb_points.add_trace(go.Box(
@@ -400,40 +353,17 @@ def box_plots_filter(request):
             name=team
         ))
 
-    # Update layout with dropdown menu
     fig_rb_points.update_layout(
-        title='Total RB Points by Result with Team Filter',
-        updatemenus=[
-            {
-                'buttons': [
-                    {
-                        'label': 'All Teams',
-                        'method': 'update',
-                        'args': [{'visible': [True] * len(teams)}, {'title': 'Total RB Points by Result: All Teams'}]
-                    },
-                    *[
-                        {
-                            'label': team,
-                            'method': 'update',
-                            'args': [{'visible': [team == t for t in teams]},
-                                     {'title': f'Total RB Points by Result: {team}'}]
-                        } for team in teams
-                    ]
-                ],
-                'direction': 'down',
-                'showactive': True,
-                'x': 0.1,  # Adjust the position as needed
-                'y': 1.15,  # Adjust the position as needed
-            }
-        ]
+        title='Total RB Points by Result',
+        xaxis_title='Result',
+        yaxis_title='RB Points'
     )
 
     chart_rb = fig_rb_points.to_html(full_html=False)
 
-    # Create the box plot with dropdown filter
+    # Create the box plot for WR points
     fig_wr_points = go.Figure()
 
-    # Add traces for each team
     for team in teams:
         filtered_df = df[df['team_name'] == team]
         fig_wr_points.add_trace(go.Box(
@@ -442,40 +372,17 @@ def box_plots_filter(request):
             name=team
         ))
 
-    # Update layout with dropdown menu
     fig_wr_points.update_layout(
-        title='Total WR Points by Result with Team Filter',
-        updatemenus=[
-            {
-                'buttons': [
-                    {
-                        'label': 'All Teams',
-                        'method': 'update',
-                        'args': [{'visible': [True] * len(teams)}, {'title': 'Total WR Points by Result: All Teams'}]
-                    },
-                    *[
-                        {
-                            'label': team,
-                            'method': 'update',
-                            'args': [{'visible': [team == t for t in teams]},
-                                     {'title': f'Total WR Points by Result: {team}'}]
-                        } for team in teams
-                    ]
-                ],
-                'direction': 'down',
-                'showactive': True,
-                'x': 0.1,  # Adjust the position as needed
-                'y': 1.15,  # Adjust the position as needed
-            }
-        ]
+        title='Total WR Points by Result',
+        xaxis_title='Result',
+        yaxis_title='WR Points'
     )
 
     chart_wr = fig_wr_points.to_html(full_html=False)
 
-    # Create the box plot with dropdown filter
+    # Create the box plot for TE points
     fig_te_points = go.Figure()
 
-    # Add traces for each team
     for team in teams:
         filtered_df = df[df['team_name'] == team]
         fig_te_points.add_trace(go.Box(
@@ -484,40 +391,17 @@ def box_plots_filter(request):
             name=team
         ))
 
-    # Update layout with dropdown menu
     fig_te_points.update_layout(
-        title='Total TE Points by Result with Team Filter',
-        updatemenus=[
-            {
-                'buttons': [
-                    {
-                        'label': 'All Teams',
-                        'method': 'update',
-                        'args': [{'visible': [True] * len(teams)}, {'title': 'Total TE Points by Result: All Teams'}]
-                    },
-                    *[
-                        {
-                            'label': team,
-                            'method': 'update',
-                            'args': [{'visible': [team == t for t in teams]},
-                                     {'title': f'Total TE Points by Result: {team}'}]
-                        } for team in teams
-                    ]
-                ],
-                'direction': 'down',
-                'showactive': True,
-                'x': 0.1,  # Adjust the position as needed
-                'y': 1.15,  # Adjust the position as needed
-            }
-        ]
+        title='Total TE Points by Result',
+        xaxis_title='Result',
+        yaxis_title='TE Points'
     )
 
     chart_te = fig_te_points.to_html(full_html=False)
 
-    # Create the box plot with dropdown filter
+    # Create the box plot for K points
     fig_k_points = go.Figure()
 
-    # Add traces for each team
     for team in teams:
         filtered_df = df[df['team_name'] == team]
         fig_k_points.add_trace(go.Box(
@@ -526,40 +410,17 @@ def box_plots_filter(request):
             name=team
         ))
 
-    # Update layout with dropdown menu
     fig_k_points.update_layout(
-        title='Total K Points by Result with Team Filter',
-        updatemenus=[
-            {
-                'buttons': [
-                    {
-                        'label': 'All Teams',
-                        'method': 'update',
-                        'args': [{'visible': [True] * len(teams)}, {'title': 'Total K Points by Result: All Teams'}]
-                    },
-                    *[
-                        {
-                            'label': team,
-                            'method': 'update',
-                            'args': [{'visible': [team == t for t in teams]},
-                                     {'title': f'Total K Points by Result: {team}'}]
-                        } for team in teams
-                    ]
-                ],
-                'direction': 'down',
-                'showactive': True,
-                'x': 0.1,  # Adjust the position as needed
-                'y': 1.15,  # Adjust the position as needed
-            }
-        ]
+        title='Total K Points by Result',
+        xaxis_title='Result',
+        yaxis_title='K Points'
     )
 
     chart_k = fig_k_points.to_html(full_html=False)
 
-    # Create the box plot with dropdown filter
+    # Create the box plot for DEF points
     fig_def_points = go.Figure()
 
-    # Add traces for each team
     for team in teams:
         filtered_df = df[df['team_name'] == team]
         fig_def_points.add_trace(go.Box(
@@ -568,32 +429,10 @@ def box_plots_filter(request):
             name=team
         ))
 
-    # Update layout with dropdown menu
     fig_def_points.update_layout(
-        title='Total DEF Points by Result with Team Filter',
-        updatemenus=[
-            {
-                'buttons': [
-                    {
-                        'label': 'All Teams',
-                        'method': 'update',
-                        'args': [{'visible': [True] * len(teams)}, {'title': 'Total DEF Points by Result: All Teams'}]
-                    },
-                    *[
-                        {
-                            'label': team,
-                            'method': 'update',
-                            'args': [{'visible': [team == t for t in teams]},
-                                     {'title': f'Total DEF Points by Result: {team}'}]
-                        } for team in teams
-                    ]
-                ],
-                'direction': 'down',
-                'showactive': True,
-                'x': 0.1,  # Adjust the position as needed
-                'y': 1.15,  # Adjust the position as needed
-            }
-        ]
+        title='Total DEF Points by Result',
+        xaxis_title='Result',
+        yaxis_title='DEF Points'
     )
 
     chart_def = fig_def_points.to_html(full_html=False)

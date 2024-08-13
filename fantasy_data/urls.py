@@ -10,9 +10,9 @@ urlpatterns = [
     path('charts/teams/', team_chart, name='team_chart'),
     # path('', charts_view, name='charts_view'),
     # path('', team_performance_view, name='team_performance'),
-    path('', box_plots_filter, name='team_chart_filter'),
+    path('boxplots/', box_plots_filter, name='team_chart_filter'),
     path('stats/', stats_charts, name='stats_charts'),
     path('stats/filter/', stats_charts_filter, name='stats_charts_filter'),
     # path('stats/filter/less_than/', stats_charts_filter_less_than, name='stats_charts_filter_less_than'),
-    path('stats/versus/', versus, name='versus')
+    path('', versus, name='versus')
 ]

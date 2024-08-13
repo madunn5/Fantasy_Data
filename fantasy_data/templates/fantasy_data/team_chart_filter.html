@@ -16,18 +16,6 @@
             box-shadow: 0 0 1rem rgba(0, 0, 0, 0.1);
             overflow-x: auto;
         }
-
-        /* Ensure dropdown menus are clickable */
-        .plotly-dropdown-menu {
-            max-height: 200px;  /* Set a max height */
-            overflow-y: auto;   /* Enable vertical scrolling */
-            overflow-x: hidden; /* Hide horizontal scroll if not needed */
-            pointer-events: auto; /* Ensure dropdowns are clickable */
-        }
-
-        .scrollable-chart {
-            overflow-x: auto;
-        }
     </style>
 </head>
 <body>
@@ -102,36 +90,5 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
-    <!-- Custom JS for scrollable dropdown -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var dropdownMenus = document.querySelectorAll('.plotly-dropdown-menu');
-
-        // Handle mouse wheel and touchpad scrolling
-        dropdownMenus.forEach(function(menu) {
-            menu.addEventListener('wheel', function(e) {
-                e.preventDefault();
-                menu.scrollTop += e.deltaY;
-            });
-        });
-
-        // Optional: Handle touchmove event for touch devices (e.g., tablets)
-        dropdownMenus.forEach(function(menu) {
-            var startY;
-            menu.addEventListener('touchstart', function(e) {
-                startY = e.touches[0].clientY;
-            });
-
-            menu.addEventListener('touchmove', function(e) {
-                e.preventDefault();
-                var touch = e.touches[0];
-                var moveY = touch.clientY - startY;
-                menu.scrollTop -= moveY;
-                startY = touch.clientY;
-            });
-        });
-    });
-    </script>
 </body>
 </html>
