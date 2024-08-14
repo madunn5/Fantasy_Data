@@ -15,13 +15,16 @@
             <a class="nav-link" href="{% url 'stats_charts' %}">Stats Charts</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="{% url 'stats_charts_filter' %}">Stats Charts Filter Greater/Less Than</a>
+            <a class="nav-link" href="{% url 'stats_charts_filter' %}">Charts Filter Greater/Less Than</a>
         </li>
         <li class="nav-item">
             <a class="nav-link" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
         </li>
         <li class="nav-item">
             <a class="nav-link" href="{% url 'versus' %}">Team Comparisons</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link text-primary" href="{% url 'win_probability_against_all_teams' %}">Win Probability Against All Teams</a>
         </li>
     </ul>
 
