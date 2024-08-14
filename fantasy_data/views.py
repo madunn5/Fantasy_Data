@@ -1002,3 +1002,79 @@ def versus(request):
     }
 
     return render(request, 'fantasy_data/versus.html', context)
+
+
+def win_probability_against_all_teams(request):
+    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct()
+    selected_team = request.GET.get('team', None)
+
+    if not selected_team:
+        return render(request, 'fantasy_data/probabilities.html', {'teams': teams})
+
+    # Load and prepare data for prediction
+    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model()
+
+    team_performance = TeamPerformance.objects.all()
+    df = pd.DataFrame(list(team_performance.values()))
+
+    # Drop rows with missing values and ensure numeric columns are cleaned
+    df = df.dropna(subset=[
+        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
+        'k_points', 'def_points', 'total_points'
+    ])
+    numeric_columns = [
+        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
+        'k_points', 'def_points', 'total_points'
+    ]
+    for column in numeric_columns:
+        df[column] = pd.to_numeric(df[column], errors='coerce')
+
+    df = df.dropna(subset=numeric_columns)  # Drop rows with NaNs in numeric columns
+
+    if selected_team not in label_encoder_team.classes_:
+        return render(request, 'fantasy_data/probabilities.html',
+                      {'teams': teams,
+                       'error': f"Team '{selected_team}' not found in training data."})
+
+    # Prepare the feature vector for the selected team
+    df_selected_team = df[df['team_name'] == selected_team].mean(numeric_only=True)
+
+    win_probabilities = []
+    for opponent in teams:
+        if opponent == selected_team:
+            continue
+
+        # Prepare the feature vector for the opponent
+        df_opponent = df[df['team_name'] == opponent].mean(numeric_only=True)
+
+        # Calculate the absolute difference between the two feature vectors
+        feature_differences = df_selected_team[numeric_columns] - df_opponent[numeric_columns]
+
+        # Prepare the feature vectors for prediction
+        X_selected_team = pd.DataFrame([df_selected_team[numeric_columns].values], columns=numeric_columns)
+        X_opponent = pd.DataFrame([df_opponent[numeric_columns].values], columns=numeric_columns)
+
+        # Predict the probability of winning for each team
+        prob_selected_team = model.predict_proba(X_selected_team)[:, 1][0]
+        prob_opponent = model.predict_proba(X_opponent)[:, 1][0]
+
+        # Normalize probabilities
+        total_prob = prob_selected_team + prob_opponent
+        prob_selected_team_normalized = prob_selected_team / total_prob
+        prob_opponent_normalized = prob_opponent / total_prob
+
+        win_probabilities.append({
+            'opponent': opponent,
+            'selected_team_probability': f"{prob_selected_team_normalized:.2%}",
+            'opponent_probability': f"{prob_opponent_normalized:.2%}",
+            'difference': feature_differences.to_dict()
+        })
+
+    return render(request, 'fantasy_data/probabilities.html', {
+        'teams': teams,
+        'selected_team': selected_team,
+        'win_probabilities': win_probabilities,
+    })
+
+
+

@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (upload_csv, team_chart, team_detail, team_performance_list, charts_view,
                     team_performance_view, box_plots_filter, stats_charts, stats_charts_filter,
-                    stats_charts_filter_less_than, versus)
+                    stats_charts_filter_less_than, versus, win_probability_against_all_teams)
 
 urlpatterns = [
     path('upload/', upload_csv, name='upload_csv'),
@@ -14,5 +14,6 @@ urlpatterns = [
     path('stats/', stats_charts, name='stats_charts'),
     path('stats/filter/', stats_charts_filter, name='stats_charts_filter'),
     # path('stats/filter/less_than/', stats_charts_filter_less_than, name='stats_charts_filter_less_than'),
-    path('', versus, name='versus')
+    path('', versus, name='versus'),
+    path('probabilities/', win_probability_against_all_teams, name='win_probability_against_all_teams')
 ]
