@@ -3,25 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stats Charts</title>
+    <title>Fantasy Stats Charts</title>
     <!-- Add Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Add DataTables CSS -->
+    <link href="https://cdn.datatables.net/2.1.3/css/dataTables.dataTables.min.css" rel="stylesheet">
     <style>
-        /* Styling for top navigation */
-        .top-nav {
-            margin-bottom: 1rem; /* Space between nav and content */
-        }
-
-        .top-nav .nav-link {
-            padding: .5rem 1rem; /* Adjust padding for better spacing */
-        }
-
-        .top-nav .nav-link.active {
-            font-weight: bold; /* Highlight active link */
-        }
-
-        .card {
-            margin-bottom: 1rem; /* Space between cards */
+        .chart-container {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            border-radius: .25rem;
+            box-shadow: 0 0 1rem rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
         }
 
         /* Hide all charts by default */
@@ -62,12 +55,13 @@
     </nav>
 
     <div class="container mt-4">
-        <h1 class="mb-4 text-center">Statistics</h1>
+        <h1 class="my-4 text-center">Statistics</h1>
 
         <!-- Dropdown for chart selection -->
         <div class="form-group">
             <label for="chartSelect">Select a Chart</label>
             <select class="form-control" id="chartSelect">
+                <!-- Options -->
                 <option value="">-- Select a Chart --</option>
                 <option value="average-differential">Average Differential</option>
                 <option value="average-by-team">Average by Team</option>
@@ -91,153 +85,138 @@
             </select>
         </div>
 
-        <!-- Charts -->
-        <div id="average-differential" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ average_differential_table|safe }}
-                </div>
-            </div>
+        <!-- HTML tables for DataTables -->
+        <div id="average-differential" class="chart-content chart-container">
+            {{ average_differential_table|safe }}
         </div>
-        <div id="average-by-team" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ average_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="average-by-team" class="chart-content chart-container">
+            {{ average_by_team_table|safe }}
         </div>
-        <div id="wins" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ wins_table|safe }}
-                </div>
-            </div>
+        <div id="wins" class="chart-content chart-container">
+            {{ wins_table|safe }}
         </div>
-        <div id="max-points-by-team" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ max_points_table|safe }}
-                </div>
-            </div>
+        <div id="max-points-by-team" class="chart-content chart-container">
+            {{ max_points_table|safe }}
         </div>
-        <div id="best-possible" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ best_possible_table|safe }}
-                </div>
-            </div>
+        <div id="best-possible" class="chart-content chart-container">
+            {{ best_possible_table|safe }}
         </div>
-        <div id="worst-possible" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ worst_possible_table|safe }}
-                </div>
-            </div>
+        <div id="worst-possible" class="chart-content chart-container">
+            {{ worst_possible_table|safe }}
         </div>
-        <div id="avg-points-week" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ avg_points_week_table|safe }}
-                </div>
-            </div>
+        <div id="median-possible" class="chart-content chart-container">
+            {{ median_possible_table|safe }}
         </div>
-        <div id="median-possible" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ median_possible_table|safe }}
-                </div>
-            </div>
+        <div id="avg-points-week" class="chart-content chart-container">
+            {{ avg_points_week_table|safe }}
         </div>
-        <div id="average-by-team-win-loss" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ average_by_team_table_win_and_loss|safe }}
-                </div>
-            </div>
+        <div id="average-by-team-win-loss" class="chart-content chart-container">
+            {{ average_by_team_table_win_and_loss|safe }}
         </div>
-        <div id="median-margin" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ median_by_team_result_table|safe }}
-                </div>
-            </div>
+        <div id="median-margin" class="chart-content chart-container">
+            {{ median_by_team_result_table|safe }}
         </div>
-        <div id="median-points" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ median_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="median-points" class="chart-content chart-container">
+            {{ median_by_team_table|safe }}
         </div>
-        <div id="max-points-single-game" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ max_points_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="max-points-single-game" class="chart-content chart-container">
+            {{ max_points_by_team_table|safe }}
         </div>
-        <div id="max-qb-points" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ max_qb_points_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="max-qb-points" class="chart-content chart-container">
+            {{ max_qb_points_by_team_table|safe }}
         </div>
-        <div id="max-wr-points" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ max_wr_points_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="max-wr-points" class="chart-content chart-container">
+            {{ max_wr_points_by_team_table|safe }}
         </div>
-        <div id="max-rb-points" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ max_rb_points_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="max-rb-points" class="chart-content chart-container">
+            {{ max_rb_points_by_team_table|safe }}
         </div>
-        <div id="max-te-points" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ max_te_points_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="max-te-points" class="chart-content chart-container">
+            {{ max_te_points_by_team_table|safe }}
         </div>
-        <div id="max-k-points" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ max_k_points_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="max-k-points" class="chart-content chart-container">
+            {{ max_k_points_by_team_table|safe }}
         </div>
-        <div id="max-def-points" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ max_def_points_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="max-def-points" class="chart-content chart-container">
+            {{ max_def_points_by_team_table|safe }}
         </div>
-        <div id="min-points-single-game" class="chart-content">
-            <div class="card">
-                <div class="card-body table-responsive">
-                    {{ min_points_by_team_table|safe }}
-                </div>
-            </div>
+        <div id="min-points-single-game" class="chart-content chart-container">
+            {{ min_points_by_team_table|safe }}
         </div>
     </div>
 
-    <!-- Add Bootstrap and jQuery JavaScript -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <!-- Add jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Add Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- Add DataTables JS -->
+    <script src="https://cdn.datatables.net/2.1.3/js/dataTables.min.js"></script>
+
     <script>
         $(document).ready(function() {
-            $('#chartSelect').change(function() {
-                var selectedChart = $(this).val();
-                $('.chart-content').hide(); // Hide all charts
-                if (selectedChart) {
-                    $('#' + selectedChart).show(); // Show the selected chart
-                }
+            // Initialize DataTables with default page length of 12
+            $('#average-differential table').DataTable({
+                "pageLength": 12
+            });
+            $('#average-by-team table').DataTable({
+                "pageLength": 12
+            });
+            $('#wins table').DataTable({
+                "pageLength": 12
+            });
+            $('#max-points-by-team table').DataTable({
+                "pageLength": 12
+            });
+            $('#best-possible table').DataTable({
+                "pageLength": 12
+            });
+            $('#worst-possible table').DataTable({
+                "pageLength": 12
+            });
+            $('#median-possible table').DataTable({
+                "pageLength": 12
+            });
+            $('#avg-points-week table').DataTable({
+                "pageLength": 12
+            });
+            $('#average-by-team-win-loss table').DataTable({
+                "pageLength": 12
+            });
+            $('#median-margin table').DataTable({
+                "pageLength": 12
+            });
+            $('#median-points table').DataTable({
+                "pageLength": 12
+            });
+            $('#max-points-single-game table').DataTable({
+                "pageLength": 12
+            });
+            $('#max-qb-points table').DataTable({
+                "pageLength": 12
+            });
+            $('#max-wr-points table').DataTable({
+                "pageLength": 12
+            });
+            $('#max-rb-points table').DataTable({
+                "pageLength": 12
+            });
+            $('#max-te-points table').DataTable({
+                "pageLength": 12
+            });
+            $('#max-k-points table').DataTable({
+                "pageLength": 12
+            });
+            $('#max-def-points table').DataTable({
+                "pageLength": 12
+            });
+            $('#min-points-single-game table').DataTable({
+                "pageLength": 12
+            });
+
+            // Handle chart selection
+            $('#chartSelect').on('change', function() {
+                $('.chart-content').hide();
+                $('#' + $(this).val()).show();
             });
         });
     </script>

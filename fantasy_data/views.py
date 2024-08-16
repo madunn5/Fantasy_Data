@@ -1,4 +1,5 @@
 import json
+import re
 
 import pandas as pd
 import matplotlib
@@ -101,14 +102,24 @@ def team_detail(request, team_id):
 
 
 def team_chart(request):
-    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct()
+    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
     selected_team = request.GET.get('team', 'all')
     only_box_plots = request.GET.get('only_box_plots', 'false') == 'true'
 
     # Load data
     team_performance = TeamPerformance.objects.all()
     df = pd.DataFrame(list(team_performance.values()))
-    df_sorted = df.sort_values(by=['week'])
+
+    # Define a function to extract the numeric part
+    def extract_week_number(week_str):
+        match = re.search(r'\d+', week_str)
+        return int(match.group()) if match else 0
+
+    # Apply the function to create a new column
+    df['week_number'] = df['week'].apply(extract_week_number)
+
+    # Sort by the new column and drop it if not needed
+    df_sorted = df.sort_values(by='week_number').drop(columns=['week_number'])
 
     # Filter data based on selected team for box plots
     if selected_team != 'all':
@@ -298,7 +309,7 @@ def charts_view(request):
 
 
 def box_plots_filter(request):
-    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct()
+    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
 
     # Load data
     team_performance = TeamPerformance.objects.all()
@@ -776,7 +787,6 @@ def stats_charts_filter(request):
         return render(request, 'fantasy_data/stats_filter.html', context)
 
 
-
 def stats_charts_filter_less_than(request):
     # Get selected points category
     selected_category = request.GET.get('points_category')
@@ -864,7 +874,7 @@ def train_model():
 
 
 def versus(request):
-    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct()
+    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
     team1 = request.GET.get('team1', None)
     team2 = request.GET.get('team2', None)
 
@@ -1005,7 +1015,7 @@ def versus(request):
 
 
 def win_probability_against_all_teams(request):
-    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct()
+    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
     selected_team = request.GET.get('team', None)
 
     if not selected_team:
@@ -1075,6 +1085,3 @@ def win_probability_against_all_teams(request):
         'selected_team': selected_team,
         'win_probabilities': win_probabilities,
     })
-
-
-
