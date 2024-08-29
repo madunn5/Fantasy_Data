@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fantasy Team Performance Charts</title>
-    <!-- Add Plotly JS library -->
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <title>Top 10 Largest Wins</title>
     <!-- Add Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Add DataTables CSS -->
+    <link href="https://cdn.datatables.net/2.1.3/css/dataTables.dataTables.min.css" rel="stylesheet">
     <style>
         .chart-container {
             margin-bottom: 2rem;
@@ -16,12 +16,17 @@
             box-shadow: 0 0 1rem rgba(0, 0, 0, 0.1);
             overflow-x: auto;
         }
+
+        /* Hide all charts by default */
+        .chart-content {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <!-- Collapsible Navbar for mobile responsiveness -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Boxplot Comparisons</a>
+        <a class="navbar-brand" href="#">Top 10s Tables</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -53,48 +58,47 @@
     </nav>
 
     <div class="container mt-4">
-        <h1 class="my-4 text-center">Fantasy Team Performance Charts</h1>
+        <h1 class="my-4 text-center">Top 10s</h1>
 
-        <!-- Chart containers with scrollable content -->
-        <div class="chart-container">
-            <h2 class="text-center">Total Points by Result</h2>
-            <div class="border p-3 rounded scrollable-chart">{{ chart|safe }}</div>
+        <!-- Dropdown for chart selection -->
+        <div class="form-group">
+            <label for="chartSelect">Select a Chart</label>
+            <select class="form-control" id="chartSelect">
+                <!-- Options -->
+                <option value="">-- Select a Chart --</option>
+                <option value="top-tens">Top 10 Largest Wins</option>
+            </select>
         </div>
 
-        <div class="chart-container">
-            <h2 class="text-center">Total QB Points by Result</h2>
-            <div class="border p-3 rounded scrollable-chart">{{ chart_qb|safe }}</div>
-        </div>
-
-        <div class="chart-container">
-            <h2 class="text-center">Total RB Points by Result</h2>
-            <div class="border p-3 rounded scrollable-chart">{{ chart_rb|safe }}</div>
-        </div>
-
-        <div class="chart-container">
-            <h2 class="text-center">Total WR Points by Result</h2>
-            <div class="border p-3 rounded scrollable-chart">{{ chart_wr|safe }}</div>
-        </div>
-
-        <div class="chart-container">
-            <h2 class="text-center">Total TE Points by Result</h2>
-            <div class="border p-3 rounded scrollable-chart">{{ chart_te|safe }}</div>
-        </div>
-
-        <div class="chart-container">
-            <h2 class="text-center">Total K Points by Result</h2>
-            <div class="border p-3 rounded scrollable-chart">{{ chart_k|safe }}</div>
-        </div>
-
-        <div class="chart-container">
-            <h2 class="text-center">Total DEF Points by Result</h2>
-            <div class="border p-3 rounded scrollable-chart">{{ chart_def|safe }}</div>
+        <!-- HTML table for DataTables -->
+        <div id="top-tens" class="chart-content chart-container">
+            {{ top_10_table|safe }}
         </div>
     </div>
 
-    <!-- Add Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <!-- Add jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Add Bootstrap JS -->
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- Add DataTables JS -->
+    <script src="https://cdn.datatables.net/2.1.3/js/dataTables.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            // Initialize DataTables with default page length of 12 for the top 10 table
+            $('#top-tens table').DataTable({
+                "pageLength": 12
+            });
+
+            // Show selected chart content
+            $('#chartSelect').change(function() {
+                $('.chart-content').hide();
+                var selectedChart = $(this).val();
+                if (selectedChart) {
+                    $('#' + selectedChart).show();
+                }
+            });
+        });
+    </script>
 </body>
 </html>

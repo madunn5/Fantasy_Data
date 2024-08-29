@@ -73,7 +73,8 @@ def upload_csv(request):
                     'actual_wins': row.get('Actual Wins', 0),
                     'wins_diff': row.get('Wins Over/(Wins Below)', 0),
                     'result': row.get('Result', 'N/A'),
-                    'opponent': row.get('Opponent', 'N/A')
+                    'opponent': row.get('Opponent', 'N/A'),
+                    'margin': row['Margin of Matchup']
                 }
             )
 
@@ -1117,3 +1118,45 @@ def win_probability_against_all_teams(request):
         'selected_team': selected_team,
         'win_probabilities': win_probabilities,
     })
+
+
+def top_tens(request):
+    # Retrieve data from the database
+    data = TeamPerformance.objects.all().values()
+
+    if not data:
+        print("No data retrieved from TeamPerformance model.")
+        context = {
+            'average_differential_table': "<p>No data available for average differential.</p>",
+            'average_by_team_table': "<p>No data available for average by team.</p>",
+            'wins_table': "<p>No data available for wins above/below projected wins.</p>",
+            'max_points_table': "<p>No data available for max points scored in a single game.</p>"
+        }
+        return render(request, 'fantasy_data/stats.html', context)
+
+    # Convert data to DataFrame
+    data = list(data)
+    data = pd.DataFrame(data)
+    # Filter the relevant columns
+    data_avg_by_team = data[['team_name', 'week', 'total_points', 'margin', 'opponent']]
+
+    # Find the top 10 largest margins by week
+    max_total_rows = data_avg_by_team.groupby('week')['margin'].nlargest(10).index.get_level_values(1)
+
+    # Extract the relevant rows
+    result = data_avg_by_team.loc[max_total_rows, ['week', 'team_name', 'total_points', 'margin', 'opponent']]
+
+    # Sort by 'Margin of Matchup' in descending order
+    result = result.sort_values(by=['margin'], ascending=False).reset_index(drop=True)
+
+    # Adjust the index to start from 1
+    result.index = result.index + 1
+
+    # Get the top 10 results
+    top_10_results = result.head(10)
+
+    # Convert the DataFrame to HTML if needed for rendering in a template
+    top_10_table = top_10_results.to_html(classes='table table-striped')
+
+    # Return the rendered HTML (assuming you want to render this in a Django view)
+    return render(request, 'fantasy_data/top_tens.html', {'top_10_table': top_10_table})

@@ -22,6 +22,7 @@ class TeamPerformance(models.Model):
     result = models.CharField(max_length=100, null=True, blank=True)
     week = models.CharField(max_length=100)
     opponent = models.CharField(max_length=100, null=True, blank=True)
+    margin = models.FloatField(null=True, blank=True)
 
     class Meta:
         unique_together = ('team_name', 'week')
