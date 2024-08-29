@@ -82,6 +82,7 @@
                 <option value="max-k-points">Max Points Scored in A Single Game by K</option>
                 <option value="max-def-points">Max Points Scored in A Single Game by DEF</option>
                 <option value="min-points-single-game">Min Points Scored in A Single Game</option>
+                <option value="margins-counts">Win/Loss Margins Counts</option>
             </select>
         </div>
 
@@ -142,6 +143,9 @@
         </div>
         <div id="min-points-single-game" class="chart-content chart-container">
             {{ min_points_by_team_table|safe }}
+        </div>
+        <div id="margins-counts" class="chart-content chart-container">
+            {{ margins_counts_table|safe }}
         </div>
     </div>
 
@@ -212,11 +216,15 @@
             $('#min-points-single-game table').DataTable({
                 "pageLength": 12
             });
+            $('#margins-counts table').DataTable({
+                "pageLength": 12
+            });
 
-            // Handle chart selection
-            $('#chartSelect').on('change', function() {
+            // Show selected chart content
+            $('#chartSelect').change(function() {
                 $('.chart-content').hide();
-                $('#' + $(this).val()).show();
+                var selectedChart = $(this).val();
+                $('#' + selectedChart).show();
             });
         });
     </script>

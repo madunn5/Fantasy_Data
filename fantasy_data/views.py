@@ -24,6 +24,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+import numpy as np
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -723,6 +724,36 @@ def stats_charts(request):
     else:
         min_points_by_team_table = "<p>Necessary columns not found in data.</p>"
 
+        # Win/Loss by margin classification
+    if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'points_against', 'result']):
+        data['point_margin'] = data['total_points'] - data['points_against']
+
+        # Define the categories
+        conditions = [
+            (data['result'] == 'W') & (data['point_margin'] > 10),
+            (data['result'] == 'W') & (data['point_margin'] <= 10),
+            (data['result'] == 'L') & (data['point_margin'] < -10),
+            (data['result'] == 'L') & (data['point_margin'] >= -10)
+        ]
+        choices = ['Win > 10', 'Win ≤ 10', 'Loss > 10', 'Loss ≤ 10']
+
+        # Create margin_category column
+        data['margin_category'] = np.select(conditions, choices, default='Other')
+
+        # Group by team_name and margin_category to count occurrences
+        margin_counts = data.groupby(['team_name', 'margin_category']).size().unstack(fill_value=0)
+
+        # Ensure all columns exist even if some categories are not present for all teams
+        for col in ['Win > 10', 'Win ≤ 10', 'Loss > 10', 'Loss ≤ 10']:
+            if col not in margin_counts.columns:
+                margin_counts[col] = 0
+
+        # Reorder and reset index
+        margin_counts = margin_counts[['Win > 10', 'Win ≤ 10', 'Loss > 10', 'Loss ≤ 10']].reset_index()
+        margins_counts_table = margin_counts.to_html(classes='table table-striped', index=False)
+    else:
+        margins_counts_table = "<p>Necessary columns not found in data.</p>"
+
     # Prepare context with the HTML tables
     context = {
         'average_differential_table': average_differential_table,
@@ -744,6 +775,7 @@ def stats_charts(request):
         'max_k_points_by_team_table': max_k_points_by_team_table,
         'max_def_points_by_team_table': max_def_points_by_team_table,
         'min_points_by_team_table': min_points_by_team_table,
+        'margins_counts_table': margins_counts_table,
     }
 
     # Render the HTML content using the context
