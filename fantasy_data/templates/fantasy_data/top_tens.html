@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top 10 Largest Wins</title>
+    <title>Top 10 Tables</title>
     <!-- Add Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <!-- Add DataTables CSS -->
@@ -66,13 +66,65 @@
             <select class="form-control" id="chartSelect">
                 <!-- Options -->
                 <option value="">-- Select a Chart --</option>
-                <option value="top-tens">Top 10 Largest Wins</option>
+                <option value="largest-margin">Top 10 Largest Margin Wins</option>
+                <option value="smallest-margin">Top 10 Smallest Margin Wins</option>
+                <option value="qb-points-top">Top 10 QB Points</option>
+                <option value="qb-points-bottom">Bottom 10 QB Points</option>
+                <option value="wr-points-top">Top 10 WR Points</option>
+                <option value="wr-points-bottom">Bottom 10 WR Points</option>
+                <option value="rb-points-top">Top 10 RB Points</option>
+                <option value="rb-points-bottom">Bottom 10 RB Points</option>
+                <option value="te-points-top">Top 10 TE Points</option>
+                <option value="te-points-bottom">Bottom 10 TE Points</option>
+                <option value="k-points-top">Top 10 Kicker Points</option>
+                <option value="k-points-bottom">Bottom 10 Kicker Points</option>
+                <option value="def-points-top">Top 10 Defense Points</option>
+                <option value="def-points-bottom">Bottom 10 Defense Points</option>
             </select>
         </div>
 
-        <!-- HTML table for DataTables -->
-        <div id="top-tens" class="chart-content chart-container">
-            {{ top_10_table|safe }}
+        <!-- HTML tables for each top 10 list -->
+        <div id="largest-margin" class="chart-content chart-container">
+            {{ top_10_largest_win_margins_table|safe }}
+        </div>
+        <div id="smallest-margin" class="chart-content chart-container">
+            {{ top_10_smallest_win_margins_table|safe }}
+        </div>
+        <div id="qb-points-top" class="chart-content chart-container">
+            {{ top_10_qb_points_largest_table|safe }}
+        </div>
+        <div id="qb-points-bottom" class="chart-content chart-container">
+            {{ top_10_qb_points_smallest_table|safe }}
+        </div>
+        <div id="wr-points-top" class="chart-content chart-container">
+            {{ top_10_wr_points_total_largest_table|safe }}
+        </div>
+        <div id="wr-points-bottom" class="chart-content chart-container">
+            {{ top_10_wr_points_total_smallest_table|safe }}
+        </div>
+        <div id="rb-points-top" class="chart-content chart-container">
+            {{ top_10_rb_points_total_largest_table|safe }}
+        </div>
+        <div id="rb-points-bottom" class="chart-content chart-container">
+            {{ top_10_rb_points_total_smallest_table|safe }}
+        </div>
+        <div id="te-points-top" class="chart-content chart-container">
+            {{ top_10_te_points_total_largest_table|safe }}
+        </div>
+        <div id="te-points-bottom" class="chart-content chart-container">
+            {{ top_10_te_points_total_smallest_table|safe }}
+        </div>
+        <div id="k-points-top" class="chart-content chart-container">
+            {{ top_10_k_points_largest_table|safe }}
+        </div>
+        <div id="k-points-bottom" class="chart-content chart-container">
+            {{ top_10_k_points_smallest_table|safe }}
+        </div>
+        <div id="def-points-top" class="chart-content chart-container">
+            {{ top_10_def_points_largest_table|safe }}
+        </div>
+        <div id="def-points-bottom" class="chart-content chart-container">
+            {{ top_10_def_points_smallest_table|safe }}
         </div>
     </div>
 
@@ -85,9 +137,9 @@
 
     <script>
         $(document).ready(function() {
-            // Initialize DataTables with default page length of 12 for the top 10 table
-            $('#top-tens table').DataTable({
-                "pageLength": 12
+            // Initialize DataTables for each top 10 table with default page length of 10
+            $('.chart-content table').DataTable({
+                "pageLength": 10
             });
 
             // Show selected chart content
