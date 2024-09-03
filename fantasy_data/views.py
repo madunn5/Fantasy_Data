@@ -1143,14 +1143,17 @@ def top_tens(request):
 
     # Find the top 10 smallest win margins by week
     smallest_win_margins_rows = win_margin_df.groupby('week')['margin'].nsmallest(10).index.get_level_values(1)
-    smallest_win_margins = win_margin_df.loc[smallest_win_margins_rows, ['week', 'team_name', 'total_points', 'margin', 'opponent']]
+    smallest_win_margins = win_margin_df.loc[
+        smallest_win_margins_rows, ['week', 'team_name', 'total_points', 'margin', 'opponent']]
     smallest_win_margins = smallest_win_margins.sort_values(by=['margin'], ascending=True).reset_index(drop=True)
+    smallest_win_margins = smallest_win_margins.head(10)  # Limit to top 10 rows
     smallest_win_margins.index = smallest_win_margins.index + 1
 
     # Get the top 10 largest margins by week
     largest_win_margins_rows = df.groupby('week')['margin'].nlargest(10).index.get_level_values(1)
     largest_win_margins = df.loc[largest_win_margins_rows, ['week', 'team_name', 'total_points', 'margin', 'opponent']]
     largest_win_margins = largest_win_margins.sort_values(by=['margin'], ascending=False).reset_index(drop=True)
+    largest_win_margins = largest_win_margins.head(10)  # Limit to top 10 rows
     largest_win_margins.index = largest_win_margins.index + 1
 
     # Repeat for each position: QB, WR, RB, TE, K, DEF, for both largest and smallest values
@@ -1160,14 +1163,18 @@ def top_tens(request):
         result = df.loc[top_rows, ['week', 'team_name', position, 'opponent', 'result']]
         order = False if largest else True
         result = result.sort_values(by=[position], ascending=order).reset_index(drop=True)
+        result = result.head(10)  # Limit to top 10 rows
         result.index = result.index + 1
-        result.head(10)
         return result
 
     positions = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points']
 
-    largest_positions_tables = {f'top_10_{position}_largest_table': get_top_10_by_position(position, df, largest=True).to_html(classes='table table-striped') for position in positions}
-    smallest_positions_tables = {f'top_10_{position}_smallest_table': get_top_10_by_position(position, df, largest=False).to_html(classes='table table-striped') for position in positions}
+    largest_positions_tables = {
+        f'top_10_{position}_largest_table': get_top_10_by_position(position, df, largest=True).to_html(
+            classes='table table-striped') for position in positions}
+    smallest_positions_tables = {
+        f'top_10_{position}_smallest_table': get_top_10_by_position(position, df, largest=False).to_html(
+            classes='table table-striped') for position in positions}
 
     # Convert the DataFrames to HTML
     largest_win_margins_table = largest_win_margins.to_html(classes='table table-striped')
@@ -1183,6 +1190,3 @@ def top_tens(request):
 
     # Render the results in the top_tens.html template
     return render(request, 'fantasy_data/top_tens.html', context)
-
-
-
