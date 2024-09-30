@@ -37,8 +37,8 @@ def upload_csv(request):
             return HttpResponse('This is not a CSV file.')
 
         # Clear previous data
-        TeamPerformance.objects.all().delete()
-        logger.info("Previous data successfully deleted.")
+        # TeamPerformance.objects.all().delete()
+        # logger.info("Previous data successfully deleted.")
 
         data = pd.read_csv(csv_file)
         data = data.sort_values(by=['Total'], ascending=True)
