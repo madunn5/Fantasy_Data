@@ -86,6 +86,7 @@
                 <option value="max-def-points">Max Points Scored in A Single Game by DEF</option>
                 <option value="min-points-single-game">Min Points Scored in A Single Game</option>
                 <option value="margins-counts">Win/Loss Margins Counts</option>
+                <option value="record_against_everyone">Record Against Everyone</option>
             </select>
         </div>
 
@@ -149,6 +150,9 @@
         </div>
         <div id="margins-counts" class="chart-content chart-container">
             {{ margins_counts_table|safe }}
+        </div>
+        <div id="record_against_everyone" class="chart-content chart-container">
+            {{ record_against_everyone|safe }}
         </div>
     </div>
 

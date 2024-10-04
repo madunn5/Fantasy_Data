@@ -725,7 +725,7 @@ def stats_charts(request):
     else:
         min_points_by_team_table = "<p>Necessary columns not found in data.</p>"
 
-        # Win/Loss by margin classification
+    # Win/Loss by margin classification
     if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'points_against', 'result']):
         data['point_margin'] = data['total_points'] - data['points_against']
 
@@ -755,6 +755,67 @@ def stats_charts(request):
     else:
         margins_counts_table = "<p>Necessary columns not found in data.</p>"
 
+    # Record if you played the same team each week
+    # Retrieve all data from the TeamPerformance model
+    # data = TeamPerformance.objects.all().values()
+    #
+    # # Convert the data to a DataFrame
+    # data = pd.DataFrame(data)
+
+    # Check if necessary columns exist
+    if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'points_against']):
+        # Initialize a string to store the combined HTML for all teams' records
+        combined_tables = ""
+
+        # Get the list of unique teams
+        teams = data['team_name'].unique()
+
+        # Loop through each team
+        for team in teams:
+            selected_team_data = data[data['team_name'] == team]
+            other_teams_data = data[data['team_name'] != team]
+
+            # Initialize a dictionary to store win-loss records for this team
+            team_vs_others_record = {}
+
+            # Loop through each unique opponent for the selected team
+            for opponent in other_teams_data['team_name'].unique():
+                opponent_data = other_teams_data[other_teams_data['team_name'] == opponent]
+
+                # Initialize win/loss counters
+                wins = 0
+                losses = 0
+
+                # Loop through each week the selected team and opponent played
+                for week in selected_team_data['week'].unique():
+                    selected_team_week = selected_team_data[selected_team_data['week'] == week]
+                    opponent_week = opponent_data[opponent_data['week'] == week]
+
+                    if not opponent_week.empty:
+                        # Compare points and update win/loss record
+                        if selected_team_week['total_points'].values[0] > opponent_week['total_points'].values[0]:
+                            wins += 1
+                        elif selected_team_week['total_points'].values[0] < opponent_week['total_points'].values[0]:
+                            losses += 1
+
+                # Add the result for the opponent
+                team_vs_others_record[opponent] = f"{wins}-{losses}"
+
+            # Convert the team's win-loss records to a DataFrame
+            team_record_df = pd.DataFrame(list(team_vs_others_record.items()), columns=['Opponent', 'Record'])
+            # print(team_record_df)
+
+            # Convert the DataFrame to an HTML table and add team heading
+            team_table_html = f"<h3>{team} Record Against Other Teams</h3>" + team_record_df.to_html(
+                classes='table table-striped', index=False)
+
+            # Append the team table to the combined_tables string
+            combined_tables += team_table_html
+            # print(combined_tables)
+
+    else:
+        combined_tables = "<p>Necessary columns not found in data.</p>"
+
     # Prepare context with the HTML tables
     context = {
         'average_differential_table': average_differential_table,
@@ -777,6 +838,7 @@ def stats_charts(request):
         'max_def_points_by_team_table': max_def_points_by_team_table,
         'min_points_by_team_table': min_points_by_team_table,
         'margins_counts_table': margins_counts_table,
+        'record_against_everyone': combined_tables,
     }
 
     # Render the HTML content using the context
