@@ -764,8 +764,8 @@ def stats_charts(request):
 
     # Check if necessary columns exist
     if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'points_against']):
-        # Initialize a string to store the combined HTML for all teams' records
-        combined_tables = ""
+        # Initialize a list to store team records with percentages
+        teams_record_list = []
 
         # Get the list of unique teams
         teams = data['team_name'].unique()
@@ -813,14 +813,25 @@ def stats_charts(request):
             total_games = total_wins + total_losses
             win_percentage = (total_wins / total_games * 100) if total_games > 0 else 0
 
-            # Add the total win-loss record and percentage for the team
+            # Add the team's total win-loss record and percentage to the team record
             team_vs_others_record['Total'] = f"{total_wins}-{total_losses} ({win_percentage:.2f}%)"
 
+            # Store the team, total record, and win percentage in a tuple
+            teams_record_list.append((team, team_vs_others_record, win_percentage))
+
+        # Sort teams by win percentage in descending order
+        sorted_teams = sorted(teams_record_list, key=lambda x: x[2], reverse=True)
+
+        # Initialize a string to store the combined HTML for all teams' records
+        combined_tables = ""
+
+        # Loop through the sorted teams and generate HTML with ranking
+        for rank, (team, team_vs_others_record, win_percentage) in enumerate(sorted_teams, start=1):
             # Convert the team's win-loss records to a DataFrame
             team_record_df = pd.DataFrame(list(team_vs_others_record.items()), columns=['Opponent', 'Record'])
 
-            # Convert the DataFrame to an HTML table and add team heading
-            team_table_html = f"<h3>{team} Record Against Other Teams</h3>" + team_record_df.to_html(
+            # Add the ranking to the team's name in the heading
+            team_table_html = f"<h3>{team} Record Against Other Teams (Rank: {rank})</h3>" + team_record_df.to_html(
                 classes='table table-striped', index=False)
 
             # Append the team table to the combined_tables string
