@@ -778,11 +778,15 @@ def stats_charts(request):
             # Initialize a dictionary to store win-loss records for this team
             team_vs_others_record = {}
 
+            # Initialize total wins and losses counters
+            total_wins = 0
+            total_losses = 0
+
             # Loop through each unique opponent for the selected team
             for opponent in other_teams_data['team_name'].unique():
                 opponent_data = other_teams_data[other_teams_data['team_name'] == opponent]
 
-                # Initialize win/loss counters
+                # Initialize win/loss counters for this opponent
                 wins = 0
                 losses = 0
 
@@ -798,12 +802,22 @@ def stats_charts(request):
                         elif selected_team_week['total_points'].values[0] < opponent_week['total_points'].values[0]:
                             losses += 1
 
+                # Update the total wins and losses
+                total_wins += wins
+                total_losses += losses
+
                 # Add the result for the opponent
                 team_vs_others_record[opponent] = f"{wins}-{losses}"
 
+            # Calculate total games and win percentage
+            total_games = total_wins + total_losses
+            win_percentage = (total_wins / total_games * 100) if total_games > 0 else 0
+
+            # Add the total win-loss record and percentage for the team
+            team_vs_others_record['Total'] = f"{total_wins}-{total_losses} ({win_percentage:.2f}%)"
+
             # Convert the team's win-loss records to a DataFrame
             team_record_df = pd.DataFrame(list(team_vs_others_record.items()), columns=['Opponent', 'Record'])
-            # print(team_record_df)
 
             # Convert the DataFrame to an HTML table and add team heading
             team_table_html = f"<h3>{team} Record Against Other Teams</h3>" + team_record_df.to_html(
@@ -811,7 +825,6 @@ def stats_charts(request):
 
             # Append the team table to the combined_tables string
             combined_tables += team_table_html
-            # print(combined_tables)
 
     else:
         combined_tables = "<p>Necessary columns not found in data.</p>"
