@@ -1253,7 +1253,7 @@ def top_tens(request):
         result.index = result.index + 1
         return result
 
-    positions = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points']
+    positions = ['total_points', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points']
 
     largest_positions_tables = {
         f'top_10_{position}_largest_table': get_top_10_by_position(position, df, largest=True).to_html(

@@ -68,6 +68,8 @@
                 <option value="">-- Select a Chart --</option>
                 <option value="largest-margin">Top 10 Largest Margin Wins</option>
                 <option value="smallest-margin">Top 10 Smallest Margin Wins</option>
+                <option value="total-points-top">Top 10 Total Points</option>
+                <option value="total-points-bottom">Bottom 10 Total Points</option>
                 <option value="qb-points-top">Top 10 QB Points</option>
                 <option value="qb-points-bottom">Bottom 10 QB Points</option>
                 <option value="wr-points-top">Top 10 WR Points</option>
@@ -89,6 +91,12 @@
         </div>
         <div id="smallest-margin" class="chart-content chart-container">
             {{ top_10_smallest_win_margins_table|safe }}
+        </div>
+        <div id="total-points-top" class="chart-content chart-container">
+            {{ top_10_total_points_largest_table|safe }}
+        </div>
+        <div id="total-points-bottom" class="chart-content chart-container">
+            {{ top_10_total_points_smallest_table|safe }}
         </div>
         <div id="qb-points-top" class="chart-content chart-container">
             {{ top_10_qb_points_largest_table|safe }}
