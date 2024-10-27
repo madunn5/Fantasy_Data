@@ -844,6 +844,7 @@ def stats_charts(request):
     if all(col in data.columns for col in ['team_name', 'opponent', 'week', 'total_points']):
         teams = data['team_name'].unique()  # Get unique team names
         team_tables = {}  # Dictionary to store tables for each team
+        average_ranks = {}  # Dictionary to store average ranks for sorting
 
         # Loop through each team
         for team in teams:
@@ -879,18 +880,34 @@ def stats_charts(request):
             # Drop the temporary week_numeric column
             final_df.drop(columns=['week_numeric'], inplace=True)
 
-            # Convert the DataFrame to an HTML table and store it in the team_tables dictionary
-            team_tables[team] = final_df.to_html(classes='table table-striped', index=False)
+            # Calculate the average opponent score rank and round it to one decimal
+            avg_opponent_score_rank = round(final_df['opponent_score_rank'].mean(), 1)
 
-        # Sort the team names alphabetically in a case-insensitive manner
-        sorted_teams = sorted(team_tables.keys(), key=str.lower)
+            # Append the average row to final_df
+            avg_row = pd.DataFrame({
+                'week': ['Average'],
+                'total_points': [''],  # or use np.nan for numeric columns
+                'score_rank': [''],
+                'opponent': [''],
+                'opponent_total_points': [''],
+                'opponent_score_rank': [avg_opponent_score_rank]
+            })
+
+            final_df = pd.concat([final_df, avg_row], ignore_index=True)
+
+            # Store the HTML table and average rank in the dictionaries
+            team_tables[team] = final_df.to_html(classes='table table-striped', index=False)
+            average_ranks[team] = avg_opponent_score_rank
+
+        # Sort teams based on the average opponent score rank
+        sorted_teams = sorted(average_ranks, key=average_ranks.get)
 
         # Initialize combined tables for all teams
         combined_tables2 = ""
 
         # Loop through the sorted team names and append their tables to the combined output
-        for team in sorted_teams:
-            combined_tables2 += f"<h3>{team}</h3>{team_tables[team]}<br>"
+        for rank, team in enumerate(sorted_teams, start=1):
+            combined_tables2 += f"<h3>{team} (Rank: {rank})</h3>{team_tables[team]}<br>"
 
     else:
         combined_tables2 = "<p>Necessary columns not found in data.</p>"
