@@ -854,20 +854,23 @@ def stats_charts(request):
             team_df['score_rank'] = team_df['total_points'].rank(ascending=False, method='min').astype(int)
 
             # Add opponent's data for each week
-            team_df = team_df.merge(
-                data[['team_name', 'week', 'total_points']],
-                left_on=['opponent', 'week'],
-                right_on=['team_name', 'week'],
-                suffixes=('', '_opponent')
-            ).drop(columns=['team_name_opponent'])  # Clean up extra column
+            opponent_df = data[['team_name', 'week', 'total_points']].copy()
+            opponent_df.rename(columns={'team_name': 'opponent', 'total_points': 'opponent_total_points'}, inplace=True)
 
-            # Rank the opponent's scores
-            team_df['opponent_score_rank'] = team_df['total_points_opponent'].rank(ascending=False,
+            # Merge opponent's data into the team's data
+            team_df = team_df.merge(
+                opponent_df,
+                on=['opponent', 'week'],
+                how='left'
+            )
+
+            # Calculate opponent's score rank within their own scores for each week
+            team_df['opponent_score_rank'] = team_df['opponent_total_points'].rank(ascending=False,
                                                                                    method='min').astype(int)
 
             # Select relevant columns for the final table
             final_df = team_df[['week', 'total_points', 'score_rank',
-                                'opponent', 'total_points_opponent', 'opponent_score_rank']]
+                                'opponent', 'opponent_total_points', 'opponent_score_rank']]
 
             # Convert week to numeric for sorting
             final_df['week_numeric'] = final_df['week'].str.extract('(\d+)').astype(int)
