@@ -869,6 +869,15 @@ def stats_charts(request):
             final_df = team_df[['week', 'total_points', 'score_rank',
                                 'opponent', 'total_points_opponent', 'opponent_score_rank']]
 
+            # Convert week to numeric for sorting
+            final_df['week_numeric'] = final_df['week'].str.extract('(\d+)').astype(int)
+
+            # Sort the DataFrame by the numeric week
+            final_df.sort_values(by='week_numeric', inplace=True)
+
+            # Drop the temporary week_numeric column
+            final_df.drop(columns=['week_numeric'], inplace=True)
+
             # Convert the DataFrame to an HTML table and store it in the team_tables dictionary
             team_tables[team] = final_df.to_html(classes='table table-striped', index=False)
 
