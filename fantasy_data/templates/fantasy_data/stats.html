@@ -87,6 +87,7 @@
                 <option value="min-points-single-game">Min Points Scored in A Single Game</option>
                 <option value="margins-counts">Win/Loss Margins Counts</option>
                 <option value="record_against_everyone">Record Against Everyone</option>
+                <option value="score_rank_by_team">Score Rank of Each Matchup</option>
             </select>
         </div>
 
@@ -153,6 +154,9 @@
         </div>
         <div id="record_against_everyone" class="chart-content chart-container">
             {{ record_against_everyone|safe }}
+        </div>
+        <div id="score_rank_by_team" class="chart-content chart-container">
+            {{ score_rank_by_team|safe }}
         </div>
     </div>
 

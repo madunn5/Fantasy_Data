@@ -840,6 +840,48 @@ def stats_charts(request):
     else:
         combined_tables = "<p>Necessary columns not found in data.</p>"
 
+    # Ensure required columns exist
+    if all(col in data.columns for col in ['team_name', 'opponent', 'week', 'total_points']):
+        teams = data['team_name'].unique()  # Get unique team names
+        team_tables = {}  # Dictionary to store tables for each team
+
+        # Loop through each team
+        for team in teams:
+            # Filter data for the selected team
+            team_df = data[data['team_name'] == team].copy()
+
+            # Rank the team's total points for the season
+            team_df['score_rank'] = team_df['total_points'].rank(ascending=False, method='min').astype(int)
+
+            # Add opponent's data for each week
+            team_df = team_df.merge(
+                data[['team_name', 'week', 'total_points']],
+                left_on=['opponent', 'week'],
+                right_on=['team_name', 'week'],
+                suffixes=('', '_opponent')
+            ).drop(columns=['team_name_opponent'])  # Clean up extra column
+
+            # Rank the opponent's scores
+            team_df['opponent_score_rank'] = team_df['total_points_opponent'].rank(ascending=False,
+                                                                                   method='min').astype(int)
+
+            # Select relevant columns for the final table
+            final_df = team_df[['week', 'total_points', 'score_rank',
+                                'opponent', 'total_points_opponent', 'opponent_score_rank']]
+
+            # Convert the DataFrame to an HTML table and store it in the team_tables dictionary
+            team_tables[team] = final_df.to_html(classes='table table-striped', index=False)
+
+        # Initialize combined tables for all teams
+        combined_tables2 = ""
+
+        # Loop through the team tables and append them to the combined output
+        for team, table_html in team_tables.items():
+            combined_tables2 += f"<h3>{team}</h3>{table_html}<br>"
+
+    else:
+        combined_tables2 = "<p>Necessary columns not found in data.</p>"
+
     # Prepare context with the HTML tables
     context = {
         'average_differential_table': average_differential_table,
@@ -863,6 +905,7 @@ def stats_charts(request):
         'min_points_by_team_table': min_points_by_team_table,
         'margins_counts_table': margins_counts_table,
         'record_against_everyone': combined_tables,
+        'score_rank_by_team': combined_tables2
     }
 
     # Render the HTML content using the context
@@ -1253,7 +1296,8 @@ def top_tens(request):
         result.index = result.index + 1
         return result
 
-    positions = ['total_points', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points']
+    positions = ['total_points', 'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points',
+                 'def_points']
 
     largest_positions_tables = {
         f'top_10_{position}_largest_table': get_top_10_by_position(position, df, largest=True).to_html(
