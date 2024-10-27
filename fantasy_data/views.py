@@ -881,12 +881,15 @@ def stats_charts(request):
             # Convert the DataFrame to an HTML table and store it in the team_tables dictionary
             team_tables[team] = final_df.to_html(classes='table table-striped', index=False)
 
+        # Sort the team names alphabetically in a case-insensitive manner
+        sorted_teams = sorted(team_tables.keys(), key=str.lower)
+
         # Initialize combined tables for all teams
         combined_tables2 = ""
 
-        # Loop through the team tables and append them to the combined output
-        for team, table_html in team_tables.items():
-            combined_tables2 += f"<h3>{team}</h3>{table_html}<br>"
+        # Loop through the sorted team names and append their tables to the combined output
+        for team in sorted_teams:
+            combined_tables2 += f"<h3>{team}</h3>{team_tables[team]}<br>"
 
     else:
         combined_tables2 = "<p>Necessary columns not found in data.</p>"
