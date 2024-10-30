@@ -913,7 +913,7 @@ def stats_charts(request):
         combined_tables2 = "<p>Necessary columns not found in data.</p>"
 
     # Ensure required columns exist
-    if all(col in data.columns for col in ['team_name', 'opponent', 'week', 'total_points']):
+    if all(col in data.columns for col in ['team_name', 'opponent', 'week', 'total_points', 'points_against']):
         combined_tables3 = ""
         teams = data['team_name'].unique()  # Get unique team names
         team_tables2 = {}  # Dictionary to store tables for each team
@@ -927,32 +927,36 @@ def stats_charts(request):
             # Initialize a list to store records for each opponent
             records = []
 
-            # Loop through all opponents (excluding the current team)
+            # Loop through all opponents (including the current team)
             for opponent in teams:
-                if opponent != team:
-                    # Filter data for the current opponent
-                    opponent_df = data[data['team_name'] == opponent][
-                        ['team_name', 'opponent', 'week', 'points_against']
-                    ].copy()
+                # Filter data for the current opponent
+                opponent_df = data[data['team_name'] == opponent][
+                    ['team_name', 'opponent', 'week', 'points_against', 'total_points']
+                ].copy()
 
-                    # Rename columns to avoid confusion after merging
-                    opponent_df.rename(
-                        columns={'team_name': 'schedule_being_played'},  # To differentiate team names
-                        inplace=True
-                    )
+                # Rename columns to avoid confusion after merging
+                opponent_df.rename(
+                    columns={'team_name': 'schedule_being_played'},  # To differentiate team names
+                    inplace=True
+                )
 
-                    # Merge opponent's data into the team's data by week
-                    merged_df = team_df.merge(opponent_df, on='week', how='left')
+                # Merge opponent's data into the team's data by week
+                merged_df = team_df.merge(opponent_df, on='week', how='left')
 
-                    # Drop rows where team_name and opponent are the same
-                    filtered_df = merged_df[merged_df['team_name'] != merged_df['opponent']]
+                # Handle case where opponent is the same as the team
+                merged_df['points_to_compare'] = merged_df.apply(
+                    lambda row: row['total_points_y'] if row['opponent'] == team else row['points_against'], axis=1
+                )
 
-                    # Calculate wins and losses against this opponent
-                    wins = (filtered_df['total_points'] > filtered_df['points_against']).sum()
-                    losses = (filtered_df['total_points'] < filtered_df['points_against']).sum()
+                # Drop rows where team_name and opponent are the same
+                filtered_df = merged_df.copy()
 
-                    # Store the W-L record for this opponent
-                    records.append({'Schedule Being Played': opponent, 'Record': f"{wins}-{losses}"})
+                # Calculate wins and losses against this opponent
+                wins = (filtered_df['total_points_x'] > filtered_df['points_to_compare']).sum()
+                losses = (filtered_df['total_points_x'] < filtered_df['points_to_compare']).sum()
+
+                # Store the W-L record for this opponent
+                records.append({'Schedule Being Played': opponent, 'Record': f"{wins}-{losses}"})
 
             # Create a DataFrame for the summary records
             summary_df = pd.DataFrame(records)
@@ -963,6 +967,7 @@ def stats_charts(request):
             # Store the HTML table for this team
             team_tables2[team] = summary_table
 
+        # Sort and combine the HTML tables for all teams
         sorted_team_tables = dict(sorted(team_tables2.items(), key=lambda item: item[0].lower()))
         for team, table in sorted_team_tables.items():
             combined_tables3 += f"<h3>{team}</h3>{table}<br>"
