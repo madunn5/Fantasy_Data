@@ -912,6 +912,64 @@ def stats_charts(request):
     else:
         combined_tables2 = "<p>Necessary columns not found in data.</p>"
 
+    # Ensure required columns exist
+    if all(col in data.columns for col in ['team_name', 'opponent', 'week', 'total_points']):
+        combined_tables3 = ""
+        teams = data['team_name'].unique()  # Get unique team names
+        team_tables2 = {}  # Dictionary to store tables for each team
+
+        # Loop through each team
+        for team in teams:
+            # Filter data for the selected team
+            team_df = data[data['team_name'] == team].copy()
+            team_df = team_df[['team_name', 'week', 'total_points']]
+
+            # Initialize a list to store records for each opponent
+            records = []
+
+            # Loop through all opponents (excluding the current team)
+            for opponent in teams:
+                if opponent != team:
+                    # Filter data for the current opponent
+                    opponent_df = data[data['team_name'] == opponent][
+                        ['team_name', 'opponent', 'week', 'points_against']
+                    ].copy()
+
+                    # Rename columns to avoid confusion after merging
+                    opponent_df.rename(
+                        columns={'team_name': 'schedule_being_played'},  # To differentiate team names
+                        inplace=True
+                    )
+
+                    # Merge opponent's data into the team's data by week
+                    merged_df = team_df.merge(opponent_df, on='week', how='left')
+
+                    # Drop rows where team_name and opponent are the same
+                    filtered_df = merged_df[merged_df['team_name'] != merged_df['opponent']]
+
+                    # Calculate wins and losses against this opponent
+                    wins = (filtered_df['total_points'] > filtered_df['points_against']).sum()
+                    losses = (filtered_df['total_points'] < filtered_df['points_against']).sum()
+
+                    # Store the W-L record for this opponent
+                    records.append({'Schedule Being Played': opponent, 'Record': f"{wins}-{losses}"})
+
+            # Create a DataFrame for the summary records
+            summary_df = pd.DataFrame(records)
+
+            # Convert the summary DataFrame to an HTML table
+            summary_table = summary_df.to_html(classes='table table-striped', index=False)
+
+            # Store the HTML table for this team
+            team_tables2[team] = summary_table
+
+        sorted_team_tables = dict(sorted(team_tables2.items(), key=lambda item: item[0].lower()))
+        for team, table in sorted_team_tables.items():
+            combined_tables3 += f"<h3>{team}</h3>{table}<br>"
+
+    else:
+        combined_tables3 = "<p>Necessary columns not found in data.</p>"
+
     # Prepare context with the HTML tables
     context = {
         'average_differential_table': average_differential_table,
@@ -935,7 +993,8 @@ def stats_charts(request):
         'min_points_by_team_table': min_points_by_team_table,
         'margins_counts_table': margins_counts_table,
         'record_against_everyone': combined_tables,
-        'score_rank_by_team': combined_tables2
+        'score_rank_by_team': combined_tables2,
+        'different_teams_schedules': combined_tables3
     }
 
     # Render the HTML content using the context
