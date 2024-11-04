@@ -1,10 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stats Charts</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css">
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         /* Ensure chart container is responsive */
         .chart-container {
@@ -20,40 +20,6 @@
             height: 100% !important;
         }
     </style>
-</head>
-<body>
-    <!-- Collapsible Navbar for mobile responsiveness -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Fantasy Stats G/L Than</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'stats_charts' %}">Stats Charts</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'top_tens' %}">Top 10s</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'stats_charts_filter' %}">Charts Filter Greater/Less Than</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'versus' %}">Team Comparisons</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'win_probability_against_all_teams' %}">Win Probability Against All Teams</a>
-                </li>
-            </ul>
-        </div>
-    </nav>
 
     <div class="container mt-4">
         <h1 class="mb-4 text-center">Counts by Team by Point Category</h1>
@@ -164,5 +130,6 @@
             myChart.update();
         }
     </script>
+{% endblock %}
 </body>
 </html>

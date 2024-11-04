@@ -1,56 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fantasy Team Performance Charts</title>
-    <!-- Add Plotly JS library -->
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <!-- Add Bootstrap CSS -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .chart-container {
-            margin-bottom: 2rem;
-            padding: 1rem;
-            border-radius: .25rem;
-            box-shadow: 0 0 1rem rgba(0, 0, 0, 0.1);
-            overflow-x: auto;
-        }
-    </style>
-</head>
-<body>
-    <!-- Collapsible Navbar for mobile responsiveness -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Boxplot Comparisons</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'stats_charts' %}">Stats Charts</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'top_tens' %}">Top 10s</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'stats_charts_filter' %}">Charts Filter Greater/Less Than</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'versus' %}">Team Comparisons</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'win_probability_against_all_teams' %}">Win Probability Against All Teams</a>
-                </li>
-            </ul>
-        </div>
-    </nav>
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
 
     <div class="container mt-4">
         <h1 class="my-4 text-center">Fantasy Team Performance Charts</h1>
@@ -96,5 +48,6 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+{% endblock %}
 </body>
 </html>

@@ -200,6 +200,7 @@ def team_chart(request):
         'chart_te_points': chart_te_points,
         'chart_k_points': chart_k_points,
         'chart_def_points': chart_def_points,
+        'page_title': 'Team Boxplot Charts'
     })
 
     return render(request, 'fantasy_data/team_chart.html', context)
@@ -457,7 +458,8 @@ def box_plots_filter(request):
         'chart_wr': chart_wr,
         'chart_te': chart_te,
         'chart_k': chart_k,
-        'chart_def': chart_def
+        'chart_def': chart_def,
+        'page_title': 'Boxplot Comparisons'
     }
 
     return render(request, 'fantasy_data/team_chart_filter.html', context)
@@ -999,7 +1001,8 @@ def stats_charts(request):
         'margins_counts_table': margins_counts_table,
         'record_against_everyone': combined_tables,
         'score_rank_by_team': combined_tables2,
-        'different_teams_schedules': combined_tables3
+        'different_teams_schedules': combined_tables3,
+        'page_title': 'Fantasy Stat Tables'
     }
 
     # Render the HTML content using the context
@@ -1039,7 +1042,7 @@ def stats_charts_filter(request):
     if 'ajax' in request.GET:
         return JsonResponse({'labels': labels, 'counts': counts, 'winCounts': win_counts})
     else:
-        context = {'labels': labels, 'counts': counts, 'winCounts': win_counts}
+        context = {'labels': labels, 'counts': counts, 'winCounts': win_counts, 'page_title': ' Fantasy Stats G/L Than'}
         return render(request, 'fantasy_data/stats_filter.html', context)
 
 
@@ -1130,12 +1133,14 @@ def train_model():
 
 
 def versus(request):
+    page_title = "Team Comparison"
+
     teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
     team1 = request.GET.get('team1', None)
     team2 = request.GET.get('team2', None)
 
     if not team1 or not team2:
-        return render(request, 'fantasy_data/versus.html', {'teams': teams})
+        return render(request, 'fantasy_data/versus.html', {'teams': teams, 'page_title': page_title})
 
     # Load and prepare data for prediction
     model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model()
@@ -1264,18 +1269,21 @@ def versus(request):
         'chart_k_points': chart_k_points,
         'chart_def_points': chart_def_points,
         'prediction': prediction,
-        'difference_between_teams': difference_between_teams
+        'difference_between_teams': difference_between_teams,
+        'page_title': page_title
     }
 
     return render(request, 'fantasy_data/versus.html', context)
 
 
 def win_probability_against_all_teams(request):
+    page_title = "Fantasy Win Probability"
+
     teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
     selected_team = request.GET.get('team', None)
 
     if not selected_team:
-        return render(request, 'fantasy_data/probabilities.html', {'teams': teams})
+        return render(request, 'fantasy_data/probabilities.html', {'teams': teams, 'page_title': page_title})
 
     # Load and prepare data for prediction
     model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model()
@@ -1340,6 +1348,7 @@ def win_probability_against_all_teams(request):
         'teams': teams,
         'selected_team': selected_team,
         'win_probabilities': win_probabilities,
+        'page_title': page_title
     })
 
 
@@ -1409,7 +1418,8 @@ def top_tens(request):
         'top_10_largest_win_margins_table': largest_win_margins_table,
         'top_10_smallest_win_margins_table': smallest_win_margins_table,
         **largest_positions_tables,
-        **smallest_positions_tables
+        **smallest_positions_tables,
+        'page_title': 'Top 10s Tables'
     }
 
     # Render the results in the top_tens.html template
