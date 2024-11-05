@@ -1105,7 +1105,7 @@ def prepare_data():
 
     df = df.dropna(subset=numeric_columns)  # Drop rows with NaNs in numeric columns
 
-    # Encode categorical columns
+    # Encode team_name and opponent columns, result is directly used without encoding
     label_encoder_team = LabelEncoder()
     df['team_name'] = label_encoder_team.fit_transform(df['team_name'].astype(str))
     label_encoder_opponent = LabelEncoder()
@@ -1113,8 +1113,8 @@ def prepare_data():
     label_encoder_result = LabelEncoder()
     df['result'] = label_encoder_result.fit_transform(df['result'].astype(str))
 
-    # Binary outcome: 1 if the team won, 0 otherwise
-    df['win'] = df['result'].apply(lambda x: 1 if x == 1 else 0)
+    # Binary outcome: 1 for win, 0 for tie, -1 for loss
+    df['win'] = df['result'].apply(lambda x: 1 if x == 1 else (0 if x == 0 else -1))
 
     return df, label_encoder_team, label_encoder_opponent, label_encoder_result
 
@@ -1194,30 +1194,30 @@ def versus(request):
     X_team1 = pd.DataFrame([df_team1[numeric_columns].values], columns=numeric_columns)
     X_team2 = pd.DataFrame([df_team2[numeric_columns].values], columns=numeric_columns)
 
-    # Predict the probability of winning for each team
-    prob_team1 = model.predict_proba(X_team1)[:, 1][0]
-    prob_team2 = model.predict_proba(X_team2)[:, 1][0]
+    # Predict probabilities for each team: win, tie, and loss
+    prob_team1_win = model.predict_proba(X_team1)[:, model.classes_ == 1][0][0]
+    prob_team2_win = model.predict_proba(X_team2)[:, model.classes_ == 1][0][0]
 
-    # Normalize probabilities
-    total_prob = prob_team1 + prob_team2
-    prob_team1_normalized = prob_team1 / total_prob
-    prob_team2_normalized = prob_team2 / total_prob
+    # Normalize win probabilities
+    total_prob = prob_team1_win + prob_team2_win
+    prob_team1_normalized = prob_team1_win / total_prob
+    prob_team2_normalized = prob_team2_win / total_prob
 
-    # Generate prediction messages
+    # Generate prediction messages including the chance of a tie
     if prob_team1_normalized > prob_team2_normalized:
         prediction = (
             f"{team1} is more likely to win with a probability of {prob_team1_normalized:.2%}. "
-            f"{team2} has a probability of {prob_team2_normalized:.2%} to win."
+            f"{team2} has a probability of {prob_team2_normalized:.2%} to win. "
         )
     elif prob_team1_normalized < prob_team2_normalized:
         prediction = (
             f"{team2} is more likely to win with a probability of {prob_team2_normalized:.2%}. "
-            f"{team1} has a probability of {prob_team1_normalized:.2%} to win."
+            f"{team1} has a probability of {prob_team1_normalized:.2%} to win. "
         )
     else:
         prediction = (
             "It's too close to call! Both teams have similar chances with "
-            f"{team1} at {prob_team1_normalized:.2%} and {team2} at {prob_team2_normalized:.2%}."
+            f"{team1} at {prob_team1_normalized:.2%} and {team2} at {prob_team2_normalized:.2%}. "
         )
 
     # Create comparison charts
