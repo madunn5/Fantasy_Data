@@ -1114,7 +1114,7 @@ def prepare_data():
     df['result'] = label_encoder_result.fit_transform(df['result'].astype(str))
 
     # Binary outcome: 1 for win, 0 for tie, -1 for loss
-    df['win'] = df['result'].apply(lambda x: 1 if x == 1 else (0 if x == 0 else -1))
+    df['win'] = df['result'].apply(lambda x: 1 if x == 2 else (0 if x == 0 else -1))
 
     return df, label_encoder_team, label_encoder_opponent, label_encoder_result
 
