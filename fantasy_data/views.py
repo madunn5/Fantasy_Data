@@ -783,6 +783,7 @@ def stats_charts(request):
             # Initialize total wins and losses counters
             total_wins = 0
             total_losses = 0
+            total_ties = 0
 
             # Loop through each unique opponent for the selected team
             for opponent in other_teams_data['team_name'].unique():
@@ -791,6 +792,7 @@ def stats_charts(request):
                 # Initialize win/loss counters for this opponent
                 wins = 0
                 losses = 0
+                ties = 0
 
                 # Loop through each week the selected team and opponent played
                 for week in selected_team_data['week'].unique():
@@ -803,20 +805,23 @@ def stats_charts(request):
                             wins += 1
                         elif selected_team_week['total_points'].values[0] < opponent_week['total_points'].values[0]:
                             losses += 1
+                        else:
+                            ties += 1
 
                 # Update the total wins and losses
                 total_wins += wins
                 total_losses += losses
+                total_ties += ties
 
                 # Add the result for the opponent
-                team_vs_others_record[opponent] = f"{wins}-{losses}"
+                team_vs_others_record[opponent] = f"{wins}-{losses}-{ties}"
 
             # Calculate total games and win percentage
-            total_games = total_wins + total_losses
+            total_games = total_wins + total_losses + total_ties
             win_percentage = (total_wins / total_games * 100) if total_games > 0 else 0
 
             # Add the team's total win-loss record and percentage to the team record
-            team_vs_others_record['Total'] = f"{total_wins}-{total_losses} ({win_percentage:.2f}%)"
+            team_vs_others_record['Total'] = f"{total_wins}-{total_losses}-{total_ties} ({win_percentage:.2f}%)"
 
             # Store the team, total record, and win percentage in a tuple
             teams_record_list.append((team, team_vs_others_record, win_percentage))
@@ -956,9 +961,10 @@ def stats_charts(request):
                 # Calculate wins and losses against this opponent
                 wins = (filtered_df['total_points_x'] > filtered_df['points_to_compare']).sum()
                 losses = (filtered_df['total_points_x'] < filtered_df['points_to_compare']).sum()
+                ties = (filtered_df['total_points_x'] == filtered_df['points_to_compare']).sum()
 
                 # Store the W-L record for this opponent
-                records.append({'Schedule Being Played': opponent, 'Record': f"{wins}-{losses}"})
+                records.append({'Schedule Being Played': opponent, 'Record': f"{wins}-{losses}-{ties}"})
 
             # Create a DataFrame for the summary records
             summary_df = pd.DataFrame(records)
