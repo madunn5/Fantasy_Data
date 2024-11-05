@@ -1126,11 +1126,12 @@ def train_model():
             'total_points']]
     y = df['win']
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
+    # Train the logistic regression model
     model = LogisticRegression()
-    model.fit(X_train, y_train)
+    model.fit(X, y)
 
+    # Calculate the overall model accuracy
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     print(f"Model Accuracy: {accuracy:.2f}")
