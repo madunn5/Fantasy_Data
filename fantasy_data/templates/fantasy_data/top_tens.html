@@ -15,6 +15,8 @@
                 <option value="">-- Select a Chart --</option>
                 <option value="largest-margin">Top 10 Largest Margin Wins</option>
                 <option value="smallest-margin">Top 10 Smallest Margin Wins</option>
+                <option value="largest-projection">Top 10 Largest Projection Difference</option>
+                <option value="smallest-projection">Top 10 Smallest Projection Difference</option>
                 <option value="total-points-top">Top 10 Total Points</option>
                 <option value="total-points-bottom">Bottom 10 Total Points</option>
                 <option value="qb-points-top">Top 10 QB Points</option>
@@ -38,6 +40,12 @@
         </div>
         <div id="smallest-margin" class="chart-content chart-container">
             {{ top_10_smallest_win_margins_table|safe }}
+        </div>
+        <div id="largest-projection" class="chart-content chart-container">
+            {{ top_10_largest_win_projections_table|safe }}
+        </div>
+        <div id="smallest-projection" class="chart-content chart-container">
+            {{ top_10_smallest_win_projections_table|safe }}
         </div>
         <div id="total-points-top" class="chart-content chart-container">
             {{ top_10_total_points_largest_table|safe }}

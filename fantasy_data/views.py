@@ -704,6 +704,31 @@ def stats_charts(request):
     else:
         max_k_points_by_team_table = "<p>Necessary columns not found in data.</p>"
 
+    # Max Difference points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'difference', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'difference', 'result', 'opponent']]
+        max_total_rows = data_avg_by_team.groupby('team_name')['difference'].idxmax()
+        result = data_avg_by_team.loc[
+            max_total_rows, ['team_name', 'week', 'difference', 'result', 'opponent']]
+        result = result.sort_values(by=['difference'], ascending=False).reset_index(drop=True)
+        result.index = result.index + 1
+        max_difference_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        max_difference_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
+    # Max negative difference points in a single game by team
+    if all(col in data.columns for col in ['team_name', 'week', 'difference', 'result', 'opponent']):
+        data_avg_by_team = data[['team_name', 'week', 'difference', 'result', 'opponent']]
+        # Use idxmin to get the most negative 'difference' for each team
+        max_total_rows = data_avg_by_team.groupby('team_name')['difference'].idxmin()
+        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'difference', 'result', 'opponent']]
+        # Sort by 'difference' in ascending order to show the most negative values first
+        result = result.sort_values(by=['difference'], ascending=True).reset_index(drop=True)
+        result.index = result.index + 1
+        min_difference_points_by_team_table = result.to_html(classes='table table-striped', index=False)
+    else:
+        min_difference_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+
     # Max DEF points in a single game by team
     if all(col in data.columns for col in ['team_name', 'week', 'def_points', 'result', 'opponent']):
         data_avg_by_team = data[['team_name', 'week', 'def_points', 'result', 'opponent']]
@@ -1003,6 +1028,8 @@ def stats_charts(request):
         'max_te_points_by_team_table': max_te_points_by_team_table,
         'max_k_points_by_team_table': max_k_points_by_team_table,
         'max_def_points_by_team_table': max_def_points_by_team_table,
+        'max_difference_points_by_team_table': max_difference_points_by_team_table,
+        'min_difference_points_by_team_table': min_difference_points_by_team_table,
         'min_points_by_team_table': min_points_by_team_table,
         'margins_counts_table': margins_counts_table,
         'record_against_everyone': combined_tables,
@@ -1395,6 +1422,26 @@ def top_tens(request):
     largest_win_margins = largest_win_margins.head(10)  # Limit to top 10 rows
     largest_win_margins.index = largest_win_margins.index + 1
 
+    # Get the top 10 largest projection margins by week
+    largest_win_projection_rows = df.groupby('week')['difference'].nlargest(10).index.get_level_values(1)
+    largest_win_projections = df.loc[largest_win_projection_rows, ['week', 'team_name', 'total_points',
+                                                                   'expected_total', 'difference', 'opponent']]
+    largest_win_projections = largest_win_projections.sort_values(by=['difference'], ascending=False).reset_index(
+        drop=True)
+    largest_win_projections = largest_win_projections.head(10)  # Limit to top 10 rows
+    largest_win_projections.index = largest_win_projections.index + 1
+
+    # Get the top 10 largest negative projection margins by week
+    smallest_win_projection_rows = df.groupby('week')['difference'].nsmallest(10).index.get_level_values(1)
+    smallest_win_projections = df.loc[smallest_win_projection_rows, ['week', 'team_name', 'total_points',
+                                                                     'expected_total', 'difference', 'opponent']]
+    # Sort by 'difference' in ascending order to keep the largest negative values at the top
+    smallest_win_projections = smallest_win_projections.sort_values(by=['difference'], ascending=True).reset_index(
+        drop=True)
+    # Limit to top 10 rows
+    smallest_win_projections = smallest_win_projections.head(10)
+    smallest_win_projections.index = smallest_win_projections.index + 1
+
     # Repeat for each position: QB, WR, RB, TE, K, DEF, for both largest and smallest values
     def get_top_10_by_position(position, df, largest=True):
         group_method = 'nlargest' if largest else 'nsmallest'
@@ -1419,11 +1466,15 @@ def top_tens(request):
     # Convert the DataFrames to HTML
     largest_win_margins_table = largest_win_margins.to_html(classes='table table-striped')
     smallest_win_margins_table = smallest_win_margins.to_html(classes='table table-striped')
+    largest_win_projections = largest_win_projections.to_html(classes='table table-striped')
+    smallest_win_projections = smallest_win_projections.to_html(classes='table table-striped')
 
     # Prepare context for rendering in the template
     context = {
         'top_10_largest_win_margins_table': largest_win_margins_table,
         'top_10_smallest_win_margins_table': smallest_win_margins_table,
+        'top_10_largest_win_projections_table': largest_win_projections,
+        'top_10_smallest_win_projections_table': smallest_win_projections,
         **largest_positions_tables,
         **smallest_positions_tables,
         'page_title': 'Top 10s Tables'

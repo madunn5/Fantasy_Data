@@ -31,6 +31,8 @@
                 <option value="max-te-points">Max Points Scored in A Single Game by TE</option>
                 <option value="max-k-points">Max Points Scored in A Single Game by K</option>
                 <option value="max-def-points">Max Points Scored in A Single Game by DEF</option>
+                <option value="max_difference_points_by_team_table">Max Projected Difference in A Single Game</option>
+                <option value="min_difference_points_by_team_table">Min Projected Difference in A Single Game</option>
                 <option value="min-points-single-game">Min Points Scored in A Single Game</option>
                 <option value="margins-counts">Win/Loss Margins Counts</option>
                 <option value="record_against_everyone">Record Against Everyone</option>
@@ -93,6 +95,12 @@
         </div>
         <div id="max-def-points" class="chart-content chart-container">
             {{ max_def_points_by_team_table|safe }}
+        </div>
+        <div id="max_difference_points_by_team_table" class="chart-content chart-container">
+            {{ max_difference_points_by_team_table|safe }}
+        </div>
+        <div id="min_difference_points_by_team_table" class="chart-content chart-container">
+            {{ min_difference_points_by_team_table|safe }}
         </div>
         <div id="min-points-single-game" class="chart-content chart-container">
             {{ min_points_by_team_table|safe }}
