@@ -1425,7 +1425,8 @@ def top_tens(request):
     # Get the top 10 largest projection margins by week
     largest_win_projection_rows = df.groupby('week')['difference'].nlargest(10).index.get_level_values(1)
     largest_win_projections = df.loc[largest_win_projection_rows, ['week', 'team_name', 'total_points',
-                                                                   'expected_total', 'difference', 'opponent']]
+                                                                   'expected_total', 'difference', 'opponent',
+                                                                   'result']]
     largest_win_projections = largest_win_projections.sort_values(by=['difference'], ascending=False).reset_index(
         drop=True)
     largest_win_projections = largest_win_projections.head(10)  # Limit to top 10 rows
@@ -1434,7 +1435,8 @@ def top_tens(request):
     # Get the top 10 largest negative projection margins by week
     smallest_win_projection_rows = df.groupby('week')['difference'].nsmallest(10).index.get_level_values(1)
     smallest_win_projections = df.loc[smallest_win_projection_rows, ['week', 'team_name', 'total_points',
-                                                                     'expected_total', 'difference', 'opponent']]
+                                                                     'expected_total', 'difference', 'opponent',
+                                                                     'result']]
     # Sort by 'difference' in ascending order to keep the largest negative values at the top
     smallest_win_projections = smallest_win_projections.sort_values(by=['difference'], ascending=True).reset_index(
         drop=True)
