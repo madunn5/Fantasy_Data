@@ -1363,8 +1363,8 @@ def win_probability_against_all_teams(request):
         X_opponent = pd.DataFrame([df_opponent[numeric_columns].values], columns=numeric_columns)
 
         # Predict the probability of winning for each team
-        prob_selected_team = model.predict_proba(X_selected_team)[:, 1][0]
-        prob_opponent = model.predict_proba(X_opponent)[:, 1][0]
+        prob_selected_team = model.predict_proba(X_selected_team)[:, model.classes_ == 1][0][0]
+        prob_opponent = model.predict_proba(X_opponent)[:, model.classes_ == 1][0][0]
 
         # Normalize probabilities
         total_prob = prob_selected_team + prob_opponent
