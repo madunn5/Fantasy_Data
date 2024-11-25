@@ -872,6 +872,171 @@ def stats_charts(request):
     else:
         combined_tables = "<p>Necessary columns not found in data.</p>"
 
+    # Check if necessary columns exist
+    if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'points_against', 'result']):
+        # Initialize a list to store team records by week
+        weekly_record_list = []
+
+        # Get the list of unique weeks
+        weeks = sorted(data['week'].unique())
+
+        # Loop through each week
+        for week in weeks:
+            # Filter data for the current week
+            weekly_data = data[data['week'] == week]
+
+            # Initialize a dictionary to store records for all teams in this week
+            weekly_team_record = {}
+
+            # Loop through each team
+            for team in weekly_data['team_name'].unique():
+                # Get the team's data for this week
+                team_week_data = weekly_data[weekly_data['team_name'] == team]
+
+                # Fetch the result for the team
+                week_result = team_week_data['result'].values[0] if not team_week_data.empty else "N/A"
+
+                # Compare the team's points against all opponents in this week
+                wins = 0
+                losses = 0
+                ties = 0
+
+                for opponent_team in weekly_data['team_name'].unique():
+                    if opponent_team != team:
+                        opponent_week_data = weekly_data[weekly_data['team_name'] == opponent_team]
+
+                        if not opponent_week_data.empty:
+                            # Compare points and update win/loss record
+                            if team_week_data['total_points'].values[0] > opponent_week_data['total_points'].values[0]:
+                                wins += 1
+                            elif team_week_data['total_points'].values[0] < opponent_week_data['total_points'].values[
+                                0]:
+                                losses += 1
+                            else:
+                                ties += 1
+
+                # Add the result and record for the team
+                total_games = wins + losses + ties
+                win_percentage = (wins / total_games * 100) if total_games > 0 else 0
+                weekly_team_record[team] = {
+                    "Record": f"{wins}-{losses}-{ties} ({win_percentage:.2f}%)",
+                    "Result": week_result,
+                }
+
+            # Append the week's records to the list
+            weekly_record_list.append((week, weekly_team_record))
+
+        # Generate HTML for weekly records
+        combined_tables_by_week = ""
+
+        for week, team_records in weekly_record_list:
+            # Convert the team's records for this week to a DataFrame
+            team_record_df = pd.DataFrame([
+                {"Team": team, "Record": record["Record"], "Result": record["Result"]}
+                for team, record in team_records.items()
+            ])
+
+            # Add a heading for the week's results
+            week_table_html = f"<h3>{week} Results</h3>" + team_record_df.to_html(
+                classes='table table-striped', index=False)
+
+            # Append the week's table to the combined tables string
+            combined_tables_by_week += week_table_html
+
+    else:
+        combined_tables_by_week = "<p>Necessary columns not found in data.</p>"
+
+    # Check if necessary columns exist
+    if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'points_against', 'result']):
+        # Initialize a dictionary to store the count of weekly records and results for each team
+        team_weekly_record_counts = {}
+
+        # Get the list of unique teams
+        teams = sorted(data['team_name'].unique())  # Sort teams alphabetically upfront
+
+        # Loop through each team
+        for team in teams:
+            # Filter data for this team
+            team_data = data[data['team_name'] == team]
+
+            # Initialize a dictionary to store the count of records and results for this team
+            weekly_record_counts = {}
+
+            # Loop through each week
+            for week in sorted(team_data['week'].unique()):
+                # Get the team's data for this week
+                team_week_data = team_data[team_data['week'] == week]
+
+                # Fetch the result for the team
+                week_result = team_week_data['result'].values[0] if not team_week_data.empty else "N/A"
+
+                # Initialize weekly win/loss counters
+                wins = 0
+                losses = 0
+                ties = 0
+
+                # List to store the actual results for this week
+                weekly_results = [week_result]
+
+                # Compare this team's points against all opponents in the same week
+                for opponent_team in data['team_name'].unique():
+                    if opponent_team != team:
+                        opponent_week_data = data[
+                            (data['team_name'] == opponent_team) & (data['week'] == week)
+                            ]
+
+                        if not opponent_week_data.empty:
+                            # Compare points and update weekly win/loss record
+                            if team_week_data['total_points'].values[0] > opponent_week_data['total_points'].values[0]:
+                                wins += 1
+                            elif team_week_data['total_points'].values[0] < opponent_week_data['total_points'].values[
+                                0]:
+                                losses += 1
+                            else:
+                                ties += 1
+
+                # Generate the record string for this week
+                weekly_record = f"{wins}-{losses}-{ties}"
+
+                # Update the count for this record and append the result
+                if weekly_record in weekly_record_counts:
+                    weekly_record_counts[weekly_record]['count'] += 1
+                    weekly_record_counts[weekly_record]['results'].extend(weekly_results)
+                else:
+                    weekly_record_counts[weekly_record] = {'count': 1, 'results': weekly_results}
+
+            # Store the aggregated counts for this team
+            team_weekly_record_counts[team] = weekly_record_counts
+
+        # Generate HTML for the aggregated record counts and results
+        combined_tables_by_team = ""
+
+        for team in sorted(team_weekly_record_counts.keys(), key=lambda x: x.lower()):  # Sort by team name, case-insensitive
+            # Convert record counts to a DataFrame
+            record_counts_data = []
+            for record, details in team_weekly_record_counts[team].items():
+                # Join results for that record as a comma-separated string
+                results_list = ', '.join(details['results'])  # Join the results list into a string
+                record_counts_data.append([record, details['count'], results_list])
+
+            # Create DataFrame for the team record counts and results
+            record_counts_df = pd.DataFrame(record_counts_data, columns=['Record', 'Count', 'Results'])
+
+            # Sort the DataFrame by Count in descending order
+            record_counts_df = record_counts_df.sort_values(by='Count', ascending=False)
+
+            # Generate a summary table for the team
+            team_table_html = (
+                    f"<h3>{team} - Weekly Record Counts</h3>"
+                    + record_counts_df.to_html(classes='table table-striped', index=False)
+            )
+
+            # Append the team's table to the combined tables string
+            combined_tables_by_team += team_table_html
+
+    else:
+        combined_tables_by_team = "<p>Necessary columns not found in data.</p>"
+
     # Ensure required columns exist
     if all(col in data.columns for col in ['team_name', 'opponent', 'week', 'total_points']):
         teams = data['team_name'].unique()  # Get unique team names
@@ -1033,6 +1198,8 @@ def stats_charts(request):
         'min_points_by_team_table': min_points_by_team_table,
         'margins_counts_table': margins_counts_table,
         'record_against_everyone': combined_tables,
+        'record_against_everyone_by_week': combined_tables_by_week,
+        'record_against_everyone_by_team': combined_tables_by_team,
         'score_rank_by_team': combined_tables2,
         'different_teams_schedules': combined_tables3,
         'page_title': 'Fantasy Stat Tables'
