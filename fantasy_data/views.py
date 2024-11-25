@@ -969,6 +969,7 @@ def stats_charts(request):
 
                 # Fetch the result for the team
                 week_result = team_week_data['result'].values[0] if not team_week_data.empty else "N/A"
+                week_add = team_week_data['week'].values[0] if not team_week_data.empty else "N/A"
 
                 # Initialize weekly win/loss counters
                 wins = 0
@@ -977,6 +978,7 @@ def stats_charts(request):
 
                 # List to store the actual results for this week
                 weekly_results = [week_result]
+                weekly_week = [week_add]
 
                 # Compare this team's points against all opponents in the same week
                 for opponent_team in data['team_name'].unique():
@@ -1002,8 +1004,9 @@ def stats_charts(request):
                 if weekly_record in weekly_record_counts:
                     weekly_record_counts[weekly_record]['count'] += 1
                     weekly_record_counts[weekly_record]['results'].extend(weekly_results)
+                    weekly_record_counts[weekly_record]['weeks'].extend(weekly_week)
                 else:
-                    weekly_record_counts[weekly_record] = {'count': 1, 'results': weekly_results}
+                    weekly_record_counts[weekly_record] = {'count': 1, 'results': weekly_results, 'weeks': weekly_week}
 
             # Store the aggregated counts for this team
             team_weekly_record_counts[team] = weekly_record_counts
@@ -1017,10 +1020,11 @@ def stats_charts(request):
             for record, details in team_weekly_record_counts[team].items():
                 # Join results for that record as a comma-separated string
                 results_list = ', '.join(details['results'])  # Join the results list into a string
-                record_counts_data.append([record, details['count'], results_list])
+                weeks_list = ', '.join(details['weeks'])
+                record_counts_data.append([record, details['count'], results_list, weeks_list])
 
             # Create DataFrame for the team record counts and results
-            record_counts_df = pd.DataFrame(record_counts_data, columns=['Record', 'Count', 'Results'])
+            record_counts_df = pd.DataFrame(record_counts_data, columns=['Record', 'Count', 'Results', 'Weeks'])
 
             # Sort the DataFrame by Count in descending order
             record_counts_df = record_counts_df.sort_values(by='Count', ascending=False)
