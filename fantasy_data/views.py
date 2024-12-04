@@ -1177,6 +1177,83 @@ def stats_charts(request):
     else:
         combined_tables3 = "<p>Necessary columns not found in data.</p>"
 
+    # Check if necessary columns exist
+    if all(col in data.columns for col in ['team_name', 'opponent', 'week', 'total_points', 'points_against']):
+        combined_tables_by_team2 = ""
+        teams = data['team_name'].unique()  # Get unique team names
+
+        # Dictionary to store aggregated counts for each team
+        team_record_counts = {}
+
+        # Loop through each team
+        for team in teams:
+            # Filter data for the selected team
+            team_df = data[data['team_name'] == team].copy()
+            team_df = team_df[['team_name', 'week', 'total_points']]
+
+            # Dictionary to store record counts for this team
+            record_counts = {}
+
+            # Loop through all opponents
+            for opponent in teams:
+                # Filter data for the current opponent
+                opponent_df = data[data['team_name'] == opponent][
+                    ['team_name', 'opponent', 'week', 'points_against', 'total_points']
+                ].copy()
+
+                # Rename columns to avoid confusion after merging
+                opponent_df.rename(
+                    columns={'team_name': 'schedule_being_played'},  # To differentiate team names
+                    inplace=True
+                )
+
+                # Merge opponent's data into the team's data by week
+                merged_df = team_df.merge(opponent_df, on='week', how='left')
+
+                # Calculate points to compare
+                merged_df['points_to_compare'] = merged_df.apply(
+                    lambda row: row['total_points_y'] if row['opponent'] == team else row['points_against'], axis=1
+                )
+
+                # Calculate wins, losses, and ties for this opponent
+                wins = (merged_df['total_points_x'] > merged_df['points_to_compare']).sum()
+                losses = (merged_df['total_points_x'] < merged_df['points_to_compare']).sum()
+                ties = (merged_df['total_points_x'] == merged_df['points_to_compare']).sum()
+
+                # Generate the record string
+                record = f"{wins}-{losses}-{ties}"
+
+                # Update the record count
+                if record in record_counts:
+                    record_counts[record] += 1
+                else:
+                    record_counts[record] = 1
+
+            # Store the aggregated record counts for this team
+            team_record_counts[team] = record_counts
+
+        # Generate HTML for the aggregated record counts
+        for team, record_counts in team_record_counts.items():
+            # Convert record counts to a DataFrame
+            record_counts_df = pd.DataFrame(
+                [{'Record': record, 'Count': count} for record, count in record_counts.items()]
+            )
+
+            # Sort the DataFrame by Count in descending order
+            record_counts_df = record_counts_df.sort_values(by='Count', ascending=False)
+
+            # Generate a summary table for the team
+            team_table_html = (
+                    f"<h3>{team} - Record Counts</h3>"
+                    + record_counts_df.to_html(classes='table table-striped', index=False)
+            )
+
+            # Append the team's table to the combined tables string
+            combined_tables_by_team2 += team_table_html
+
+    else:
+        combined_tables_by_team2 = "<p>Necessary columns not found in data.</p>"
+
     # Prepare context with the HTML tables
     context = {
         'average_differential_table': average_differential_table,
@@ -1206,6 +1283,7 @@ def stats_charts(request):
         'record_against_everyone_by_team': combined_tables_by_team,
         'score_rank_by_team': combined_tables2,
         'different_teams_schedules': combined_tables3,
+        'different_teams_schedules_count': combined_tables_by_team2,
         'page_title': 'Fantasy Stat Tables'
     }
 

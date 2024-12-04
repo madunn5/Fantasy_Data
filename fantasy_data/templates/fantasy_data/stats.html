@@ -40,6 +40,7 @@
                 <option value="record_against_everyone_by_team">Record Against Everyone by Count</option>
                 <option value="score_rank_by_team">Score Rank of Each Matchup</option>
                 <option value="different_teams_schedules">Record with Different Schedules</option>
+                <option value="different_teams_schedules_count">Record with Different Schedules by Count</option>
             </select>
         </div>
 
@@ -124,6 +125,9 @@
         </div>
         <div id="different_teams_schedules" class="chart-content chart-container">
             {{ different_teams_schedules|safe }}
+        </div>
+        <div id="different_teams_schedules_count" class="chart-content chart-container">
+            {{ different_teams_schedules_count|safe }}
         </div>
     </div>
 
