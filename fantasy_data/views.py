@@ -1232,8 +1232,11 @@ def stats_charts(request):
             # Store the aggregated record counts for this team
             team_record_counts[team] = record_counts
 
-        # Generate HTML for the aggregated record counts
-        for team, record_counts in team_record_counts.items():
+        # Generate HTML for the aggregated record counts, sorted alphabetically by team names (case-insensitive)
+        for team in sorted(team_record_counts.keys(), key=lambda x: x.lower()):
+            # Get the record counts for the current team
+            record_counts = team_record_counts[team]
+
             # Convert record counts to a DataFrame
             record_counts_df = pd.DataFrame(
                 [{'Record': record, 'Count': count} for record, count in record_counts.items()]
@@ -1250,6 +1253,7 @@ def stats_charts(request):
 
             # Append the team's table to the combined tables string
             combined_tables_by_team2 += team_table_html
+
 
     else:
         combined_tables_by_team2 = "<p>Necessary columns not found in data.</p>"
