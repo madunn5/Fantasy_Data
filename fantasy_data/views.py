@@ -493,6 +493,36 @@ def stats_charts(request):
     else:
         average_differential_table = "<p>Columns 'team_name' or 'difference' not found in data.</p>"
 
+    # Compute average by team after dropping the two lowest scores for each team
+    if 'team_name' in data.columns and 'total_points' in data.columns and 'points_against' in data.columns:
+        # Define a function to process each team's data
+        def calculate_trimmed_averages(group):
+            if len(group) > 2:  # Drop the two lowest scores only if there are more than 2
+                group = group.nlargest(len(group) - 2, 'total_points')
+            return pd.Series({
+                'avg_total_points': group['total_points'].mean(),
+                'avg_points_against': group['points_against'].mean()
+            })
+
+        # Apply the function to each team
+        data_avg_by_team = (
+            data.groupby('team_name')
+            .apply(calculate_trimmed_averages)
+            .reset_index()
+        )
+
+        # Calculate the difference between averages
+        # data_avg_by_team['Diff'] = data_avg_by_team['avg_total_points'] - data_avg_by_team['avg_points_against']
+
+        # Sort by total points average
+        data_avg_by_team = data_avg_by_team.sort_values(by='avg_total_points', ascending=False).reset_index(drop=True)
+        data_avg_by_team.index = data_avg_by_team.index + 1
+
+        # Convert to HTML
+        average_by_team_table_drop_two_lowest = data_avg_by_team.to_html(classes='table table-striped', index=False)
+    else:
+        average_by_team_table_drop_two_lowest = "<p>Columns 'team_name', 'total_points', or 'points_against' not found in data.</p>"
+
     # Compute average points for and against by team
     if 'team_name' in data.columns and 'total_points' in data.columns and 'points_against' in data.columns:
         data_avg_by_team = data[['team_name', 'total_points', 'points_against']]
@@ -1262,6 +1292,7 @@ def stats_charts(request):
     context = {
         'average_differential_table': average_differential_table,
         'average_by_team_table': average_by_team_table,
+        'average_by_team_table_drop_two_lowest': average_by_team_table_drop_two_lowest,
         'wins_table': wins_table,
         'max_points_table': max_points_table,
         'best_possible_table': best_possible_table,

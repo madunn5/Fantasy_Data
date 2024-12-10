@@ -15,6 +15,7 @@
                 <option value="">-- Select a Chart --</option>
                 <option value="average-differential">Average Differential</option>
                 <option value="average-by-team">Average by Team</option>
+                <option value="average-by-team_drop_two_lowest">Average by Team Drop Two Lowest</option>
                 <option value="wins">Wins by Team</option>
                 <option value="max-points-by-team">Max Points by Team</option>
                 <option value="best-possible">Best Possible Score by Team</option>
@@ -50,6 +51,9 @@
         </div>
         <div id="average-by-team" class="chart-content chart-container">
             {{ average_by_team_table|safe }}
+        </div>
+        <div id="average-by-team_drop_two_lowest" class="chart-content chart-container">
+            {{ average_by_team_table_drop_two_lowest|safe }}
         </div>
         <div id="wins" class="chart-content chart-container">
             {{ wins_table|safe }}
@@ -145,6 +149,9 @@
                 "pageLength": 12
             });
             $('#average-by-team table').DataTable({
+                "pageLength": 12
+            });
+            $('#average-by-team_drop_two_lowest table').DataTable({
                 "pageLength": 12
             });
             $('#wins table').DataTable({
