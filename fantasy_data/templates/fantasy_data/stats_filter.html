@@ -23,6 +23,19 @@
 
     <div class="container mt-4">
         <h1 class="mb-4 text-center">Counts by Team by Point Category</h1>
+        
+        <div class="row mb-4">
+            <div class="col-md-6 offset-md-3">
+                <div class="form-group">
+                    <label for="yearSelector"><strong>Select Year:</strong></label>
+                    <select class="form-control" id="yearSelector">
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
 
         <!-- Responsive Form Elements -->
         <div class="form-group">
@@ -105,6 +118,7 @@
             var pointsCategory = $('#points_category').val();
             var filterValue = parseFloat($('#filter_value').val());
             var comparisonOperator = $('#comparison_operator').val();
+            var year = $('#yearSelector').val();
 
             $.ajax({
                 url: '/stats/filter/',
@@ -113,6 +127,7 @@
                     'points_category': pointsCategory,
                     'filter_value': filterValue,
                     'comparison_operator': comparisonOperator,
+                    'year': year,
                     'ajax': true
                 },
                 success: function(response) {
@@ -131,6 +146,22 @@
             myChart.data.datasets[1].data = winCounts;
             myChart.update();
         }
+        
+        // Function to handle year change
+        $('#yearSelector').change(function() {
+            var year = $(this).val();
+            var pointsCategory = $('#points_category').val();
+            var filterValue = parseFloat($('#filter_value').val());
+            var comparisonOperator = $('#comparison_operator').val();
+            
+            // If filter value is set, apply filter with new year
+            if (!isNaN(filterValue)) {
+                applyFilter();
+            } else {
+                // Otherwise redirect to the page with the new year
+                window.location.href = '/stats/filter/?year=' + year;
+            }
+        });
     </script>
 {% endblock %}
 </body>

@@ -6,6 +6,19 @@
 
     <div class="container mt-4">
         <h1 class="my-4 text-center">Fantasy Team Performance Charts</h1>
+        
+        <div class="row mb-4">
+            <div class="col-md-6 offset-md-3">
+                <div class="form-group">
+                    <label for="yearSelector"><strong>Select Year:</strong></label>
+                    <select class="form-control" id="yearSelector" onchange="updateYear()">
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
 
         <!-- Chart containers with scrollable content -->
         <div class="chart-container">
@@ -48,6 +61,13 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <script>
+        function updateYear() {
+            var year = document.getElementById("yearSelector").value;
+            window.location.href = "{% url 'team_chart_filter' %}?year=" + year;
+        }
+    </script>
 {% endblock %}
 </body>
 </html>

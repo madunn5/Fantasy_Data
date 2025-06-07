@@ -36,6 +36,13 @@ def upload_csv(request):
         if not csv_file.name.endswith('.csv'):
             return HttpResponse('This is not a CSV file.')
 
+        # Get the year from the form
+        year = request.POST.get('year', 2023)
+        try:
+            year = int(year)
+        except (ValueError, TypeError):
+            year = 2023
+
         # Clear previous data
         # TeamPerformance.objects.all().delete()
         # logger.info("Previous data successfully deleted.")
@@ -55,6 +62,7 @@ def upload_csv(request):
             team_performance, created = TeamPerformance.objects.update_or_create(
                 team_name=row['Team'],
                 week=row['Week'],
+                year=year,
                 defaults={
                     'qb_points': row['QB_Points'],
                     'wr_points': row['WR_Points'],
@@ -104,12 +112,24 @@ def team_detail(request, team_id):
 
 
 def team_chart(request):
-    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
+
+    # Load data filtered by year
+    team_performance = TeamPerformance.objects.filter(year=selected_year)
+    
+    # Get teams for the selected year
+    teams = team_performance.values_list('team_name', flat=True).distinct().order_by('team_name')
     selected_team = request.GET.get('team', 'all')
     only_box_plots = request.GET.get('only_box_plots', 'false') == 'true'
-
-    # Load data
-    team_performance = TeamPerformance.objects.all()
+    
     df = pd.DataFrame(list(team_performance.values()))
 
     # Define a function to extract the numeric part
@@ -123,30 +143,33 @@ def team_chart(request):
     # Sort by the new column and drop it if not needed
     df_sorted = df.sort_values(by='week_number').drop(columns=['week_number'])
 
-    # Filter data based on selected team for box plots
+    # Create a copy of the dataframe for box plots
+    df_box_plots = df_sorted.copy()
+    
+    # Filter data based on selected team for box plots only
     if selected_team != 'all':
-        df_sorted = df_sorted[df_sorted['team_name'] == selected_team]
+        df_box_plots = df_box_plots[df_box_plots['team_name'] == selected_team]
 
-    # Create the box plots
-    fig_points = px.box(df_sorted, x='result', y='total_points', color='result', title='Total Points by Result')
+    # Create the box plots using the filtered data
+    fig_points = px.box(df_box_plots, x='result', y='total_points', color='result', title='Total Points by Result')
     chart_points = fig_points.to_html(full_html=False)
 
-    fig_wr = px.box(df_sorted, x='result', y='wr_points', color='result', title='Total WR Points by Result')
+    fig_wr = px.box(df_box_plots, x='result', y='wr_points', color='result', title='Total WR Points by Result')
     chart_wr = fig_wr.to_html(full_html=False)
 
-    fig_qb = px.box(df_sorted, x='result', y='qb_points', color='result', title='Total QB Points by Result')
+    fig_qb = px.box(df_box_plots, x='result', y='qb_points', color='result', title='Total QB Points by Result')
     chart_qb = fig_qb.to_html(full_html=False)
 
-    fig_rb = px.box(df_sorted, x='result', y='rb_points', color='result', title='Total RB Points by Result')
+    fig_rb = px.box(df_box_plots, x='result', y='rb_points', color='result', title='Total RB Points by Result')
     chart_rb = fig_rb.to_html(full_html=False)
 
-    fig_te = px.box(df_sorted, x='result', y='te_points', color='result', title='Total TE Points by Result')
+    fig_te = px.box(df_box_plots, x='result', y='te_points', color='result', title='Total TE Points by Result')
     chart_te = fig_te.to_html(full_html=False)
 
-    fig_k = px.box(df_sorted, x='result', y='k_points', color='result', title='Total K Points by Result')
+    fig_k = px.box(df_box_plots, x='result', y='k_points', color='result', title='Total K Points by Result')
     chart_k = fig_k.to_html(full_html=False)
 
-    fig_def = px.box(df_sorted, x='result', y='def_points', color='result', title='Total DEF Points by Result')
+    fig_def = px.box(df_box_plots, x='result', y='def_points', color='result', title='Total DEF Points by Result')
     chart_def = fig_def.to_html(full_html=False)
 
     context = {
@@ -158,7 +181,9 @@ def team_chart(request):
         'chart_rb': chart_rb,
         'chart_te': chart_te,
         'chart_k': chart_k,
-        'chart_def': chart_def
+        'chart_def': chart_def,
+        'years': years,
+        'selected_year': selected_year
     }
 
     if only_box_plots:
@@ -200,7 +225,7 @@ def team_chart(request):
         'chart_te_points': chart_te_points,
         'chart_k_points': chart_k_points,
         'chart_def_points': chart_def_points,
-        'page_title': 'Team Boxplot Charts'
+        'page_title': f'Team Boxplot Charts ({selected_year})'
     })
 
     return render(request, 'fantasy_data/team_chart.html', context)
@@ -313,9 +338,19 @@ def charts_view(request):
 
 def box_plots_filter(request):
     teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
+    
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
 
-    # Load data
-    team_performance = TeamPerformance.objects.all()
+    # Load data filtered by year
+    team_performance = TeamPerformance.objects.filter(year=selected_year)
     df = pd.DataFrame(list(team_performance.values()))
 
     # Create the box plot for total points
@@ -459,15 +494,27 @@ def box_plots_filter(request):
         'chart_te': chart_te,
         'chart_k': chart_k,
         'chart_def': chart_def,
-        'page_title': 'Boxplot Comparisons'
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Boxplot Comparisons ({selected_year})'
     }
 
     return render(request, 'fantasy_data/team_chart_filter.html', context)
 
 
 def stats_charts(request):
-    # Retrieve data from the database
-    data = TeamPerformance.objects.all().values()
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
+        
+    # Retrieve data from the database filtered by year
+    data = TeamPerformance.objects.filter(year=selected_year).values()
 
     if not data:
         print("No data retrieved from TeamPerformance model.")
@@ -1319,7 +1366,9 @@ def stats_charts(request):
         'score_rank_by_team': combined_tables2,
         'different_teams_schedules': combined_tables3,
         'different_teams_schedules_count': combined_tables_by_team2,
-        'page_title': 'Fantasy Stat Tables'
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Fantasy Stat Tables ({selected_year})'
     }
 
     # Render the HTML content using the context
@@ -1331,16 +1380,26 @@ def stats_charts_filter(request):
     # Get selected points category and comparison operator
     selected_category = request.GET.get('points_category')
     comparison_operator = request.GET.get('comparison_operator', 'gte')  # Default to 'gte' if not specified
+    
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
 
-    # Filter data based on user input
+    # Filter data based on user input and year
     filter_value = request.GET.get('filter_value')
     if filter_value:
         filter_value = float(filter_value)
         # Use the comparison operator chosen by the user
         filter_key = f"{selected_category}__{comparison_operator}"
-        filtered_data = TeamPerformance.objects.filter(**{filter_key: filter_value})
+        filtered_data = TeamPerformance.objects.filter(year=selected_year, **{filter_key: filter_value})
     else:
-        filtered_data = TeamPerformance.objects.all()
+        filtered_data = TeamPerformance.objects.filter(year=selected_year)
 
     # Count occurrences per team for the selected category
     result = filtered_data.values('team_name').annotate(count=Count('id')).order_by('-count')
@@ -1359,7 +1418,14 @@ def stats_charts_filter(request):
     if 'ajax' in request.GET:
         return JsonResponse({'labels': labels, 'counts': counts, 'winCounts': win_counts})
     else:
-        context = {'labels': labels, 'counts': counts, 'winCounts': win_counts, 'page_title': ' Fantasy Stats G/L Than'}
+        context = {
+            'labels': labels, 
+            'counts': counts, 
+            'winCounts': win_counts, 
+            'years': years,
+            'selected_year': selected_year,
+            'page_title': f'Fantasy Stats G/L Than ({selected_year})'
+        }
         return render(request, 'fantasy_data/stats_filter.html', context)
 
 
@@ -1396,15 +1462,40 @@ def stats_charts_filter_less_than(request):
         return render(request, 'fantasy_data/stats_filter_less_than.html', context)
 
 
-def prepare_data():
-    team_performance = TeamPerformance.objects.all()
+def prepare_data(year=None):
+    if year:
+        team_performance = TeamPerformance.objects.filter(year=year)
+    else:
+        team_performance = TeamPerformance.objects.all()
+        
+    # Check if we have any data
+    if not team_performance.exists():
+        # Return empty dataframe and encoders
+        empty_df = pd.DataFrame()
+        return empty_df, None, None, None
+        
     df = pd.DataFrame(list(team_performance.values()))
+
+    # Define required columns
+    required_columns = [
+        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
+        'k_points', 'def_points', 'total_points', 'result', 'team_name', 'opponent'
+    ]
+    
+    # Check if all required columns exist
+    if not all(col in df.columns for col in required_columns):
+        # Return empty dataframe and encoders
+        return pd.DataFrame(), None, None, None
 
     # Drop rows with missing values in key columns
     df = df.dropna(subset=[
         'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
         'k_points', 'def_points', 'total_points', 'result'
     ])
+    
+    # Check if we still have data after dropping NA values
+    if df.empty:
+        return df, None, None, None
 
     # Ensure numerical columns are in numeric format
     numeric_columns = [
@@ -1415,6 +1506,10 @@ def prepare_data():
         df[column] = pd.to_numeric(df[column], errors='coerce')
 
     df = df.dropna(subset=numeric_columns)  # Drop rows with NaNs in numeric columns
+    
+    # Check if we still have data after converting to numeric
+    if df.empty:
+        return df, None, None, None
 
     # Encode team_name and opponent columns, result is directly used without encoding
     label_encoder_team = LabelEncoder()
@@ -1430,64 +1525,149 @@ def prepare_data():
     return df, label_encoder_team, label_encoder_opponent, label_encoder_result
 
 
-def train_model():
-    df, label_encoder_team, label_encoder_opponent, label_encoder_result = prepare_data()
+def train_model(year=None):
+    df, label_encoder_team, label_encoder_opponent, label_encoder_result = prepare_data(year)
+    
+    # Check if we have valid data
+    if df.empty or label_encoder_team is None:
+        return None, None, None, None
+        
+    # Define required columns
+    required_columns = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 
+                        'k_points', 'def_points', 'total_points', 'win']
+                        
+    # Check if all required columns exist
+    if not all(col in df.columns for col in required_columns):
+        return None, None, None, None
+    
+    try:
+        X = df[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
+                'total_points']]
+        y = df['win']
+        
+        # Check if we have enough data to train
+        if len(X) < 2:
+            return None, label_encoder_team, label_encoder_opponent, label_encoder_result
 
-    X = df[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
-            'total_points']]
-    y = df['win']
+        # Train the logistic regression model
+        model = LogisticRegression()
+        model.fit(X, y)
 
-    # Train the logistic regression model
-    model = LogisticRegression()
-    model.fit(X, y)
-
-    # Calculate the overall model accuracy
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    print(f"Model Accuracy: {accuracy:.2f}")
-
-    return model, label_encoder_team, label_encoder_opponent, label_encoder_result
+        # Calculate the overall model accuracy if we have enough data
+        if len(X) >= 4:  # Need at least 4 samples to do a train/test split
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+            y_pred = model.predict(X_test)
+            accuracy = accuracy_score(y_test, y_pred)
+            print(f"Model Accuracy: {accuracy:.2f}")
+        
+        return model, label_encoder_team, label_encoder_opponent, label_encoder_result
+        
+    except Exception as e:
+        print(f"Error training model: {e}")
+        return None, label_encoder_team, label_encoder_opponent, label_encoder_result
 
 
 def versus(request):
     page_title = "Team Comparison"
 
-    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
+    
+    # Get teams for the selected year
+    teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
     team1 = request.GET.get('team1', None)
     team2 = request.GET.get('team2', None)
 
     if not team1 or not team2:
-        return render(request, 'fantasy_data/versus.html', {'teams': teams, 'page_title': page_title})
+        return render(request, 'fantasy_data/versus.html', {
+            'teams': teams, 
+            'years': years,
+            'selected_year': selected_year,
+            'page_title': page_title
+        })
+
+    # Check if data exists for the selected teams and year
+    team_performance = TeamPerformance.objects.filter(team_name__in=[team1, team2], year=selected_year)
+    if not team_performance.exists():
+        return render(request, 'fantasy_data/versus.html', {
+            'teams': teams,
+            'years': years,
+            'selected_year': selected_year,
+            'error': f"No data found for the selected teams in {selected_year}",
+            'page_title': page_title
+        })
 
     # Load and prepare data for prediction
-    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model()
+    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model(selected_year)
 
-    team_performance = TeamPerformance.objects.filter(team_name__in=[team1, team2])
     df = pd.DataFrame(list(team_performance.values()))
-
-    # Drop rows with missing values and ensure numeric columns are cleaned
-    df = df.dropna(subset=[
-        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
-        'k_points', 'def_points', 'total_points'
-    ])
+    
+    # Define numeric columns
     numeric_columns = [
         'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
         'k_points', 'def_points', 'total_points'
     ]
+    
+    # Check if all required columns exist in the dataframe
+    if not all(col in df.columns for col in numeric_columns):
+        return render(request, 'fantasy_data/versus.html', {
+            'teams': teams,
+            'years': years,
+            'selected_year': selected_year,
+            'error': f"Missing required data columns for the selected teams in {selected_year}",
+            'page_title': page_title
+        })
+        
+    # Convert columns to numeric and handle missing values
     for column in numeric_columns:
         df[column] = pd.to_numeric(df[column], errors='coerce')
 
-    df = df.dropna(subset=numeric_columns)  # Drop rows with NaNs in numeric columns
-
-    if team1 not in label_encoder_team.classes_ or team2 not in label_encoder_team.classes_:
+    # Check if we have data for both teams
+    if df[df['team_name'] == team1].empty or df[df['team_name'] == team2].empty:
         return render(request, 'fantasy_data/versus.html',
                       {'teams': teams,
-                       'error': f"One or both teams '{team1}' and '{team2}' not found in training data."})
+                       'years': years,
+                       'selected_year': selected_year,
+                       'error': f"No data available for one or both teams in {selected_year}",
+                       'page_title': page_title})
+
+    # Check if teams are in the encoder classes
+    try:
+        if team1 not in label_encoder_team.classes_ or team2 not in label_encoder_team.classes_:
+            return render(request, 'fantasy_data/versus.html',
+                        {'teams': teams,
+                        'years': years,
+                        'selected_year': selected_year,
+                        'error': f"One or both teams '{team1}' and '{team2}' not found in training data.",
+                        'page_title': page_title})
+    except (AttributeError, TypeError):
+        # Handle case where label_encoder_team.classes_ doesn't exist or is None
+        return render(request, 'fantasy_data/versus.html',
+                    {'teams': teams,
+                    'years': years,
+                    'selected_year': selected_year,
+                    'error': f"Unable to process team data for {selected_year}",
+                    'page_title': page_title})
 
     # Prepare the feature vectors for the teams
     df_team1 = df[df['team_name'] == team1].mean(numeric_only=True)
     df_team2 = df[df['team_name'] == team2].mean(numeric_only=True)
+
+    # Check if we have valid numeric data
+    if df_team1.empty or df_team2.empty or not all(col in df_team1.index for col in numeric_columns) or not all(col in df_team2.index for col in numeric_columns):
+        return render(request, 'fantasy_data/versus.html',
+                    {'teams': teams,
+                    'years': years,
+                    'selected_year': selected_year,
+                    'error': f"Insufficient data for comparison in {selected_year}",
+                    'page_title': page_title})
 
     # Calculate the absolute difference between the two feature vectors
     feature_differences = df_team1[numeric_columns] - df_team2[numeric_columns]
@@ -1506,31 +1686,54 @@ def versus(request):
     X_team1 = pd.DataFrame([df_team1[numeric_columns].values], columns=numeric_columns)
     X_team2 = pd.DataFrame([df_team2[numeric_columns].values], columns=numeric_columns)
 
-    # Predict probabilities for each team: win, tie, and loss
-    prob_team1_win = model.predict_proba(X_team1)[:, model.classes_ == 1][0][0]
-    prob_team2_win = model.predict_proba(X_team2)[:, model.classes_ == 1][0][0]
-
-    # Normalize win probabilities
-    total_prob = prob_team1_win + prob_team2_win
-    prob_team1_normalized = prob_team1_win / total_prob
-    prob_team2_normalized = prob_team2_win / total_prob
+    # Check if model is available
+    if model is None:
+        # If no model is available, use a simple comparison of average points
+        prediction = "No prediction model available. Using simple point comparison instead."
+        prob_team1_normalized = 0.5
+        prob_team2_normalized = 0.5
+        
+        # Simple comparison based on average points
+        if df_team1['total_points'] > df_team2['total_points']:
+            prob_team1_normalized = 0.6
+            prob_team2_normalized = 0.4
+        elif df_team1['total_points'] < df_team2['total_points']:
+            prob_team1_normalized = 0.4
+            prob_team2_normalized = 0.6
+    else:
+        # Use the model for prediction
+        try:
+            # Predict probabilities for each team
+            prob_team1_win = model.predict_proba(X_team1)[:, model.classes_ == 1][0][0]
+            prob_team2_win = model.predict_proba(X_team2)[:, model.classes_ == 1][0][0]
+            
+            # Normalize win probabilities
+            total_prob = prob_team1_win + prob_team2_win
+            prob_team1_normalized = prob_team1_win / total_prob
+            prob_team2_normalized = prob_team2_win / total_prob
+        except (IndexError, ValueError) as e:
+            # Fallback if prediction fails
+            print(f"Prediction error: {e}")
+            prob_team1_normalized = 0.5
+            prob_team2_normalized = 0.5
 
     # Generate prediction messages including the chance of a tie
-    if prob_team1_normalized > prob_team2_normalized:
-        prediction = (
-            f"{team1} is more likely to win with a probability of {prob_team1_normalized:.2%}. "
-            f"{team2} has a probability of {prob_team2_normalized:.2%} to win. "
-        )
-    elif prob_team1_normalized < prob_team2_normalized:
-        prediction = (
-            f"{team2} is more likely to win with a probability of {prob_team2_normalized:.2%}. "
-            f"{team1} has a probability of {prob_team1_normalized:.2%} to win. "
-        )
-    else:
-        prediction = (
-            "It's too close to call! Both teams have similar chances with "
-            f"{team1} at {prob_team1_normalized:.2%} and {team2} at {prob_team2_normalized:.2%}. "
-        )
+    if not 'prediction' in locals():  # Only generate if not already set in the model is None case
+        if prob_team1_normalized > prob_team2_normalized:
+            prediction = (
+                f"{team1} is more likely to win with a probability of {prob_team1_normalized:.2%}. "
+                f"{team2} has a probability of {prob_team2_normalized:.2%} to win. "
+            )
+        elif prob_team1_normalized < prob_team2_normalized:
+            prediction = (
+                f"{team2} is more likely to win with a probability of {prob_team2_normalized:.2%}. "
+                f"{team1} has a probability of {prob_team1_normalized:.2%} to win. "
+            )
+        else:
+            prediction = (
+                "It's too close to call! Both teams have similar chances with "
+                f"{team1} at {prob_team1_normalized:.2%} and {team2} at {prob_team2_normalized:.2%}. "
+            )
 
     # Create comparison charts
     fig_total_points = px.box(
@@ -1588,7 +1791,9 @@ def versus(request):
         'chart_def_points': chart_def_points,
         'prediction': prediction,
         'difference_between_teams': difference_between_teams,
-        'page_title': page_title
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f"{page_title} ({selected_year})"
     }
 
     return render(request, 'fantasy_data/versus.html', context)
@@ -1597,47 +1802,132 @@ def versus(request):
 def win_probability_against_all_teams(request):
     page_title = "Fantasy Win Probability"
 
-    teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
+    
+    # Get teams for the selected year
+    teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
     selected_team = request.GET.get('team', None)
 
     if not selected_team:
-        return render(request, 'fantasy_data/probabilities.html', {'teams': teams, 'page_title': page_title})
+        return render(request, 'fantasy_data/probabilities.html', {
+            'teams': teams, 
+            'years': years,
+            'selected_year': selected_year,
+            'page_title': page_title
+        })
+
+    # Check if data exists for the selected team and year
+    team_data = TeamPerformance.objects.filter(team_name=selected_team, year=selected_year)
+    if not team_data.exists():
+        return render(request, 'fantasy_data/probabilities.html', {
+            'teams': teams,
+            'years': years,
+            'selected_year': selected_year,
+            'error': f"No data found for {selected_team} in {selected_year}",
+            'page_title': page_title
+        })
 
     # Load and prepare data for prediction
-    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model()
+    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model(selected_year)
 
-    team_performance = TeamPerformance.objects.all()
+    team_performance = TeamPerformance.objects.filter(year=selected_year)
     df = pd.DataFrame(list(team_performance.values()))
 
-    # Drop rows with missing values and ensure numeric columns are cleaned
-    df = df.dropna(subset=[
-        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
-        'k_points', 'def_points', 'total_points'
-    ])
+    # Define numeric columns
     numeric_columns = [
         'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
         'k_points', 'def_points', 'total_points'
     ]
+    
+    # Check if all required columns exist in the dataframe
+    if not all(col in df.columns for col in numeric_columns):
+        return render(request, 'fantasy_data/probabilities.html', {
+            'teams': teams,
+            'years': years,
+            'selected_year': selected_year,
+            'error': f"Missing required data columns for {selected_year}",
+            'page_title': page_title
+        })
+        
+    # Convert columns to numeric and handle missing values
     for column in numeric_columns:
         df[column] = pd.to_numeric(df[column], errors='coerce')
+        
+    # Drop rows with NaNs in numeric columns
+    df = df.dropna(subset=numeric_columns)
+    
+    # Check if we have data after cleaning
+    if df.empty:
+        return render(request, 'fantasy_data/probabilities.html', {
+            'teams': teams,
+            'years': years,
+            'selected_year': selected_year,
+            'error': f"No valid data found after cleaning for {selected_year}",
+            'page_title': page_title
+        })
 
-    df = df.dropna(subset=numeric_columns)  # Drop rows with NaNs in numeric columns
+    # Check if model and encoder are available
+    if model is None or label_encoder_team is None:
+        return render(request, 'fantasy_data/probabilities.html', {
+            'teams': teams,
+            'years': years,
+            'selected_year': selected_year,
+            'error': f"Unable to create prediction model for {selected_year}",
+            'page_title': page_title
+        })
 
-    if selected_team not in label_encoder_team.classes_:
-        return render(request, 'fantasy_data/probabilities.html',
-                      {'teams': teams,
-                       'error': f"Team '{selected_team}' not found in training data."})
+    # Check if selected team is in encoder classes
+    try:
+        if selected_team not in label_encoder_team.classes_:
+            return render(request, 'fantasy_data/probabilities.html', {
+                'teams': teams,
+                'years': years,
+                'selected_year': selected_year,
+                'error': f"Team '{selected_team}' not found in training data.",
+                'page_title': page_title
+            })
+    except (AttributeError, TypeError):
+        return render(request, 'fantasy_data/probabilities.html', {
+            'teams': teams,
+            'years': years,
+            'selected_year': selected_year,
+            'error': f"Error processing team data for {selected_year}",
+            'page_title': page_title
+        })
 
     # Prepare the feature vector for the selected team
     df_selected_team = df[df['team_name'] == selected_team].mean(numeric_only=True)
+    
+    # Check if we have data for the selected team
+    if df_selected_team.empty:
+        return render(request, 'fantasy_data/probabilities.html', {
+            'teams': teams,
+            'years': years,
+            'selected_year': selected_year,
+            'error': f"No data available for {selected_team} in {selected_year}",
+            'page_title': page_title
+        })
 
     win_probabilities = []
     for opponent in teams:
         if opponent == selected_team:
             continue
 
+        # Check if opponent has data
+        opponent_data = df[df['team_name'] == opponent]
+        if opponent_data.empty:
+            continue
+
         # Prepare the feature vector for the opponent
-        df_opponent = df[df['team_name'] == opponent].mean(numeric_only=True)
+        df_opponent = opponent_data.mean(numeric_only=True)
 
         # Calculate the absolute difference between the two feature vectors
         feature_differences = df_selected_team[numeric_columns] - df_opponent[numeric_columns]
@@ -1646,14 +1936,26 @@ def win_probability_against_all_teams(request):
         X_selected_team = pd.DataFrame([df_selected_team[numeric_columns].values], columns=numeric_columns)
         X_opponent = pd.DataFrame([df_opponent[numeric_columns].values], columns=numeric_columns)
 
-        # Predict the probability of winning for each team
-        prob_selected_team = model.predict_proba(X_selected_team)[:, model.classes_ == 1][0][0]
-        prob_opponent = model.predict_proba(X_opponent)[:, model.classes_ == 1][0][0]
+        try:
+            # Predict the probability of winning for each team
+            prob_selected_team = model.predict_proba(X_selected_team)[:, model.classes_ == 1][0][0]
+            prob_opponent = model.predict_proba(X_opponent)[:, model.classes_ == 1][0][0]
 
-        # Normalize probabilities
-        total_prob = prob_selected_team + prob_opponent
-        prob_selected_team_normalized = prob_selected_team / total_prob
-        prob_opponent_normalized = prob_opponent / total_prob
+            # Normalize probabilities
+            total_prob = prob_selected_team + prob_opponent
+            prob_selected_team_normalized = prob_selected_team / total_prob
+            prob_opponent_normalized = prob_opponent / total_prob
+        except (IndexError, ValueError):
+            # Fallback to simple comparison if prediction fails
+            if df_selected_team['total_points'] > df_opponent['total_points']:
+                prob_selected_team_normalized = 0.6
+                prob_opponent_normalized = 0.4
+            elif df_selected_team['total_points'] < df_opponent['total_points']:
+                prob_selected_team_normalized = 0.4
+                prob_opponent_normalized = 0.6
+            else:
+                prob_selected_team_normalized = 0.5
+                prob_opponent_normalized = 0.5
 
         win_probabilities.append({
             'opponent': opponent,
@@ -1666,13 +1968,25 @@ def win_probability_against_all_teams(request):
         'teams': teams,
         'selected_team': selected_team,
         'win_probabilities': win_probabilities,
-        'page_title': page_title
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f"{page_title} ({selected_year})"
     })
 
 
 def top_tens(request):
-    # Retrieve data from the database
-    data = TeamPerformance.objects.all().values()
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
+        
+    # Retrieve data from the database filtered by year
+    data = TeamPerformance.objects.filter(year=selected_year).values()
 
     if not data:
         print("No data retrieved from TeamPerformance model.")
@@ -1763,7 +2077,9 @@ def top_tens(request):
         'top_10_smallest_win_projections_table': smallest_win_projections,
         **largest_positions_tables,
         **smallest_positions_tables,
-        'page_title': 'Top 10s Tables'
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Top 10s Tables ({selected_year})'
     }
 
     # Render the results in the top_tens.html template

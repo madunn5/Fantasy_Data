@@ -6,6 +6,20 @@
 
     <div class="container mt-4">
         <h1 class="my-4 text-center">Fantasy Team Performance Charts</h1>
+        
+        <!-- Year selector at the top -->
+        <div class="row mb-4">
+            <div class="col-md-6 offset-md-3">
+                <div class="form-group">
+                    <label for="yearSelector"><strong>Select Year:</strong></label>
+                    <select class="form-control" id="yearSelector">
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
 
         <!-- Regular charts -->
         <div class="chart-card">
@@ -45,14 +59,18 @@
 
         <!-- Box plot charts -->
         <div class="sticky mt-5">
-            <div class="form-group">
-                <label for="teamSelector">Select Team for Box Plots:</label>
-                <select class="form-control" id="teamSelector" onchange="updateBoxPlots()">
-                    <option value="all">All Teams</option>
-                    {% for team in teams %}
-                        <option value="{{ team }}" {% if team == selected_team %}selected{% endif %}>{{ team }}</option>
-                    {% endfor %}
-                </select>
+            <div class="row">
+                <div class="col-md-6 offset-md-3">
+                    <div class="form-group">
+                        <label for="teamSelector"><strong>Select Team for Box Plots:</strong></label>
+                        <select class="form-control" id="teamSelector">
+                            <option value="all">All Teams</option>
+                            {% for team in teams %}
+                                <option value="{{ team }}" {% if team == selected_team %}selected{% endif %}>{{ team }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -69,12 +87,14 @@
     <script>
         function updateBoxPlots() {
             var team = document.getElementById("teamSelector").value;
+            var year = document.getElementById("yearSelector").value;
 
             // Fetch the updated box plot charts from the server
             $.ajax({
                 url: "{% url 'team_chart' %}",
                 data: {
                     team: team,
+                    year: year,
                     only_box_plots: true
                 },
                 success: function(data) {
@@ -82,6 +102,27 @@
                 }
             });
         }
+        
+        function updateYear() {
+            var year = document.getElementById("yearSelector").value;
+            
+            // Redirect to the same page with just the year parameter
+            window.location.href = "{% url 'team_chart' %}?year=" + year;
+        }
+        
+        function updateTeam() {
+            var team = document.getElementById("teamSelector").value;
+            var year = document.getElementById("yearSelector").value;
+            
+            // Update only the box plots without refreshing the page
+            updateBoxPlots();
+        }
+        
+        // Add event listeners for full page refresh
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById("yearSelector").addEventListener('change', updateYear);
+            document.getElementById("teamSelector").addEventListener('change', updateTeam);
+        });
     </script>
 {% endblock %}
 </body>

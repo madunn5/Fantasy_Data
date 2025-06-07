@@ -7,9 +7,20 @@
     <div class="container">
         <h1 class="mb-4 text-center">Team Comparison: {{ team1 }} vs {{ team2 }}</h1>
 
-        <!-- Form for selecting two teams to compare -->
+        <!-- Form for selecting year and teams to compare -->
         <form method="get" class="mb-4">
             <div class="form-row">
+                <div class="form-group col-md-12">
+                    <label for="year">Select Year:</label>
+                    <select name="year" id="year" class="form-control" onchange="this.form.submit()">
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row mt-3">
                 <div class="form-group col-md-6">
                     <label for="team1">Select Team 1:</label>
                     <select name="team1" id="team1" class="form-control">

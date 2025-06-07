@@ -7,9 +7,18 @@
     <div class="container mt-4">
         <h1 class="mb-4 text-center">Win Probability Against All Teams</h1>
 
-        <!-- Dropdown to select a team -->
+        <!-- Dropdown to select year first, then team -->
         <form method="get" action="{% url 'win_probability_against_all_teams' %}">
             <div class="form-group">
+                <label for="year">Select Year:</label>
+                <select class="form-control" id="year" name="year" onchange="this.form.submit()">
+                    {% for year in years %}
+                    <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group mt-3">
                 <label for="team">Select a Team:</label>
                 <select class="form-control" id="team" name="team">
                     {% for team in teams %}
@@ -17,6 +26,7 @@
                     {% endfor %}
                 </select>
             </div>
+            
             <button type="submit" class="btn btn-primary">Show Probabilities</button>
         </form>
 

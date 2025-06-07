@@ -23,12 +23,13 @@ class TeamPerformance(models.Model):
     week = models.CharField(max_length=100)
     opponent = models.CharField(max_length=100, null=True, blank=True)
     margin = models.FloatField(null=True, blank=True)
+    year = models.IntegerField(default=2023)  # Default to 2023 for existing data
 
     class Meta:
-        unique_together = ('team_name', 'week')
+        unique_together = ('team_name', 'week', 'year')
 
     def __str__(self):
-        return f"{self.team_name} - Week {self.week}"
+        return f"{self.team_name} - Week {self.week} ({self.year})"
 
     # def __str__(self):
     #     return self.team_name
