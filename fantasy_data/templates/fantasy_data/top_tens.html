@@ -3,7 +3,6 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-
     <div class="container mt-4">
         <h1 class="my-4 text-center">Top 10s</h1>
         
@@ -20,119 +19,138 @@
             </div>
         </div>
 
-        <!-- Dropdown for chart selection -->
+        <!-- Dropdown for chart selection with categories -->
         <div class="form-group">
             <label for="chartSelect">Select a Chart</label>
             <select class="form-control" id="chartSelect">
-                <!-- Options -->
                 <option value="">-- Select a Chart --</option>
-                <option value="largest-margin">Top 10 Largest Margin Wins</option>
-                <option value="smallest-margin">Top 10 Smallest Margin Wins</option>
-                <option value="largest-projection">Top 10 Largest Projection Difference</option>
-                <option value="smallest-projection">Top 10 Smallest Projection Difference</option>
-                <option value="total-points-top">Top 10 Total Points</option>
-                <option value="total-points-bottom">Bottom 10 Total Points</option>
-                <option value="qb-points-top">Top 10 QB Points</option>
-                <option value="qb-points-bottom">Bottom 10 QB Points</option>
-                <option value="wr-points-top">Top 10 WR Points</option>
-                <option value="wr-points-bottom">Bottom 10 WR Points</option>
-                <option value="rb-points-top">Top 10 RB Points</option>
-                <option value="rb-points-bottom">Bottom 10 RB Points</option>
-                <option value="te-points-top">Top 10 TE Points</option>
-                <option value="te-points-bottom">Bottom 10 TE Points</option>
-                <option value="k-points-top">Top 10 Kicker Points</option>
-                <option value="k-points-bottom">Bottom 10 Kicker Points</option>
-                <option value="def-points-top">Top 10 Defense Points</option>
-                <option value="def-points-bottom">Bottom 10 Defense Points</option>
+                <optgroup label="Margins & Projections">
+                    <option value="largest-margin">Top 10 Largest Margin Wins</option>
+                    <option value="smallest-margin">Top 10 Smallest Margin Wins</option>
+                    <option value="largest-projection">Top 10 Largest Projection Difference</option>
+                    <option value="smallest-projection">Top 10 Smallest Projection Difference</option>
+                </optgroup>
+                <optgroup label="Total Points">
+                    <option value="total-points-top">Top 10 Total Points</option>
+                    <option value="total-points-bottom">Bottom 10 Total Points</option>
+                </optgroup>
+                <optgroup label="Position Points">
+                    <option value="qb-points-top">Top 10 QB Points</option>
+                    <option value="qb-points-bottom">Bottom 10 QB Points</option>
+                    <option value="wr-points-top">Top 10 WR Points</option>
+                    <option value="wr-points-bottom">Bottom 10 WR Points</option>
+                    <option value="rb-points-top">Top 10 RB Points</option>
+                    <option value="rb-points-bottom">Bottom 10 RB Points</option>
+                    <option value="te-points-top">Top 10 TE Points</option>
+                    <option value="te-points-bottom">Bottom 10 TE Points</option>
+                    <option value="k-points-top">Top 10 Kicker Points</option>
+                    <option value="k-points-bottom">Bottom 10 Kicker Points</option>
+                    <option value="def-points-top">Top 10 Defense Points</option>
+                    <option value="def-points-bottom">Bottom 10 Defense Points</option>
+                </optgroup>
             </select>
         </div>
 
-        <!-- HTML tables for each top 10 list -->
-        <div id="largest-margin" class="chart-content chart-container">
-            {{ top_10_largest_win_margins_table|safe }}
+        <!-- Loading indicator -->
+        <div id="loading" class="text-center my-4" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
         </div>
-        <div id="smallest-margin" class="chart-content chart-container">
-            {{ top_10_smallest_win_margins_table|safe }}
-        </div>
-        <div id="largest-projection" class="chart-content chart-container">
-            {{ top_10_largest_win_projections_table|safe }}
-        </div>
-        <div id="smallest-projection" class="chart-content chart-container">
-            {{ top_10_smallest_win_projections_table|safe }}
-        </div>
-        <div id="total-points-top" class="chart-content chart-container">
-            {{ top_10_total_points_largest_table|safe }}
-        </div>
-        <div id="total-points-bottom" class="chart-content chart-container">
-            {{ top_10_total_points_smallest_table|safe }}
-        </div>
-        <div id="qb-points-top" class="chart-content chart-container">
-            {{ top_10_qb_points_largest_table|safe }}
-        </div>
-        <div id="qb-points-bottom" class="chart-content chart-container">
-            {{ top_10_qb_points_smallest_table|safe }}
-        </div>
-        <div id="wr-points-top" class="chart-content chart-container">
-            {{ top_10_wr_points_total_largest_table|safe }}
-        </div>
-        <div id="wr-points-bottom" class="chart-content chart-container">
-            {{ top_10_wr_points_total_smallest_table|safe }}
-        </div>
-        <div id="rb-points-top" class="chart-content chart-container">
-            {{ top_10_rb_points_total_largest_table|safe }}
-        </div>
-        <div id="rb-points-bottom" class="chart-content chart-container">
-            {{ top_10_rb_points_total_smallest_table|safe }}
-        </div>
-        <div id="te-points-top" class="chart-content chart-container">
-            {{ top_10_te_points_total_largest_table|safe }}
-        </div>
-        <div id="te-points-bottom" class="chart-content chart-container">
-            {{ top_10_te_points_total_smallest_table|safe }}
-        </div>
-        <div id="k-points-top" class="chart-content chart-container">
-            {{ top_10_k_points_largest_table|safe }}
-        </div>
-        <div id="k-points-bottom" class="chart-content chart-container">
-            {{ top_10_k_points_smallest_table|safe }}
-        </div>
-        <div id="def-points-top" class="chart-content chart-container">
-            {{ top_10_def_points_largest_table|safe }}
-        </div>
-        <div id="def-points-bottom" class="chart-content chart-container">
-            {{ top_10_def_points_smallest_table|safe }}
+
+        <!-- Container for all charts -->
+        <div id="chartsContainer">
+            <!-- HTML tables for each top 10 list -->
+            <div id="largest-margin" class="chart-content chart-container">{{ top_10_largest_win_margins_table|safe }}</div>
+            <div id="smallest-margin" class="chart-content chart-container">{{ top_10_smallest_win_margins_table|safe }}</div>
+            <div id="largest-projection" class="chart-content chart-container">{{ top_10_largest_win_projections_table|safe }}</div>
+            <div id="smallest-projection" class="chart-content chart-container">{{ top_10_smallest_win_projections_table|safe }}</div>
+            <div id="total-points-top" class="chart-content chart-container">{{ top_10_total_points_largest_table|safe }}</div>
+            <div id="total-points-bottom" class="chart-content chart-container">{{ top_10_total_points_smallest_table|safe }}</div>
+            <div id="qb-points-top" class="chart-content chart-container">{{ top_10_qb_points_largest_table|safe }}</div>
+            <div id="qb-points-bottom" class="chart-content chart-container">{{ top_10_qb_points_smallest_table|safe }}</div>
+            <div id="wr-points-top" class="chart-content chart-container">{{ top_10_wr_points_total_largest_table|safe }}</div>
+            <div id="wr-points-bottom" class="chart-content chart-container">{{ top_10_wr_points_total_smallest_table|safe }}</div>
+            <div id="rb-points-top" class="chart-content chart-container">{{ top_10_rb_points_total_largest_table|safe }}</div>
+            <div id="rb-points-bottom" class="chart-content chart-container">{{ top_10_rb_points_total_smallest_table|safe }}</div>
+            <div id="te-points-top" class="chart-content chart-container">{{ top_10_te_points_total_largest_table|safe }}</div>
+            <div id="te-points-bottom" class="chart-content chart-container">{{ top_10_te_points_total_smallest_table|safe }}</div>
+            <div id="k-points-top" class="chart-content chart-container">{{ top_10_k_points_largest_table|safe }}</div>
+            <div id="k-points-bottom" class="chart-content chart-container">{{ top_10_k_points_smallest_table|safe }}</div>
+            <div id="def-points-top" class="chart-content chart-container">{{ top_10_def_points_largest_table|safe }}</div>
+            <div id="def-points-bottom" class="chart-content chart-container">{{ top_10_def_points_smallest_table|safe }}</div>
         </div>
     </div>
+{% endblock %}
 
-    <!-- Add jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Add Bootstrap JS -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+{% block extra_js %}
     <!-- Add DataTables JS -->
     <script src="https://cdn.datatables.net/2.1.3/js/dataTables.min.js"></script>
 
     <script>
+        // DataTable configuration
+        const tableOptions = {
+            "pageLength": 10,
+            "responsive": true,
+            "searching": false,
+            "info": false,
+            "paging": false,
+            "language": {
+                "emptyTable": "No data available"
+            }
+        };
+        
+        // Track initialized tables
+        const initializedTables = {};
+        
         function updateYear() {
             var year = document.getElementById("yearSelector").value;
             window.location.href = "{% url 'top_tens' %}?year=" + year;
         }
         
+        function loadChart(chartId) {
+            // Show loading indicator
+            $('#loading').show();
+            
+            // Get the chart container
+            const container = $('#' + chartId);
+            
+            // If this table hasn't been initialized yet
+            if (!initializedTables[chartId]) {
+                // Initialize DataTable if there's a table
+                if (container.find('table').length > 0) {
+                    container.find('table').DataTable(tableOptions);
+                }
+                
+                // Mark as initialized
+                initializedTables[chartId] = true;
+            }
+            
+            // Hide loading indicator
+            $('#loading').hide();
+            
+            // Show the chart
+            container.show();
+        }
+        
         $(document).ready(function() {
-            // Initialize DataTables for each top 10 table with default page length of 10
-            $('.chart-content table').DataTable({
-                "pageLength": 10
-            });
+            // Hide all charts initially
+            $('.chart-content').hide();
 
             // Show selected chart content
             $('#chartSelect').change(function() {
                 $('.chart-content').hide();
-                var selectedChart = $(this).val();
+                const selectedChart = $(this).val();
                 if (selectedChart) {
-                    $('#' + selectedChart).show();
+                    loadChart(selectedChart);
                 }
             });
+            
+            // If there's a hash in the URL, select that chart
+            if (window.location.hash) {
+                const chartId = window.location.hash.substring(1);
+                $('#chartSelect').val(chartId).trigger('change');
+            }
         });
     </script>
 {% endblock %}
-</body>
-</html>

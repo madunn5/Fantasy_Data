@@ -3,9 +3,8 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-
     <div class="container">
-        <h1 class="mb-4 text-center">Team Comparison: {{ team1 }} vs {{ team2 }}</h1>
+        <h1 class="mb-4 text-center">Team Comparison</h1>
 
         <!-- Form for selecting year and teams to compare -->
         <form method="get" class="mb-4">
@@ -41,7 +40,9 @@
             <button type="submit" class="btn btn-primary">Compare</button>
         </form>
 
-        {% if team1 and team2 %}
+        {% if error %}
+            <div class="alert alert-warning">{{ error }}</div>
+        {% elif team1 and team2 %}
             <h2 class="mb-4 text-center">Comparing {{ team1 }} vs {{ team2 }}</h2>
 
             <!-- Prediction Section -->
@@ -67,50 +68,99 @@
                             <td>{{ row.Position }}</td>
                             <td>{{ row.team1|floatformat:2 }}</td>
                             <td>{{ row.team2|floatformat:2 }}</td>
-                            <td>{{ row.Difference|floatformat:2 }}</td>
+                            <td class="{% if row.Difference > 0 %}text-success{% elif row.Difference < 0 %}text-danger{% endif %}">
+                                {{ row.Difference|floatformat:2 }}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
 
-            <!-- Comparison Charts -->
-            <div class="mb-5">
-                <h3>Total Points Comparison</h3>
-                <div>{{ chart_total_points|safe }}</div>
-            </div>
-            <div class="mb-5">
-                <h3>Quarterback Points Comparison</h3>
-                <div>{{ chart_qb_points|safe }}</div>
-            </div>
-            <div class="mb-5">
-                <h3>Wide Receiver Points Comparison</h3>
-                <div>{{ chart_wr_points|safe }}</div>
-            </div>
-            <div class="mb-5">
-                <h3>Running Back Points Comparison</h3>
-                <div>{{ chart_rb_points|safe }}</div>
-            </div>
-            <div class="mb-5">
-                <h3>Tight End Points Comparison</h3>
-                <div>{{ chart_te_points|safe }}</div>
-            </div>
-            <div class="mb-5">
-                <h3>Kicker Points Comparison</h3>
-                <div>{{ chart_k_points|safe }}</div>
-            </div>
-            <div class="mb-5">
-                <h3>Defense Points Comparison</h3>
-                <div>{{ chart_def_points|safe }}</div>
+            <!-- Chart selection tabs -->
+            <ul class="nav nav-tabs mb-4" id="chartTabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="total-tab" data-toggle="tab" href="#total" role="tab">Total Points</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="qb-tab" data-toggle="tab" href="#qb" role="tab">QB</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="wr-tab" data-toggle="tab" href="#wr" role="tab">WR</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="rb-tab" data-toggle="tab" href="#rb" role="tab">RB</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="te-tab" data-toggle="tab" href="#te" role="tab">TE</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="k-tab" data-toggle="tab" href="#k" role="tab">K</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="def-tab" data-toggle="tab" href="#def" role="tab">DEF</a>
+                </li>
+            </ul>
+
+            <!-- Tab content -->
+            <div class="tab-content" id="chartTabContent">
+                <div class="tab-pane fade show active" id="total" role="tabpanel">
+                    <div class="chart-container">{{ chart_total_points|safe }}</div>
+                </div>
+                <div class="tab-pane fade" id="qb" role="tabpanel">
+                    <div class="chart-container">{{ chart_qb_points|safe }}</div>
+                </div>
+                <div class="tab-pane fade" id="wr" role="tabpanel">
+                    <div class="chart-container">{{ chart_wr_points|safe }}</div>
+                </div>
+                <div class="tab-pane fade" id="rb" role="tabpanel">
+                    <div class="chart-container">{{ chart_rb_points|safe }}</div>
+                </div>
+                <div class="tab-pane fade" id="te" role="tabpanel">
+                    <div class="chart-container">{{ chart_te_points|safe }}</div>
+                </div>
+                <div class="tab-pane fade" id="k" role="tabpanel">
+                    <div class="chart-container">{{ chart_k_points|safe }}</div>
+                </div>
+                <div class="tab-pane fade" id="def" role="tabpanel">
+                    <div class="chart-container">{{ chart_def_points|safe }}</div>
+                </div>
             </div>
         {% else %}
             <p class="text-center">Please select two teams to compare.</p>
         {% endif %}
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/js/bootstrap.min.js"></script>
 {% endblock %}
-</body>
-</html>
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Prevent selecting the same team twice
+        $('#team1, #team2').change(function() {
+            const team1 = $('#team1').val();
+            const team2 = $('#team2').val();
+            
+            if (team1 === team2) {
+                alert('Please select different teams to compare');
+                if (this.id === 'team1') {
+                    // Find a different option
+                    $('#team2 option').not(':selected').first().prop('selected', true);
+                } else {
+                    $('#team1 option').not(':selected').first().prop('selected', true);
+                }
+            }
+        });
+        
+        // Save tab state in session storage
+        $('#chartTabs a').on('click', function (e) {
+            sessionStorage.setItem('activeVersusTab', $(e.target).attr('href'));
+        });
+        
+        // Restore active tab from session storage
+        const activeTab = sessionStorage.getItem('activeVersusTab');
+        if (activeTab) {
+            $('#chartTabs a[href="' + activeTab + '"]').tab('show');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,33 +1,53 @@
 import json
 import re
+import os
+import logging
+import functools
+from datetime import datetime
 
+import numpy as np
 import pandas as pd
 import matplotlib
-from django.db.models import Count
-from django.template.loader import render_to_string
-
-matplotlib.use('Agg')
+matplotlib.use('Agg')  # Must be before importing pyplot
 import matplotlib.pyplot as plt
 import seaborn as sns
-import os
-from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse
-from .models import TeamPerformance
-from django.conf import settings
 import plotly.express as px
 import plotly.graph_objects as go
-from django.shortcuts import redirect
+
+from django.shortcuts import render, redirect
+from django.http import HttpResponse, JsonResponse
+from django.db.models import Count, F, Q
+from django.template.loader import render_to_string
+from django.conf import settings
 from django.contrib import messages
-import logging
+from django.core.cache import cache
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-import numpy as np
 
+from .models import TeamPerformance
+
+# Configure logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+# Define a simple cache decorator for expensive functions
+def memoize(timeout=3600):
+    """Cache the result of a function for a specified time period"""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Create a cache key based on function name and arguments
+            key = f"fantasy_cache_{func.__name__}_{str(args)}_{str(kwargs)}"
+            result = cache.get(key)
+            if result is None:
+                result = func(*args, **kwargs)
+                cache.set(key, result, timeout)
+            return result
+        return wrapper
+    return decorator
 
 
 def upload_csv(request):
@@ -53,11 +73,8 @@ def upload_csv(request):
         data_total = data.groupby(['Team', 'Week']).sum().reset_index()
         data_total = data_total.sort_values(by=['Total'], ascending=True)
 
-        def combine_teams_and_positions(row):
-            return f"{row['Team']}"
-
-        data_total['Team'] = data_total.apply(combine_teams_and_positions, axis=1)
-
+        # Bulk create/update for better performance
+        bulk_updates = []
         for _, row in data_total.iterrows():
             team_performance, created = TeamPerformance.objects.update_or_create(
                 team_name=row['Team'],
@@ -130,25 +147,42 @@ def team_chart(request):
     selected_team = request.GET.get('team', 'all')
     only_box_plots = request.GET.get('only_box_plots', 'false') == 'true'
     
-    df = pd.DataFrame(list(team_performance.values()))
+    # Only fetch the fields we need
+    needed_fields = ['team_name', 'week', 'qb_points', 'wr_points', 'wr_points_total', 
+                    'rb_points', 'rb_points_total', 'te_points', 'te_points_total', 
+                    'k_points', 'def_points', 'total_points', 'result']
+    df = pd.DataFrame(list(team_performance.values(*needed_fields)))
+    
+    if df.empty:
+        context = {
+            'teams': teams,
+            'selected_team': selected_team,
+            'years': years,
+            'selected_year': selected_year,
+            'error_message': 'No data available for the selected year.'
+        }
+        return render(request, 'fantasy_data/partial_box_plots.html' if only_box_plots else 'fantasy_data/team_chart.html', context)
 
-    # Define a function to extract the numeric part
+    # Compile regex pattern once
+    week_pattern = re.compile(r'\d+')
+    
+    # Extract week number using vectorized operations
     def extract_week_number(week_str):
-        match = re.search(r'\d+', week_str)
+        match = week_pattern.search(week_str)
         return int(match.group()) if match else 0
-
+    
     # Apply the function to create a new column
     df['week_number'] = df['week'].apply(extract_week_number)
 
     # Sort by the new column and drop it if not needed
-    df_sorted = df.sort_values(by='week_number').drop(columns=['week_number'])
-
-    # Create a copy of the dataframe for box plots
-    df_box_plots = df_sorted.copy()
+    df.sort_values(by='week_number', inplace=True)
+    df_sorted = df.drop(columns=['week_number'])
     
-    # Filter data based on selected team for box plots only
+    # Only create a copy if filtering is needed
     if selected_team != 'all':
-        df_box_plots = df_box_plots[df_box_plots['team_name'] == selected_team]
+        df_box_plots = df_sorted[df_sorted['team_name'] == selected_team]
+    else:
+        df_box_plots = df_sorted
 
     # Create the box plots using the filtered data
     fig_points = px.box(df_box_plots, x='result', y='total_points', color='result', title='Total Points by Result')
@@ -189,7 +223,7 @@ def team_chart(request):
     if only_box_plots:
         return render(request, 'fantasy_data/partial_box_plots.html', context)
 
-    # Create the regular charts
+    # Create the regular charts only if needed (not for box_plots only view)
     fig = px.bar(df_sorted, x='team_name', y='total_points', color='week', title='Total Points by Team Each Week')
     chart = fig.to_html(full_html=False)
 
@@ -237,97 +271,74 @@ def generate_charts(data):
     if not os.path.exists(chart_dir):
         os.makedirs(chart_dir)
 
-    data = list(data.values())
-    data = pd.DataFrame(data)
+    # Only convert to DataFrame if it's not already one
+    if not isinstance(data, pd.DataFrame):
+        data = pd.DataFrame(list(data))
+    
+    if data.empty:
+        logger.warning("No data available for chart generation")
+        return
 
     # Define a color palette for the box plots
     boxplot_palette = {'L': 'lightblue', 'W': 'orange'}
-
-    # Example Chart: Total Points Distribution
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x='team_name', y='total_points', data=data)
-    plt.xticks(rotation=90)
-    plt.title('Total Points Distribution')
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'total_points_distribution.png'))
-    plt.clf()
-
-    # Additional charts can be added in a similar way:
-    # Example: Expected vs Actual Wins
-    plt.figure(figsize=(10, 6))
+    
+    # Define common chart parameters
+    chart_params = {
+        'figsize': (10, 6),
+        'rotation': 90,
+        'chart_dir': chart_dir
+    }
+    
+    # Function to create and save a bar chart
+    def create_bar_chart(x, y, title, filename, color=None, label=None):
+        plt.figure(figsize=chart_params['figsize'])
+        if color and label:
+            sns.barplot(x=x, y=y, data=data, color=color, label=label)
+        else:
+            sns.barplot(x=x, y=y, data=data)
+        plt.xticks(rotation=chart_params['rotation'])
+        plt.title(title)
+        plt.tight_layout()
+        plt.savefig(os.path.join(chart_params['chart_dir'], filename))
+        plt.clf()
+    
+    # Function to create and save a box plot
+    def create_box_plot(x, y, title, filename):
+        sns.boxplot(x=x, y=y, data=data, palette=boxplot_palette)
+        plt.title(title)
+        plt.tight_layout()
+        plt.savefig(os.path.join(chart_params['chart_dir'], filename))
+        plt.clf()
+    
+    # Create bar charts
+    create_bar_chart('team_name', 'total_points', 'Total Points Distribution', 'total_points_distribution.png')
+    
+    # Expected vs Actual Wins
+    plt.figure(figsize=chart_params['figsize'])
     sns.barplot(x='team_name', y='projected_wins', data=data, color='blue', label='Projected Wins')
     sns.barplot(x='team_name', y='actual_wins', data=data, color='red', label='Actual Wins')
-    plt.xticks(rotation=90)
+    plt.xticks(rotation=chart_params['rotation'])
     plt.title('Projected vs Actual Wins')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'projected_vs_actual_wins.png'))
+    plt.savefig(os.path.join(chart_params['chart_dir'], 'projected_vs_actual_wins.png'))
     plt.clf()
-
-    # Example: Points Against Distribution
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x='team_name', y='points_against', data=data)
-    plt.xticks(rotation=90)
-    plt.title('Points Against Distribution')
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'points_against_distribution.png'))
-    plt.clf()
-
-    # plt.figure(figsize=(10, 6))
-    sns.boxplot(x='result', y='total_points', data=data, palette=boxplot_palette)
-    # plt.xticks(rotation=90)
-    plt.title('Total Points By Result')
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'total_points_by_result.png'))
-    plt.clf()
-
-    # plt.figure(figsize=(10, 6))
-    sns.boxplot(x='result', y='wr_points', data=data, palette=boxplot_palette)
-    # plt.xticks(rotation=90)
-    plt.title('Total WR Points By Result')
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'total_wr_points_by_result.png'))
-    plt.clf()
-
-    # plt.figure(figsize=(10, 6))
-    sns.boxplot(x='result', y='qb_points', data=data, palette=boxplot_palette)
-    # plt.xticks(rotation=90)
-    plt.title('Total QB Points By Result')
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'total_qb_points_by_result.png'))
-    plt.clf()
-
-    # plt.figure(figsize=(10, 6))
-    sns.boxplot(x='result', y='rb_points', data=data, palette=boxplot_palette)
-    # plt.xticks(rotation=90)
-    plt.title('Total RB Points By Result')
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'total_rb_points_by_result.png'))
-    plt.clf()
-
-    # plt.figure(figsize=(10, 6))
-    sns.boxplot(x='result', y='te_points', data=data, palette=boxplot_palette)
-    # plt.xticks(rotation=90)
-    plt.title('Total TE Points By Result')
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'total_te_points_by_result.png'))
-    plt.clf()
-
-    # plt.figure(figsize=(10, 6))
-    sns.boxplot(x='result', y='k_points', data=data, palette=boxplot_palette)
-    # plt.xticks(rotation=90)
-    plt.title('Total K Points By Result')
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'total_k_points_by_result.png'))
-    plt.clf()
-
-    # plt.figure(figsize=(10, 6))
-    sns.boxplot(x='result', y='def_points', data=data, palette=boxplot_palette)
-    # plt.xticks(rotation=90)
-    plt.title('Total DEF Points By Result')
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_dir, 'total_def_points_by_result.png'))
-    plt.clf()
+    
+    create_bar_chart('team_name', 'points_against', 'Points Against Distribution', 'points_against_distribution.png')
+    
+    # Create box plots for different metrics
+    metrics = [
+        ('total_points', 'Total Points By Result', 'total_points_by_result.png'),
+        ('wr_points', 'Total WR Points By Result', 'total_wr_points_by_result.png'),
+        ('qb_points', 'Total QB Points By Result', 'total_qb_points_by_result.png'),
+        ('rb_points', 'Total RB Points By Result', 'total_rb_points_by_result.png'),
+        ('te_points', 'Total TE Points By Result', 'total_te_points_by_result.png'),
+        ('k_points', 'Total K Points By Result', 'total_k_points_by_result.png'),
+        ('def_points', 'Total DEF Points By Result', 'total_def_points_by_result.png')
+    ]
+    
+    for metric, title, filename in metrics:
+        create_box_plot('result', metric, title, filename)
 
 
 def charts_view(request):
@@ -1463,38 +1474,28 @@ def stats_charts_filter_less_than(request):
 
 
 def prepare_data(year=None):
-    if year:
-        team_performance = TeamPerformance.objects.filter(year=year)
-    else:
-        team_performance = TeamPerformance.objects.all()
-        
-    # Check if we have any data
-    if not team_performance.exists():
-        # Return empty dataframe and encoders
-        empty_df = pd.DataFrame()
-        return empty_df, None, None, None
-        
-    df = pd.DataFrame(list(team_performance.values()))
-
     # Define required columns
     required_columns = [
         'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
         'k_points', 'def_points', 'total_points', 'result', 'team_name', 'opponent'
     ]
     
-    # Check if all required columns exist
-    if not all(col in df.columns for col in required_columns):
-        # Return empty dataframe and encoders
+    # Only fetch the fields we need
+    if year:
+        team_performance = TeamPerformance.objects.filter(year=year).values(*required_columns)
+    else:
+        team_performance = TeamPerformance.objects.all().values(*required_columns)
+        
+    # Check if we have any data
+    if not team_performance.exists():
+        logger.warning("No data found for prepare_data")
         return pd.DataFrame(), None, None, None
-
-    # Drop rows with missing values in key columns
-    df = df.dropna(subset=[
-        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
-        'k_points', 'def_points', 'total_points', 'result'
-    ])
+        
+    df = pd.DataFrame(list(team_performance))
     
     # Check if we still have data after dropping NA values
     if df.empty:
+        logger.warning("Empty dataframe after initial load")
         return df, None, None, None
 
     # Ensure numerical columns are in numeric format
@@ -1502,34 +1503,50 @@ def prepare_data(year=None):
         'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
         'k_points', 'def_points', 'total_points'
     ]
-    for column in numeric_columns:
-        df[column] = pd.to_numeric(df[column], errors='coerce')
-
-    df = df.dropna(subset=numeric_columns)  # Drop rows with NaNs in numeric columns
+    
+    # Convert all numeric columns at once
+    df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
+    
+    # Drop rows with NaNs in numeric columns
+    df = df.dropna(subset=numeric_columns)
     
     # Check if we still have data after converting to numeric
     if df.empty:
+        logger.warning("Empty dataframe after converting to numeric")
         return df, None, None, None
 
-    # Encode team_name and opponent columns, result is directly used without encoding
-    label_encoder_team = LabelEncoder()
-    df['team_name'] = label_encoder_team.fit_transform(df['team_name'].astype(str))
-    label_encoder_opponent = LabelEncoder()
-    df['opponent'] = label_encoder_opponent.fit_transform(df['opponent'].astype(str))
-    label_encoder_result = LabelEncoder()
-    df['result'] = label_encoder_result.fit_transform(df['result'].astype(str))
+    # Encode categorical columns
+    encoders = {}
+    for col in ['team_name', 'opponent', 'result']:
+        encoders[col] = LabelEncoder()
+        df[col] = encoders[col].fit_transform(df[col].astype(str))
 
     # Binary outcome: 1 for win, 0 for tie, -1 for loss
-    df['win'] = df['result'].apply(lambda x: 1 if x == 2 else (0 if x == 0 else -1))
+    # Use numpy vectorized operations instead of apply
+    df['win'] = np.select(
+        [df['result'] == 2, df['result'] == 0], 
+        [1, 0], 
+        default=-1
+    )
 
-    return df, label_encoder_team, label_encoder_opponent, label_encoder_result
+    return df, encoders['team_name'], encoders['opponent'], encoders['result']
 
 
 def train_model(year=None):
+    # Use a cache key based on the year
+    cache_key = f"fantasy_model_{year}" if year else "fantasy_model_all"
+    
+    # Try to get model from cache
+    cached_model = getattr(train_model, 'cache', {}).get(cache_key)
+    if cached_model:
+        logger.info(f"Using cached model for year {year}")
+        return cached_model
+    
     df, label_encoder_team, label_encoder_opponent, label_encoder_result = prepare_data(year)
     
     # Check if we have valid data
     if df.empty or label_encoder_team is None:
+        logger.warning(f"Invalid data for model training: year={year}")
         return None, None, None, None
         
     # Define required columns
@@ -1538,19 +1555,23 @@ def train_model(year=None):
                         
     # Check if all required columns exist
     if not all(col in df.columns for col in required_columns):
+        logger.warning(f"Missing required columns for model training: year={year}")
         return None, None, None, None
     
     try:
-        X = df[['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points',
-                'total_points']]
+        # Define features and target
+        feature_columns = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 
+                          'k_points', 'def_points', 'total_points']
+        X = df[feature_columns]
         y = df['win']
         
         # Check if we have enough data to train
         if len(X) < 2:
+            logger.warning(f"Not enough data to train model: year={year}, samples={len(X)}")
             return None, label_encoder_team, label_encoder_opponent, label_encoder_result
 
         # Train the logistic regression model
-        model = LogisticRegression()
+        model = LogisticRegression(max_iter=1000)  # Increase max_iter for better convergence
         model.fit(X, y)
 
         # Calculate the overall model accuracy if we have enough data
@@ -1558,12 +1579,17 @@ def train_model(year=None):
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
             y_pred = model.predict(X_test)
             accuracy = accuracy_score(y_test, y_pred)
-            print(f"Model Accuracy: {accuracy:.2f}")
+            logger.info(f"Model Accuracy for year {year}: {accuracy:.2f}")
+        
+        # Cache the model
+        if not hasattr(train_model, 'cache'):
+            train_model.cache = {}
+        train_model.cache[cache_key] = (model, label_encoder_team, label_encoder_opponent, label_encoder_result)
         
         return model, label_encoder_team, label_encoder_opponent, label_encoder_result
         
     except Exception as e:
-        print(f"Error training model: {e}")
+        logger.error(f"Error training model for year {year}: {e}")
         return None, label_encoder_team, label_encoder_opponent, label_encoder_result
 
 

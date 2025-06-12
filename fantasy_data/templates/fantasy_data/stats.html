@@ -3,7 +3,6 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-
     <div class="container mt-4">
         <h1 class="my-4 text-center">Statistics</h1>
         
@@ -20,221 +19,170 @@
             </div>
         </div>
 
-        <!-- Dropdown for chart selection -->
+        <!-- Dropdown for chart selection with categories -->
         <div class="form-group">
             <label for="chartSelect">Select a Chart</label>
             <select class="form-control" id="chartSelect">
-                <!-- Options -->
                 <option value="">-- Select a Chart --</option>
-                <option value="average-differential">Average Differential</option>
-                <option value="average-by-team">Average by Team</option>
-                <option value="average-by-team_drop_two_lowest">Average by Team Drop Two Lowest</option>
-                <option value="wins">Wins by Team</option>
-                <option value="max-points-by-team">Max Points by Team</option>
-                <option value="best-possible">Best Possible Score by Team</option>
-                <option value="worst-possible">Worst Possible Score by Team</option>
-                <option value="avg-points-week">Average Points by Team</option>
-                <option value="median-possible">Median Possible Score by Team</option>
-                <option value="average-by-team-win-loss">Average of Win and Loss by Team</option>
-                <option value="median-margin">Median Winning/Losing Margin</option>
-                <option value="median-points">Median Points For/Against</option>
-                <option value="max-points-single-game">Max Points Scored in A Single Game</option>
-                <option value="max-qb-points">Max Points Scored in A Single Game by QB</option>
-                <option value="max-wr-points">Max Points Scored in A Single Game by WR</option>
-                <option value="max-rb-points">Max Points Scored in A Single Game by RB</option>
-                <option value="max-te-points">Max Points Scored in A Single Game by TE</option>
-                <option value="max-k-points">Max Points Scored in A Single Game by K</option>
-                <option value="max-def-points">Max Points Scored in A Single Game by DEF</option>
-                <option value="max_difference_points_by_team_table">Max Projected Difference in A Single Game</option>
-                <option value="min_difference_points_by_team_table">Min Projected Difference in A Single Game</option>
-                <option value="min-points-single-game">Min Points Scored in A Single Game</option>
-                <option value="margins-counts">Win/Loss Margins Counts</option>
-                <option value="record_against_everyone">Record Against Everyone</option>
-                <option value="record_against_everyone_by_week">Record Against Everyone by Week</option>
-                <option value="record_against_everyone_by_team">Record Against Everyone by Count</option>
-                <option value="score_rank_by_team">Score Rank of Each Matchup</option>
-                <option value="different_teams_schedules">Record with Different Schedules</option>
-                <option value="different_teams_schedules_count">Record with Different Schedules by Count</option>
+                
+                <optgroup label="Team Averages">
+                    <option value="average-differential">Average Differential</option>
+                    <option value="average-by-team">Average by Team</option>
+                    <option value="average-by-team_drop_two_lowest">Average by Team Drop Two Lowest</option>
+                    <option value="avg-points-week">Average Points by Team</option>
+                    <option value="average-by-team-win-loss">Average of Win and Loss by Team</option>
+                </optgroup>
+                
+                <optgroup label="Team Performance">
+                    <option value="wins">Wins by Team</option>
+                    <option value="max-points-by-team">Max Points by Team</option>
+                    <option value="best-possible">Best Possible Score by Team</option>
+                    <option value="worst-possible">Worst Possible Score by Team</option>
+                    <option value="median-possible">Median Possible Score by Team</option>
+                </optgroup>
+                
+                <optgroup label="Game Statistics">
+                    <option value="median-margin">Median Winning/Losing Margin</option>
+                    <option value="median-points">Median Points For/Against</option>
+                    <option value="margins-counts">Win/Loss Margins Counts</option>
+                </optgroup>
+                
+                <optgroup label="Single Game Records">
+                    <option value="max-points-single-game">Max Points Scored in A Single Game</option>
+                    <option value="min-points-single-game">Min Points Scored in A Single Game</option>
+                    <option value="max_difference_points_by_team_table">Max Projected Difference in A Single Game</option>
+                    <option value="min_difference_points_by_team_table">Min Projected Difference in A Single Game</option>
+                </optgroup>
+                
+                <optgroup label="Position Records">
+                    <option value="max-qb-points">Max Points Scored in A Single Game by QB</option>
+                    <option value="max-wr-points">Max Points Scored in A Single Game by WR</option>
+                    <option value="max-rb-points">Max Points Scored in A Single Game by RB</option>
+                    <option value="max-te-points">Max Points Scored in A Single Game by TE</option>
+                    <option value="max-k-points">Max Points Scored in A Single Game by K</option>
+                    <option value="max-def-points">Max Points Scored in A Single Game by DEF</option>
+                </optgroup>
+                
+                <optgroup label="Schedule Analysis">
+                    <option value="record_against_everyone">Record Against Everyone</option>
+                    <option value="record_against_everyone_by_week">Record Against Everyone by Week</option>
+                    <option value="record_against_everyone_by_team">Record Against Everyone by Count</option>
+                    <option value="score_rank_by_team">Score Rank of Each Matchup</option>
+                    <option value="different_teams_schedules">Record with Different Schedules</option>
+                    <option value="different_teams_schedules_count">Record with Different Schedules by Count</option>
+                </optgroup>
             </select>
         </div>
 
-        <!-- HTML tables for DataTables -->
-        <div id="average-differential" class="chart-content chart-container">
-            {{ average_differential_table|safe }}
+        <!-- Loading indicator -->
+        <div id="loading" class="text-center my-4" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
         </div>
-        <div id="average-by-team" class="chart-content chart-container">
-            {{ average_by_team_table|safe }}
-        </div>
-        <div id="average-by-team_drop_two_lowest" class="chart-content chart-container">
-            {{ average_by_team_table_drop_two_lowest|safe }}
-        </div>
-        <div id="wins" class="chart-content chart-container">
-            {{ wins_table|safe }}
-        </div>
-        <div id="max-points-by-team" class="chart-content chart-container">
-            {{ max_points_table|safe }}
-        </div>
-        <div id="best-possible" class="chart-content chart-container">
-            {{ best_possible_table|safe }}
-        </div>
-        <div id="worst-possible" class="chart-content chart-container">
-            {{ worst_possible_table|safe }}
-        </div>
-        <div id="median-possible" class="chart-content chart-container">
-            {{ median_possible_table|safe }}
-        </div>
-        <div id="avg-points-week" class="chart-content chart-container">
-            {{ avg_points_week_table|safe }}
-        </div>
-        <div id="average-by-team-win-loss" class="chart-content chart-container">
-            {{ average_by_team_table_win_and_loss|safe }}
-        </div>
-        <div id="median-margin" class="chart-content chart-container">
-            {{ median_by_team_result_table|safe }}
-        </div>
-        <div id="median-points" class="chart-content chart-container">
-            {{ median_by_team_table|safe }}
-        </div>
-        <div id="max-points-single-game" class="chart-content chart-container">
-            {{ max_points_by_team_table|safe }}
-        </div>
-        <div id="max-qb-points" class="chart-content chart-container">
-            {{ max_qb_points_by_team_table|safe }}
-        </div>
-        <div id="max-wr-points" class="chart-content chart-container">
-            {{ max_wr_points_by_team_table|safe }}
-        </div>
-        <div id="max-rb-points" class="chart-content chart-container">
-            {{ max_rb_points_by_team_table|safe }}
-        </div>
-        <div id="max-te-points" class="chart-content chart-container">
-            {{ max_te_points_by_team_table|safe }}
-        </div>
-        <div id="max-k-points" class="chart-content chart-container">
-            {{ max_k_points_by_team_table|safe }}
-        </div>
-        <div id="max-def-points" class="chart-content chart-container">
-            {{ max_def_points_by_team_table|safe }}
-        </div>
-        <div id="max_difference_points_by_team_table" class="chart-content chart-container">
-            {{ max_difference_points_by_team_table|safe }}
-        </div>
-        <div id="min_difference_points_by_team_table" class="chart-content chart-container">
-            {{ min_difference_points_by_team_table|safe }}
-        </div>
-        <div id="min-points-single-game" class="chart-content chart-container">
-            {{ min_points_by_team_table|safe }}
-        </div>
-        <div id="margins-counts" class="chart-content chart-container">
-            {{ margins_counts_table|safe }}
-        </div>
-        <div id="record_against_everyone" class="chart-content chart-container">
-            {{ record_against_everyone|safe }}
-        </div>
-        <div id="record_against_everyone_by_week" class="chart-content chart-container">
-            {{ record_against_everyone_by_week|safe }}
-        </div>
-        <div id="record_against_everyone_by_team" class="chart-content chart-container">
-            {{ record_against_everyone_by_team|safe }}
-        </div>
-        <div id="score_rank_by_team" class="chart-content chart-container">
-            {{ score_rank_by_team|safe }}
-        </div>
-        <div id="different_teams_schedules" class="chart-content chart-container">
-            {{ different_teams_schedules|safe }}
-        </div>
-        <div id="different_teams_schedules_count" class="chart-content chart-container">
-            {{ different_teams_schedules_count|safe }}
+
+        <div id="chartContainer">
+            <!-- HTML tables for DataTables - loaded on demand -->
+            <div id="average-differential" class="chart-content chart-container">{{ average_differential_table|safe }}</div>
+            <div id="average-by-team" class="chart-content chart-container">{{ average_by_team_table|safe }}</div>
+            <div id="average-by-team_drop_two_lowest" class="chart-content chart-container">{{ average_by_team_table_drop_two_lowest|safe }}</div>
+            <div id="wins" class="chart-content chart-container">{{ wins_table|safe }}</div>
+            <div id="max-points-by-team" class="chart-content chart-container">{{ max_points_table|safe }}</div>
+            <div id="best-possible" class="chart-content chart-container">{{ best_possible_table|safe }}</div>
+            <div id="worst-possible" class="chart-content chart-container">{{ worst_possible_table|safe }}</div>
+            <div id="median-possible" class="chart-content chart-container">{{ median_possible_table|safe }}</div>
+            <div id="avg-points-week" class="chart-content chart-container">{{ avg_points_week_table|safe }}</div>
+            <div id="average-by-team-win-loss" class="chart-content chart-container">{{ average_by_team_table_win_and_loss|safe }}</div>
+            <div id="median-margin" class="chart-content chart-container">{{ median_by_team_result_table|safe }}</div>
+            <div id="median-points" class="chart-content chart-container">{{ median_by_team_table|safe }}</div>
+            <div id="max-points-single-game" class="chart-content chart-container">{{ max_points_by_team_table|safe }}</div>
+            <div id="max-qb-points" class="chart-content chart-container">{{ max_qb_points_by_team_table|safe }}</div>
+            <div id="max-wr-points" class="chart-content chart-container">{{ max_wr_points_by_team_table|safe }}</div>
+            <div id="max-rb-points" class="chart-content chart-container">{{ max_rb_points_by_team_table|safe }}</div>
+            <div id="max-te-points" class="chart-content chart-container">{{ max_te_points_by_team_table|safe }}</div>
+            <div id="max-k-points" class="chart-content chart-container">{{ max_k_points_by_team_table|safe }}</div>
+            <div id="max-def-points" class="chart-content chart-container">{{ max_def_points_by_team_table|safe }}</div>
+            <div id="max_difference_points_by_team_table" class="chart-content chart-container">{{ max_difference_points_by_team_table|safe }}</div>
+            <div id="min_difference_points_by_team_table" class="chart-content chart-container">{{ min_difference_points_by_team_table|safe }}</div>
+            <div id="min-points-single-game" class="chart-content chart-container">{{ min_points_by_team_table|safe }}</div>
+            <div id="margins-counts" class="chart-content chart-container">{{ margins_counts_table|safe }}</div>
+            <div id="record_against_everyone" class="chart-content chart-container">{{ record_against_everyone|safe }}</div>
+            <div id="record_against_everyone_by_week" class="chart-content chart-container">{{ record_against_everyone_by_week|safe }}</div>
+            <div id="record_against_everyone_by_team" class="chart-content chart-container">{{ record_against_everyone_by_team|safe }}</div>
+            <div id="score_rank_by_team" class="chart-content chart-container">{{ score_rank_by_team|safe }}</div>
+            <div id="different_teams_schedules" class="chart-content chart-container">{{ different_teams_schedules|safe }}</div>
+            <div id="different_teams_schedules_count" class="chart-content chart-container">{{ different_teams_schedules_count|safe }}</div>
         </div>
     </div>
+{% endblock %}
 
-    <!-- Add jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Add Bootstrap JS -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+{% block extra_js %}
     <!-- Add DataTables JS -->
     <script src="https://cdn.datatables.net/2.1.3/js/dataTables.min.js"></script>
 
     <script>
+        // DataTable configuration
+        const tableOptions = {
+            "pageLength": 12,
+            "responsive": true,
+            "language": {
+                "search": "Filter:",
+                "lengthMenu": "Show _MENU_ entries",
+                "info": "Showing _START_ to _END_ of _TOTAL_ entries"
+            }
+        };
+        
+        // Track initialized tables
+        const initializedTables = {};
+        
         function updateYear() {
             var year = document.getElementById("yearSelector").value;
             window.location.href = "{% url 'stats_charts' %}?year=" + year;
         }
         
+        function loadChart(chartId) {
+            // Show loading indicator
+            $('#loading').show();
+            
+            // Get the chart container
+            const container = $('#' + chartId);
+            
+            // If this table hasn't been initialized yet
+            if (!initializedTables[chartId]) {
+                // Initialize DataTable if there's a table
+                if (container.find('table').length > 0) {
+                    container.find('table').DataTable(tableOptions);
+                }
+                
+                // Mark as initialized
+                initializedTables[chartId] = true;
+            }
+            
+            // Hide loading indicator
+            $('#loading').hide();
+            
+            // Show the chart
+            container.show();
+        }
+        
         $(document).ready(function() {
-            // Initialize DataTables with default page length of 12
-            $('#average-differential table').DataTable({
-                "pageLength": 12
-            });
-            $('#average-by-team table').DataTable({
-                "pageLength": 12
-            });
-            $('#average-by-team_drop_two_lowest table').DataTable({
-                "pageLength": 12
-            });
-            $('#wins table').DataTable({
-                "pageLength": 12
-            });
-            $('#max-points-by-team table').DataTable({
-                "pageLength": 12
-            });
-            $('#best-possible table').DataTable({
-                "pageLength": 12
-            });
-            $('#worst-possible table').DataTable({
-                "pageLength": 12
-            });
-            $('#median-possible table').DataTable({
-                "pageLength": 12
-            });
-            $('#avg-points-week table').DataTable({
-                "pageLength": 12
-            });
-            $('#average-by-team-win-loss table').DataTable({
-                "pageLength": 12
-            });
-            $('#median-margin table').DataTable({
-                "pageLength": 12
-            });
-            $('#median-points table').DataTable({
-                "pageLength": 12
-            });
-            $('#max-points-single-game table').DataTable({
-                "pageLength": 12
-            });
-            $('#max-qb-points table').DataTable({
-                "pageLength": 12
-            });
-            $('#max-wr-points table').DataTable({
-                "pageLength": 12
-            });
-            $('#max-rb-points table').DataTable({
-                "pageLength": 12
-            });
-            $('#max-te-points table').DataTable({
-                "pageLength": 12
-            });
-            $('#max-k-points table').DataTable({
-                "pageLength": 12
-            });
-            $('#max-def-points table').DataTable({
-                "pageLength": 12
-            });
-            $('#min-points-single-game table').DataTable({
-                "pageLength": 12
-            });
-            $('#margins-counts table').DataTable({
-                "pageLength": 12
-            });
+            // Hide all charts initially
+            $('.chart-content').hide();
 
             // Show selected chart content
             $('#chartSelect').change(function() {
                 $('.chart-content').hide();
-                var selectedChart = $(this).val();
-                $('#' + selectedChart).show();
+                const selectedChart = $(this).val();
+                if (selectedChart) {
+                    loadChart(selectedChart);
+                }
             });
+            
+            // If there's a hash in the URL, select that chart
+            if (window.location.hash) {
+                const chartId = window.location.hash.substring(1);
+                $('#chartSelect').val(chartId).trigger('change');
+            }
         });
     </script>
 {% endblock %}
-</body>
-</html>

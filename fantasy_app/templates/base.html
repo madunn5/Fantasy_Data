@@ -9,6 +9,10 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <!-- DataTables CSS -->
     <link href="https://cdn.datatables.net/2.1.3/css/dataTables.dataTables.min.css" rel="stylesheet">
+    <!-- Plotly JS (loaded once in base template) -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- jQuery (loaded once in base template) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 
     <!-- Custom CSS -->
     <style>
@@ -34,6 +38,24 @@
         .year-selector select {
             border-radius: 4px;
             padding: 5px;
+        }
+        
+        /* Scrollable chart styles */
+        .scrollable-chart {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        /* Chart card styles */
+        .chart-card {
+            margin-bottom: 2rem;
+        }
+        
+        /* Loading indicator */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
         }
     </style>
 </head>
@@ -62,5 +84,36 @@
         {% block content %}
         {% endblock %}
     </div>
+
+    <!-- Common JS libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <!-- Common JS functions -->
+    <script>
+        // Helper function to show loading indicator
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = '<div class="loading">Loading...</div>';
+                element.querySelector('.loading').style.display = 'block';
+            }
+        }
+        
+        // Helper function for scrollable charts
+        document.addEventListener('DOMContentLoaded', function() {
+            var chartContainers = document.querySelectorAll('.scrollable-chart');
+            chartContainers.forEach(function(container) {
+                container.addEventListener('wheel', function(e) {
+                    if (e.target.closest('.scrollable-chart') === container) {
+                        e.preventDefault();
+                        container.scrollTop += e.deltaY;
+                    }
+                });
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

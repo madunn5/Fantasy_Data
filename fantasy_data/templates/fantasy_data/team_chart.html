@@ -3,7 +3,6 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-
     <div class="container mt-4">
         <h1 class="my-4 text-center">Fantasy Team Performance Charts</h1>
         
@@ -21,47 +20,66 @@
             </div>
         </div>
 
-        <!-- Regular charts -->
-        <div class="chart-card">
-            <h2 class="text-center">Total Points by Team</h2>
-            <div class="border p-3 rounded">{{ chart|safe }}</div>
-        </div>
+        {% if error_message %}
+            <div class="alert alert-warning">{{ error_message }}</div>
+        {% else %}
+            <!-- Chart navigation tabs -->
+            <ul class="nav nav-tabs mb-4" id="chartTabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="bar-charts-tab" data-toggle="tab" href="#bar-charts" role="tab">Bar Charts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="box-plots-tab" data-toggle="tab" href="#box-plots" role="tab">Box Plots</a>
+                </li>
+            </ul>
 
-        <div class="chart-card">
-            <h2 class="text-center">Total QB Points by Team</h2>
-            <div class="border p-3 rounded">{{ chart_qb_points|safe }}</div>
-        </div>
-
-        <div class="chart-card">
-            <h2 class="text-center">Total WR Points by Team</h2>
-            <div class="border p-3 rounded">{{ chart_wr_points|safe }}</div>
-        </div>
-
-        <div class="chart-card">
-            <h2 class="text-center">Total RB Points by Team</h2>
-            <div class="border p-3 rounded">{{ chart_rb_points|safe }}</div>
-        </div>
-
-        <div class="chart-card">
-            <h2 class="text-center">Total TE Points by Team</h2>
-            <div class="border p-3 rounded">{{ chart_te_points|safe }}</div>
-        </div>
-
-        <div class="chart-card">
-            <h2 class="text-center">Total K Points by Team</h2>
-            <div class="border p-3 rounded">{{ chart_k_points|safe }}</div>
-        </div>
-
-        <div class="chart-card">
-            <h2 class="text-center">Total DEF Points by Team</h2>
-            <div class="border p-3 rounded">{{ chart_def_points|safe }}</div>
-        </div>
-
-        <!-- Box plot charts -->
-        <div class="sticky mt-5">
-            <div class="row">
-                <div class="col-md-6 offset-md-3">
-                    <div class="form-group">
+            <div class="tab-content" id="chartTabContent">
+                <!-- Bar charts tab -->
+                <div class="tab-pane fade show active" id="bar-charts" role="tabpanel">
+                    <div class="chart-selector mb-4">
+                        <div class="form-group">
+                            <label for="barChartSelect"><strong>Select Chart:</strong></label>
+                            <select class="form-control" id="barChartSelect">
+                                <option value="total">Total Points</option>
+                                <option value="qb">QB Points</option>
+                                <option value="wr">WR Points</option>
+                                <option value="rb">RB Points</option>
+                                <option value="te">TE Points</option>
+                                <option value="k">K Points</option>
+                                <option value="def">DEF Points</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Bar charts content -->
+                    <div id="barChartsContainer">
+                        <div id="total-chart" class="bar-chart">
+                            <div class="border p-3 rounded">{{ chart|safe }}</div>
+                        </div>
+                        <div id="qb-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded">{{ chart_qb_points|safe }}</div>
+                        </div>
+                        <div id="wr-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded">{{ chart_wr_points|safe }}</div>
+                        </div>
+                        <div id="rb-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded">{{ chart_rb_points|safe }}</div>
+                        </div>
+                        <div id="te-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded">{{ chart_te_points|safe }}</div>
+                        </div>
+                        <div id="k-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded">{{ chart_k_points|safe }}</div>
+                        </div>
+                        <div id="def-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded">{{ chart_def_points|safe }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Box plots tab -->
+                <div class="tab-pane fade" id="box-plots" role="tabpanel">
+                    <div class="form-group mb-4">
                         <label for="teamSelector"><strong>Select Team for Box Plots:</strong></label>
                         <select class="form-control" id="teamSelector">
                             <option value="all">All Teams</option>
@@ -70,24 +88,24 @@
                             {% endfor %}
                         </select>
                     </div>
+                    
+                    <div id="boxPlots">
+                        {% include 'fantasy_data/partial_box_plots.html' %}
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <div id="boxPlots">
-            {% include 'fantasy_data/partial_box_plots.html' %}
-        </div>
+        {% endif %}
     </div>
+{% endblock %}
 
-    <!-- Add Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
+{% block extra_js %}
     <script>
         function updateBoxPlots() {
             var team = document.getElementById("teamSelector").value;
             var year = document.getElementById("yearSelector").value;
+            
+            // Show loading indicator
+            showLoading("boxPlots");
 
             // Fetch the updated box plot charts from the server
             $.ajax({
@@ -99,6 +117,9 @@
                 },
                 success: function(data) {
                     $('#boxPlots').html(data);
+                },
+                error: function() {
+                    $('#boxPlots').html('<div class="alert alert-danger">Error loading data</div>');
                 }
             });
         }
@@ -111,19 +132,37 @@
         }
         
         function updateTeam() {
-            var team = document.getElementById("teamSelector").value;
-            var year = document.getElementById("yearSelector").value;
-            
             // Update only the box plots without refreshing the page
             updateBoxPlots();
         }
         
-        // Add event listeners for full page refresh
+        // Add event listeners
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById("yearSelector").addEventListener('change', updateYear);
             document.getElementById("teamSelector").addEventListener('change', updateTeam);
+            
+            // Bar chart selector
+            document.getElementById("barChartSelect").addEventListener('change', function() {
+                // Hide all bar charts
+                document.querySelectorAll('.bar-chart').forEach(function(chart) {
+                    chart.style.display = 'none';
+                });
+                
+                // Show selected chart
+                var selectedChart = this.value + '-chart';
+                document.getElementById(selectedChart).style.display = 'block';
+            });
+            
+            // Save active tab in session storage
+            $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+                sessionStorage.setItem('activeTeamChartTab', $(e.target).attr('href'));
+            });
+            
+            // Restore active tab from session storage
+            var activeTab = sessionStorage.getItem('activeTeamChartTab');
+            if (activeTab) {
+                $('#chartTabs a[href="' + activeTab + '"]').tab('show');
+            }
         });
     </script>
 {% endblock %}
-</body>
-</html>
