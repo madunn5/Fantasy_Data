@@ -9,6 +9,8 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <!-- DataTables CSS -->
     <link href="https://cdn.datatables.net/2.1.3/css/dataTables.dataTables.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <!-- Plotly JS (loaded once in base template) -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- jQuery (loaded once in base template) -->
@@ -62,19 +64,71 @@
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">{{ page_title }}</a>
+        <a class="navbar-brand" href="{% url 'home' %}">{{ page_title }}</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
-                <li class="nav-item"><a class="nav-link text-primary" href="{% url 'team_chart_filter' %}">Team Chart Filter</a></li>
-                <li class="nav-item"><a class="nav-link text-primary" href="{% url 'stats_charts' %}">Stats Charts</a></li>
-                <li class="nav-item"><a class="nav-link text-primary" href="{% url 'top_tens' %}">Top 10s</a></li>
-                <li class="nav-item"><a class="nav-link text-primary" href="{% url 'stats_charts_filter' %}">Charts Filter Greater/Less Than</a></li>
-                <li class="nav-item"><a class="nav-link text-primary" href="{% url 'team_chart' %}">Boxplots and Team Charts</a></li>
-                <li class="nav-item"><a class="nav-link text-primary" href="{% url 'versus' %}">Team Comparisons</a></li>
-                <li class="nav-item"><a class="nav-link text-primary" href="{% url 'win_probability_against_all_teams' %}">Win Probability Against All Teams</a></li>
+                <!-- Home Button -->
+                <li class="nav-item">
+                    <a class="nav-link text-dark" href="{% url 'home' %}">
+                        <i class="fas fa-home"></i> Home
+                    </a>
+                </li>
+                
+                <!-- Team Charts Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-primary" href="#" id="teamChartsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Team Charts
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="teamChartsDropdown">
+                        <a class="dropdown-item" href="{% url 'team_chart' %}">Boxplots and Team Charts</a>
+                        <a class="dropdown-item" href="{% url 'team_chart_filter' %}">Team Chart Filter</a>
+                        <a class="dropdown-item" href="{% url 'performance_trend' %}">Performance Trend</a>
+                    </div>
+                </li>
+                
+                <!-- Stats Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-primary" href="#" id="statsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Stats
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="statsDropdown">
+                        <a class="dropdown-item" href="{% url 'stats_charts' %}">Stats Tables</a>
+                        <a class="dropdown-item" href="{% url 'stats_charts_filter' %}">Stats Filter</a>
+                        <a class="dropdown-item" href="{% url 'top_tens' %}">Top 10s</a>
+                    </div>
+                </li>
+                
+                <!-- Matchup Analysis Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-primary" href="#" id="matchupDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Matchup Analysis
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="matchupDropdown">
+                        <a class="dropdown-item" href="{% url 'versus' %}">Team Comparisons</a>
+                        <a class="dropdown-item" href="{% url 'win_probability_against_all_teams' %}">Win Probability</a>
+                        <a class="dropdown-item" href="{% url 'win_probability_heatmap' %}">Win Probability Heatmap</a>
+                    </div>
+                </li>
+                
+                <!-- Position Analysis Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-primary" href="#" id="positionDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Position Analysis
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="positionDropdown">
+                        <a class="dropdown-item" href="{% url 'position_contribution' %}">Position Contribution</a>
+                    </div>
+                </li>
+                
+                <!-- Upload Data link removed from main navigation -->
+                {% comment %}
+                <li class="nav-item">
+                    <a class="nav-link text-primary" href="{% url 'upload_csv' %}">Upload Data</a>
+                </li>
+                {% endcomment %}
             </ul>
         </div>
     </nav>

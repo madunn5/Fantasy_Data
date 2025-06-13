@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <h1 class="my-4 text-center">Position Contribution Analysis</h1>
+        
+        <!-- Year selector at the top -->
+        <div class="row mb-4">
+            <div class="col-md-6 offset-md-3">
+                <div class="form-group">
+                    <label for="yearSelector"><strong>Select Year:</strong></label>
+                    <select class="form-control" id="yearSelector" onchange="updateYear()">
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Team selector -->
+        <div class="row mb-4">
+            <div class="col-md-6 offset-md-3">
+                <div class="form-group">
+                    <label for="teamSelector"><strong>Select Team:</strong></label>
+                    <select class="form-control" id="teamSelector" onchange="updateTeam()">
+                        <option value="">-- Select a Team --</option>
+                        {% for team in teams %}
+                            <option value="{{ team }}" {% if team == selected_team %}selected{% endif %}>{{ team }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        {% if error_message %}
+            <div class="alert alert-warning">{{ error_message }}</div>
+        {% elif selected_team %}
+            <!-- Charts -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title">Position Contribution Radar</h5>
+                        </div>
+                        <div class="card-body">
+                            {{ chart|safe }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title">Comparison with League Average</h5>
+                        </div>
+                        <div class="card-body">
+                            {{ comparison_chart|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Position breakdown table -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Position Contribution Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Position</th>
+                                <th>Contribution (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>QB</td>
+                                <td>{{ percentages.qb_points|floatformat:1 }}%</td>
+                            </tr>
+                            <tr>
+                                <td>WR</td>
+                                <td>{{ percentages.wr_points_total|floatformat:1 }}%</td>
+                            </tr>
+                            <tr>
+                                <td>RB</td>
+                                <td>{{ percentages.rb_points_total|floatformat:1 }}%</td>
+                            </tr>
+                            <tr>
+                                <td>TE</td>
+                                <td>{{ percentages.te_points_total|floatformat:1 }}%</td>
+                            </tr>
+                            <tr>
+                                <td>K</td>
+                                <td>{{ percentages.k_points|floatformat:1 }}%</td>
+                            </tr>
+                            <tr>
+                                <td>DEF</td>
+                                <td>{{ percentages.def_points|floatformat:1 }}%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-info">Please select a team to view position contribution analysis.</div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        function updateYear() {
+            var year = document.getElementById("yearSelector").value;
+            var team = document.getElementById("teamSelector").value;
+            
+            // Redirect with both parameters if team is selected
+            if (team) {
+                window.location.href = "{% url 'position_contribution' %}?year=" + year + "&team=" + team;
+            } else {
+                window.location.href = "{% url 'position_contribution' %}?year=" + year;
+            }
+        }
+        
+        function updateTeam() {
+            var team = document.getElementById("teamSelector").value;
+            var year = document.getElementById("yearSelector").value;
+            
+            // Redirect with both parameters
+            window.location.href = "{% url 'position_contribution' %}?year=" + year + "&team=" + team;
+        }
+    </script>
+{% endblock %}

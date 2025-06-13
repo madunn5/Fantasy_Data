@@ -1,20 +1,24 @@
 from django.urls import path
-from .views import (upload_csv, team_chart, team_detail, team_performance_list, charts_view,
-                    team_performance_view, box_plots_filter, stats_charts, stats_charts_filter,
-                    stats_charts_filter_less_than, versus, win_probability_against_all_teams, top_tens)
+from . import views
 
 urlpatterns = [
-    path('upload/', upload_csv, name='upload_csv'),
-    # path('teams/', team_performance_list, name='team_performance_list'),
-    # path('teams/<int:team_id>/', team_detail, name='team_detail'),
-    path('charts/teams/', team_chart, name='team_chart'),
-    # path('', charts_view, name='charts_view'),
-    # path('', team_performance_view, name='team_performance'),
-    path('boxplots/', box_plots_filter, name='team_chart_filter'),
-    path('stats/', stats_charts, name='stats_charts'),
-    path('stats/filter/', stats_charts_filter, name='stats_charts_filter'),
-    # path('stats/filter/less_than/', stats_charts_filter_less_than, name='stats_charts_filter_less_than'),
-    path('', versus, name='versus'),
-    path('probabilities/', win_probability_against_all_teams, name='win_probability_against_all_teams'),
-    path('toptens/', top_tens, name='top_tens')
+    path('upload/', views.upload_csv, name='upload_csv'),
+    path('team-performance/', views.team_performance_view, name='team_performance'),
+    path('team-performance-list/', views.team_performance_list, name='team_performance_list'),
+    path('team-detail/<int:team_id>/', views.team_detail, name='team_detail'),
+    path('team-chart/', views.team_chart, name='team_chart'),
+    path('team-chart-filter/', views.box_plots_filter, name='team_chart_filter'),
+    path('charts/', views.charts_view, name='charts'),
+    path('stats/', views.stats_charts, name='stats_charts'),
+    path('stats-filter/', views.stats_charts_filter, name='stats_charts_filter'),
+    path('stats-filter-less-than/', views.stats_charts_filter_less_than, name='stats_charts_filter_less_than'),
+    path('top-tens/', views.top_tens, name='top_tens'),
+    path('', views.home, name='home'),
+    path('versus/', views.versus, name='versus'),
+    path('win-probability/', views.win_probability_against_all_teams, name='win_probability_against_all_teams'),
+    
+    # New visualization URLs
+    path('position-contribution/', views.position_contribution_chart, name='position_contribution'),
+    path('performance-trend/', views.performance_trend, name='performance_trend'),
+    path('win-probability-heatmap/', views.win_probability_heatmap, name='win_probability_heatmap'),
 ]

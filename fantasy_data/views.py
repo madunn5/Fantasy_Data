@@ -29,6 +29,18 @@ from sklearn.metrics import accuracy_score
 
 from .models import TeamPerformance
 
+
+def home(request):
+    # Get available years for context
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = years.last() if years else 2023
+    
+    return render(request, 'fantasy_data/home.html', {
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': 'Fantasy Stats Dashboard'
+    })
+
 # Configure logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -1998,6 +2010,278 @@ def win_probability_against_all_teams(request):
         'selected_year': selected_year,
         'page_title': f"{page_title} ({selected_year})"
     })
+
+
+def position_contribution_chart(request):
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
+    
+    # Get teams for the selected year
+    teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
+    selected_team = request.GET.get('team', teams.first() if teams else None)
+    
+    if not selected_team:
+        context = {
+            'teams': teams, 
+            'years': years, 
+            'selected_year': selected_year,
+            'page_title': f'Position Contribution ({selected_year})'
+        }
+        return render(request, 'fantasy_data/position_contribution.html', context)
+    
+    # Get team data
+    team_data = TeamPerformance.objects.filter(year=selected_year, team_name=selected_team)
+    df = pd.DataFrame(list(team_data.values()))
+    
+    if df.empty:
+        context = {
+            'teams': teams,
+            'selected_team': selected_team,
+            'years': years,
+            'selected_year': selected_year,
+            'error_message': f'No data available for {selected_team} in {selected_year}',
+            'page_title': f'Position Contribution ({selected_year})'
+        }
+        return render(request, 'fantasy_data/position_contribution.html', context)
+    
+    # Calculate position contribution percentages
+    position_cols = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points']
+    df_avg = df[position_cols].mean()
+    total = df_avg.sum()
+    percentages = (df_avg / total * 100).round(1)
+    
+    # Create radar chart
+    categories = ['QB', 'WR', 'RB', 'TE', 'K', 'DEF']
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatterpolar(
+        r=percentages.values,
+        theta=categories,
+        fill='toself',
+        name=selected_team
+    ))
+    
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, max(percentages.values) * 1.1]
+            )
+        ),
+        title=f"Position Contribution for {selected_team} ({selected_year})"
+    )
+    
+    chart = fig.to_html(full_html=False)
+    
+    # Create bar chart for comparison
+    league_data = TeamPerformance.objects.filter(year=selected_year)
+    league_df = pd.DataFrame(list(league_data.values()))
+    league_avg = league_df[position_cols].mean()
+    league_total = league_avg.sum()
+    league_percentages = (league_avg / league_total * 100).round(1)
+    
+    fig_bar = go.Figure(data=[
+        go.Bar(name=selected_team, x=categories, y=percentages.values),
+        go.Bar(name='League Average', x=categories, y=league_percentages.values)
+    ])
+    
+    fig_bar.update_layout(
+        barmode='group',
+        title=f"Position Contribution Comparison ({selected_year})"
+    )
+    
+    comparison_chart = fig_bar.to_html(full_html=False)
+    
+    context = {
+        'teams': teams,
+        'selected_team': selected_team,
+        'years': years,
+        'selected_year': selected_year,
+        'chart': chart,
+        'comparison_chart': comparison_chart,
+        'percentages': percentages.to_dict(),
+        'page_title': f'Position Contribution: {selected_team} ({selected_year})'
+    }
+    
+    return render(request, 'fantasy_data/position_contribution.html', context)
+
+
+def performance_trend(request):
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
+    
+    # Get teams for the selected year
+    teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
+    selected_teams = request.GET.getlist('teams', [teams.first()] if teams else [])
+    
+    if not selected_teams:
+        context = {
+            'teams': teams, 
+            'years': years, 
+            'selected_year': selected_year,
+            'page_title': f'Performance Trend ({selected_year})'
+        }
+        return render(request, 'fantasy_data/performance_trend.html', context)
+    
+    # Extract week numbers
+    week_pattern = re.compile(r'\d+')
+    
+    # Create trend chart
+    fig = go.Figure()
+    
+    for team in selected_teams:
+        # Get team data sorted by week
+        team_data = TeamPerformance.objects.filter(year=selected_year, team_name=team)
+        df = pd.DataFrame(list(team_data.values()))
+        
+        if df.empty:
+            continue
+        
+        # Extract week numbers and sort
+        df['week_num'] = df['week'].apply(lambda x: int(week_pattern.search(x).group()) if week_pattern.search(x) else 0)
+        df = df.sort_values('week_num')
+        
+        # Add line for this team
+        fig.add_trace(go.Scatter(
+            x=df['week'],
+            y=df['total_points'],
+            mode='lines+markers',
+            name=team
+        ))
+    
+    fig.update_layout(
+        title="Fantasy Points Trend by Week",
+        xaxis_title="Week",
+        yaxis_title="Total Points",
+        legend_title="Teams"
+    )
+    
+    chart = fig.to_html(full_html=False)
+    
+    context = {
+        'teams': teams,
+        'selected_teams': selected_teams,
+        'years': years,
+        'selected_year': selected_year,
+        'chart': chart,
+        'page_title': f'Performance Trend ({selected_year})'
+    }
+    
+    return render(request, 'fantasy_data/performance_trend.html', context)
+
+
+def win_probability_heatmap(request):
+    # Get available years and selected year
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
+    selected_year = request.GET.get('year', years.last() if years else 2023)
+    
+    # Convert selected_year to integer
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.last() if years else 2023
+    
+    # Load model
+    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model(selected_year)
+    
+    if model is None:
+        context = {
+            'error': 'Unable to create prediction model', 
+            'years': years, 
+            'selected_year': selected_year,
+            'page_title': f'Win Probability Heatmap ({selected_year})'
+        }
+        return render(request, 'fantasy_data/win_probability_heatmap.html', context)
+    
+    # Get teams
+    teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
+    teams_list = list(teams)
+    
+    # Create probability matrix
+    probability_matrix = []
+    
+    for team1 in teams_list:
+        row = []
+        for team2 in teams_list:
+            if team1 == team2:
+                row.append(0.5)  # Equal probability against self
+                continue
+                
+            # Get team data
+            team1_data = TeamPerformance.objects.filter(year=selected_year, team_name=team1)
+            team2_data = TeamPerformance.objects.filter(year=selected_year, team_name=team2)
+            
+            if not team1_data.exists() or not team2_data.exists():
+                row.append(0.5)
+                continue
+                
+            # Calculate average stats
+            df1 = pd.DataFrame(list(team1_data.values()))
+            df2 = pd.DataFrame(list(team2_data.values()))
+            
+            numeric_cols = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points', 'total_points']
+            team1_avg = df1[numeric_cols].mean()
+            team2_avg = df2[numeric_cols].mean()
+            
+            # Predict win probability
+            try:
+                X1 = pd.DataFrame([team1_avg.values], columns=numeric_cols)
+                X2 = pd.DataFrame([team2_avg.values], columns=numeric_cols)
+                
+                prob1 = model.predict_proba(X1)[:, model.classes_ == 1][0][0]
+                prob2 = model.predict_proba(X2)[:, model.classes_ == 1][0][0]
+                
+                # Normalize probabilities
+                total_prob = prob1 + prob2
+                prob1_norm = prob1 / total_prob
+                
+                row.append(prob1_norm)
+            except:
+                row.append(0.5)
+                
+        probability_matrix.append(row)
+    
+    # Create heatmap
+    fig = go.Figure(data=go.Heatmap(
+        z=probability_matrix,
+        x=teams_list,
+        y=teams_list,
+        colorscale='RdBu_r',
+        zmin=0,
+        zmax=1,
+        colorbar=dict(title='Win Probability')
+    ))
+    
+    fig.update_layout(
+        title=f'Win Probability Heatmap ({selected_year})',
+        xaxis_title='Opponent',
+        yaxis_title='Team'
+    )
+    
+    chart = fig.to_html(full_html=False)
+    
+    context = {
+        'years': years,
+        'selected_year': selected_year,
+        'chart': chart,
+        'page_title': f'Win Probability Heatmap ({selected_year})'
+    }
+    
+    return render(request, 'fantasy_data/win_probability_heatmap.html', context)
 
 
 def top_tens(request):

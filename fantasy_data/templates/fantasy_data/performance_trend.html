@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <h1 class="my-4 text-center">Performance Trend Analysis</h1>
+        
+        <!-- Year selector at the top -->
+        <div class="row mb-4">
+            <div class="col-md-6 offset-md-3">
+                <div class="form-group">
+                    <label for="yearSelector"><strong>Select Year:</strong></label>
+                    <select class="form-control" id="yearSelector" onchange="updateYear()">
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Team selector -->
+        <form id="teamForm" method="get" action="{% url 'performance_trend' %}">
+            <input type="hidden" name="year" value="{{ selected_year }}">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Select Teams to Compare</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for team in teams %}
+                            <div class="col-md-3 mb-2">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="team_{{ forloop.counter }}" 
+                                           name="teams" value="{{ team }}" 
+                                           {% if team in selected_teams %}checked{% endif %}>
+                                    <label class="custom-control-label" for="team_{{ forloop.counter }}">{{ team }}</label>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">Update Chart</button>
+                </div>
+            </div>
+        </form>
+
+        {% if selected_teams %}
+            <!-- Performance trend chart -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Fantasy Points Trend by Week</h5>
+                </div>
+                <div class="card-body">
+                    {{ chart|safe }}
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-info">Please select at least one team to view performance trends.</div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        function updateYear() {
+            var year = document.getElementById("yearSelector").value;
+            window.location.href = "{% url 'performance_trend' %}?year=" + year;
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Limit the number of teams that can be selected to 5
+            var checkboxes = document.querySelectorAll('input[name="teams"]');
+            var maxAllowed = 5;
+            
+            checkboxes.forEach(function(checkbox) {
+                checkbox.addEventListener('change', function() {
+                    var checkedCount = document.querySelectorAll('input[name="teams"]:checked').length;
+                    
+                    if (checkedCount > maxAllowed) {
+                        this.checked = false;
+                        alert('You can select a maximum of ' + maxAllowed + ' teams.');
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}

@@ -120,8 +120,11 @@
             var comparisonOperator = $('#comparison_operator').val();
             var year = $('#yearSelector').val();
 
+            // Show loading indicator
+            $('#myChart').css('opacity', '0.5');
+
             $.ajax({
-                url: '/stats/filter/',
+                url: '/stats-filter/',
                 type: 'GET',
                 data: {
                     'points_category': pointsCategory,
@@ -132,9 +135,11 @@
                 },
                 success: function(response) {
                     updateChart(response.labels, response.counts, response.winCounts);
+                    $('#myChart').css('opacity', '1');
                 },
                 error: function(xhr, status, error) {
                     console.error('Error:', error);
+                    $('#myChart').css('opacity', '1');
                 }
             });
         }
@@ -159,8 +164,19 @@
                 applyFilter();
             } else {
                 // Otherwise redirect to the page with the new year
-                window.location.href = '/stats/filter/?year=' + year;
+                window.location.href = '/stats-filter/?year=' + year;
             }
+        });
+        
+        // Load initial data when page loads with default values
+        $(document).ready(function() {
+            // Set default filter value if not already set
+            if ($('#filter_value').val() === '') {
+                $('#filter_value').val('100'); // Default value of 100 points
+            }
+            
+            // Apply filter on page load to show initial data
+            applyFilter();
         });
     </script>
 {% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <h1 class="my-4 text-center">Win Probability Heatmap</h1>
+        
+        <!-- Year selector at the top -->
+        <div class="row mb-4">
+            <div class="col-md-6 offset-md-3">
+                <div class="form-group">
+                    <label for="yearSelector"><strong>Select Year:</strong></label>
+                    <select class="form-control" id="yearSelector" onchange="updateYear()">
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        {% if error %}
+            <div class="alert alert-warning">{{ error }}</div>
+        {% else %}
+            <!-- Heatmap explanation -->
+            <div class="alert alert-info mb-4">
+                <p><strong>How to read this heatmap:</strong></p>
+                <p>Each cell shows the probability of the team on the Y-axis (left) winning against the team on the X-axis (top).</p>
+                <p>Blue indicates higher win probability, red indicates lower win probability.</p>
+            </div>
+            
+            <!-- Win probability heatmap -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Team vs. Team Win Probability</h5>
+                </div>
+                <div class="card-body">
+                    {{ chart|safe }}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        function updateYear() {
+            var year = document.getElementById("yearSelector").value;
+            window.location.href = "{% url 'win_probability_heatmap' %}?year=" + year;
+        }
+    </script>
+{% endblock %}

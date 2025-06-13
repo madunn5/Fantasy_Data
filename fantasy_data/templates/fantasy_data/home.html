@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="jumbotron">
+    <h1 class="display-4">Fantasy Stats Dashboard</h1>
+    <p class="lead">Welcome to your fantasy football statistics and analysis platform.</p>
+    <hr class="my-4">
+    <p>Explore team performance, stats, matchups, and more.</p>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Team Analysis</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">View team performance charts, boxplots, and trends.</p>
+                <a href="{% url 'team_chart' %}" class="btn btn-outline-primary">Team Charts</a>
+                <a href="{% url 'team_chart_filter' %}" class="btn btn-outline-primary">Team Chart Filter</a>
+                <a href="{% url 'performance_trend' %}" class="btn btn-outline-primary">Performance Trends</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">Stats & Rankings</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Explore detailed statistics, filters, and top performers.</p>
+                <a href="{% url 'stats_charts' %}" class="btn btn-outline-success">Stats Tables</a>
+                <a href="{% url 'stats_charts_filter' %}" class="btn btn-outline-success">Stats Filter</a>
+                <a href="{% url 'top_tens' %}" class="btn btn-outline-success">Top 10s</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Matchup Analysis</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Compare teams and analyze win probabilities.</p>
+                <a href="{% url 'versus' %}" class="btn btn-outline-info">Team Comparisons</a>
+                <a href="{% url 'win_probability_against_all_teams' %}" class="btn btn-outline-info">Win Probability</a>
+                <a href="{% url 'win_probability_heatmap' %}" class="btn btn-outline-info">Probability Heatmap</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">Position Analysis</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Analyze performance by player position.</p>
+                <a href="{% url 'position_contribution' %}" class="btn btn-outline-warning">Position Contribution</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
