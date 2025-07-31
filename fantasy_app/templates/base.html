@@ -148,7 +148,10 @@
                         <div class="dropdown-menu dropdown-menu-right">
                             <a class="dropdown-item" href="/admin/">Admin Panel</a>
                             <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="{% url 'logout' %}">Logout</a>
+                            <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item" style="border: none; background: none; text-align: left; width: 100%; cursor: pointer;">Logout</button>
+                            </form>
                         </div>
                     </li>
                 {% else %}
