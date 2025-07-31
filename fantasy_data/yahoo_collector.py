@@ -10,7 +10,19 @@ class YahooFantasyCollector:
     def __init__(self):
         try:
             # Use different OAuth file based on environment
-            oauth_file = 'oauth2_prod.json' if not settings.DEBUG else 'oauth2.json'
+            if settings.DEBUG:
+                oauth_file = 'oauth2.json'
+            else:
+                # In production, create OAuth config from environment variables
+                oauth_config = {
+                    'consumer_key': settings.YAHOO_FANTASY_CONFIG['CLIENT_ID'],
+                    'consumer_secret': settings.YAHOO_FANTASY_CONFIG['CLIENT_SECRET']
+                }
+                import json
+                with open('oauth2_prod.json', 'w') as f:
+                    json.dump(oauth_config, f)
+                oauth_file = 'oauth2_prod.json'
+            
             self.oauth = OAuth2(None, None, from_file=oauth_file)
             self.gm = yfa.Game(self.oauth, 'nfl')
             self.league_key = settings.YAHOO_FANTASY_CONFIG['LEAGUE_KEY']

@@ -6,10 +6,11 @@ db.sqlite3
 media/
 staticfiles/
 
-# OAuth credentials
+# OAuth credentials - NEVER commit these!
 oauth2.json
 oauth2_prod.json
 yahoo_oauth_token.json
+*.json
 
 # Environment variables
 .env
