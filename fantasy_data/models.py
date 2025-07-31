@@ -33,3 +33,56 @@ class TeamPerformance(models.Model):
 
     # def __str__(self):
     #     return self.team_name
+
+
+class Player(models.Model):
+    yahoo_player_id = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=100)
+    position = models.CharField(max_length=10)
+    nfl_team = models.CharField(max_length=50, null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.name} ({self.position})"
+
+
+class PlayerRoster(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    fantasy_team = models.CharField(max_length=100)
+    week = models.CharField(max_length=100)
+    year = models.IntegerField()
+    roster_status = models.CharField(max_length=20, choices=[
+        ('STARTER', 'Starter'),
+        ('BENCH', 'Bench'),
+        ('WAIVER', 'Waiver Wire'),
+        ('FREE_AGENT', 'Free Agent')
+    ])
+    
+    class Meta:
+        unique_together = ('player', 'fantasy_team', 'week', 'year')
+
+
+class PlayerPerformance(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    fantasy_team = models.CharField(max_length=100)
+    week = models.CharField(max_length=100)
+    year = models.IntegerField()
+    points_scored = models.FloatField()
+    was_started = models.BooleanField(default=False)
+    
+    class Meta:
+        unique_together = ('player', 'week', 'year')
+
+
+class PlayerTransaction(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    from_team = models.CharField(max_length=100, null=True, blank=True)
+    to_team = models.CharField(max_length=100, null=True, blank=True)
+    transaction_type = models.CharField(max_length=20, choices=[
+        ('TRADE', 'Trade'),
+        ('PICKUP', 'Waiver/FA Pickup'),
+        ('DROP', 'Drop to Waiver'),
+        ('DRAFT', 'Draft')
+    ])
+    week = models.CharField(max_length=100)
+    year = models.IntegerField()
+    transaction_date = models.DateTimeField(auto_now_add=True)

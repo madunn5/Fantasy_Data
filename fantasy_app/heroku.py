@@ -1,22 +1,28 @@
+"""
+Production settings for Heroku deployment
+"""
 import os
-
-import dj_database_url
-
 from .settings import *
 
+# Production settings
+DEBUG = False
+ALLOWED_HOSTS = ['your-app-name.herokuapp.com', 'yourdomain.com']
+
+# Use PostgreSQL in production
+import dj_database_url
 DATABASES = {
-    "default": dj_database_url.config(
-        default="sqlite:///" + os.path.join(BASE_DIR, "db.sqlite3")
-    )
+    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
 }
 
-DEBUG = False
-TEMPLATE_DEBUG = False
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
-SECRET_KEY = os.environ.get("SECRET_KEY")
-ALLOWED_HOSTS = ["*"]
+# Yahoo Fantasy API Configuration for Production
+YAHOO_FANTASY_CONFIG = {
+    'LEAGUE_ID': '605174',
+    'LEAGUE_KEY': 'nfl.l.605174',
+    'SEASON': 2025,
+    'CLIENT_ID': os.environ.get('YAHOO_CLIENT_ID_PROD', ''),
+    'CLIENT_SECRET': os.environ.get('YAHOO_CLIENT_SECRET_PROD', '')
+}
 
-MIDDLEWARE = (
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-    *MIDDLEWARE,
-)
+# Security settings
+SECURE_SSL_REDIRECT = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

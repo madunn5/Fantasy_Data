@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Collect Yahoo Data{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Collect Yahoo Fantasy Data</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="week">Week:</label>
+                        <input type="number" class="form-control" id="week" name="week" min="1" max="18" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="year">Year:</label>
+                        <input type="number" class="form-control" id="year" name="year" value="2024" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Collect Data</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6>Instructions</h6>
+            </div>
+            <div class="card-body">
+                {% if credentials_missing %}
+                <div class="alert alert-warning">
+                    <h6>Setup Required:</h6>
+                    <ol>
+                        <li><strong>Create Yahoo Developer App:</strong>
+                            <ul>
+                                <li>Go to <a href="https://developer.yahoo.com/apps/" target="_blank">https://developer.yahoo.com/apps/</a></li>
+                                <li>Click "Create an App"</li>
+                                <li>Set Application Type: "Web Application"</li>
+                                <li>Set Redirect URI: Leave blank or use "urn:ietf:wg:oauth:2.0:oob"</li>
+                                <li>Enable "Fantasy Sports" API with "Read" permission</li>
+                            </ul>
+                        </li>
+                        <li><strong>Update oauth2.json:</strong>
+                            <ul>
+                                <li>Replace "REPLACE_WITH_YOUR_ACTUAL_CLIENT_ID" with your Client ID</li>
+                                <li>Replace "REPLACE_WITH_YOUR_ACTUAL_CLIENT_SECRET" with your Client Secret</li>
+                            </ul>
+                        </li>
+                        <li><strong>Restart your Django server</strong></li>
+                    </ol>
+                </div>
+                {% else %}
+                <p>Make sure you have:</p>
+                <ul>
+                    <li>Updated oauth2.json with your Yahoo API credentials</li>
+                    <li>Completed OAuth authentication</li>
+                    <li>Selected the correct week and year</li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

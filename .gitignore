@@ -1,8 +1,32 @@
+# Django
 *.pyc
-*.db
-*.sqlite3
 __pycache__/
-Scrapper.py
+db.sqlite3
+*.sqlite3
 media/
+staticfiles/
+
+# OAuth credentials
+oauth2.json
+oauth2_prod.json
+yahoo_oauth_token.json
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
 .idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+Scrapper.py

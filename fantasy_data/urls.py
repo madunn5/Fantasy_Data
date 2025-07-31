@@ -21,4 +21,10 @@ urlpatterns = [
     path('position-contribution/', views.position_contribution_chart, name='position_contribution'),
     path('performance-trend/', views.performance_trend, name='performance_trend'),
     path('win-probability-heatmap/', views.win_probability_heatmap, name='win_probability_heatmap'),
+    
+    # Player data URLs
+    path('collect-data/', views.collect_yahoo_data, name='collect_yahoo_data'),
+    path('players/', views.player_list, name='player_list'),
+    path('player/<int:player_id>/', views.player_detail, name='player_detail'),
+    path('auth/callback/', views.oauth_callback, name='oauth_callback'),
 ]

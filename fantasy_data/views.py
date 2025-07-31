@@ -21,13 +21,15 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
-from .models import TeamPerformance
+from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, PlayerTransaction
 
 
 def home(request):
@@ -62,6 +64,7 @@ def memoize(timeout=3600):
     return decorator
 
 
+@staff_member_required
 def upload_csv(request):
     if request.method == 'POST':
         csv_file = request.FILES['file']
@@ -2394,3 +2397,62 @@ def top_tens(request):
 
     # Render the results in the top_tens.html template
     return render(request, 'fantasy_data/top_tens.html', context)
+
+
+@staff_member_required
+def collect_yahoo_data(request):
+    """View to manually trigger Yahoo data collection"""
+    # Check if OAuth credentials are configured
+    try:
+        with open('oauth2.json', 'r') as f:
+            import json
+            config = json.load(f)
+            if config.get('consumer_key') in ['YOUR_YAHOO_CLIENT_ID', 'REPLACE_WITH_YOUR_ACTUAL_CLIENT_ID', '']:
+                messages.error(request, 'Yahoo API credentials not configured. Please update oauth2.json with your Yahoo Developer App credentials.')
+                return render(request, 'fantasy_data/collect_data.html', {'credentials_missing': True})
+    except FileNotFoundError:
+        messages.error(request, 'oauth2.json file not found. Please create it with your Yahoo API credentials.')
+        return render(request, 'fantasy_data/collect_data.html', {'credentials_missing': True})
+    
+    if request.method == 'POST':
+        week = request.POST.get('week')
+        year = request.POST.get('year')
+        
+        try:
+            from .yahoo_collector import YahooFantasyCollector
+            collector = YahooFantasyCollector()
+            collector.process_and_save_data(int(week), int(year))
+            messages.success(request, f'Successfully collected data for Week {week}, {year}')
+        except Exception as e:
+            messages.error(request, f'Failed to collect data: {e}')
+    
+    return render(request, 'fantasy_data/collect_data.html')
+
+
+def player_list(request):
+    """View to display all players"""
+    players = Player.objects.all().order_by('name')
+    return render(request, 'fantasy_data/player_list.html', {'players': players})
+
+
+def player_detail(request, player_id):
+    """View to display individual player details"""
+    player = Player.objects.get(id=player_id)
+    performances = PlayerPerformance.objects.filter(player=player).order_by('-year', 'week')
+    rosters = PlayerRoster.objects.filter(player=player).order_by('-year', 'week')
+    
+    context = {
+        'player': player,
+        'performances': performances,
+        'rosters': rosters
+    }
+    return render(request, 'fantasy_data/player_detail.html', context)
+
+
+def oauth_callback(request):
+    """Handle OAuth callback from Yahoo"""
+    code = request.GET.get('code')
+    if code:
+        return HttpResponse(f"<h3>Authorization Code:</h3><p>{code}</p><p>Copy this code and paste it in your terminal where the data collection is running.</p>")
+    else:
+        return HttpResponse("<h3>Error:</h3><p>No authorization code received.</p>")

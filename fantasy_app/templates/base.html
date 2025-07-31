@@ -123,12 +123,39 @@
                     </div>
                 </li>
                 
-                <!-- Upload Data link removed from main navigation -->
-                {% comment %}
-                <li class="nav-item">
-                    <a class="nav-link text-primary" href="{% url 'upload_csv' %}">Upload Data</a>
+                <!-- Player Data Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-primary" href="#" id="playerDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Player Data
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="playerDropdown">
+                        <a class="dropdown-item" href="{% url 'player_list' %}">All Players</a>
+                        {% if user.is_staff %}
+                        <a class="dropdown-item" href="{% url 'collect_yahoo_data' %}">Collect Yahoo Data</a>
+                        <a class="dropdown-item" href="{% url 'upload_csv' %}">Upload CSV Data</a>
+                        {% endif %}
+                    </div>
                 </li>
-                {% endcomment %}
+            </ul>
+            
+            <!-- Login/Logout section -->
+            <ul class="navbar-nav ml-auto">
+                {% if user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown">
+                            {{ user.username }}{% if user.is_staff %} (Admin){% endif %}
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right">
+                            <a class="dropdown-item" href="/admin/">Admin Panel</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="{% url 'logout' %}">Logout</a>
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'login' %}">Login</a>
+                    </li>
+                {% endif %}
             </ul>
         </div>
     </nav>

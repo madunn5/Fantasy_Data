@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}{{ player.name }} - Player Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>{{ player.name }} ({{ player.position }})</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>NFL Team:</strong> {{ player.nfl_team|default:"N/A" }}</p>
+                <p><strong>Yahoo Player ID:</strong> {{ player.yahoo_player_id }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6>Performance History</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Week</th>
+                                <th>Year</th>
+                                <th>Team</th>
+                                <th>Points</th>
+                                <th>Started</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for performance in performances %}
+                            <tr>
+                                <td>{{ performance.week }}</td>
+                                <td>{{ performance.year }}</td>
+                                <td>{{ performance.fantasy_team }}</td>
+                                <td>{{ performance.points_scored }}</td>
+                                <td>{% if performance.was_started %}Yes{% else %}No{% endif %}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5">No performance data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6>Roster History</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Week</th>
+                                <th>Year</th>
+                                <th>Team</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for roster in rosters %}
+                            <tr>
+                                <td>{{ roster.week }}</td>
+                                <td>{{ roster.year }}</td>
+                                <td>{{ roster.fantasy_team }}</td>
+                                <td>{{ roster.roster_status }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4">No roster data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

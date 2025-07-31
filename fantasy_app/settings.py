@@ -129,3 +129,16 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
+# Yahoo Fantasy API Configuration
+YAHOO_FANTASY_CONFIG = {
+    'LEAGUE_ID': '605174',
+    'LEAGUE_KEY': 'nfl.l.605174',
+    'SEASON': 2025,
+    'CLIENT_ID': os.environ.get('YAHOO_CLIENT_ID', ''),
+    'CLIENT_SECRET': os.environ.get('YAHOO_CLIENT_SECRET', '')
+}
+
+# Login/Logout URLs
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
