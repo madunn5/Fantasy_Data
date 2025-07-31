@@ -6,7 +6,7 @@ from .settings import *
 
 # Production settings
 DEBUG = False
-ALLOWED_HOSTS = ['dunn-right-fantasy.herokuapp.com', 'yourdomain.com', '.herokuapp.com']
+ALLOWED_HOSTS = ['dunn-right-fantasy-a91a2b941097.herokuapp.com', 'yourdomain.com', '.herokuapp.com']
 
 # Use PostgreSQL in production
 import dj_database_url
