@@ -1176,7 +1176,7 @@ def stats_charts(request):
                                 'opponent', 'opponent_total_points', 'opponent_score_rank']]
 
             # Convert week to numeric for sorting
-            final_df['week_numeric'] = final_df['week'].str.extract('(\d+)').astype(int)
+            final_df['week_numeric'] = final_df['week'].str.extract(r'(\d+)').astype(int)
 
             # Sort the DataFrame by the numeric week
             final_df.sort_values(by='week_numeric', inplace=True)
