@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-h_ty3*ebdu(=7pos5_1ocbf2fq6cn4*uqqptd$@376xo)&zy&k
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['mysterious-falls-85492-6cb351ae9053.herokuapp.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['dunn-right-fantasy.herokuapp.com', 'localhost', '127.0.0.1']
 
 
 # Application definition
