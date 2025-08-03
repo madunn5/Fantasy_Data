@@ -2,7 +2,7 @@ from django.db import models
 
 
 class TeamPerformance(models.Model):
-    team_name = models.CharField(max_length=100)
+    team_name = models.CharField(max_length=100, db_index=True)
     qb_points = models.FloatField()
     wr_points = models.FloatField()
     wr_points_total = models.FloatField()
@@ -20,13 +20,17 @@ class TeamPerformance(models.Model):
     actual_wins = models.IntegerField(null=True, blank=True)
     wins_diff = models.IntegerField(null=True, blank=True)
     result = models.CharField(max_length=100, null=True, blank=True)
-    week = models.CharField(max_length=100)
+    week = models.CharField(max_length=100, db_index=True)
     opponent = models.CharField(max_length=100, null=True, blank=True)
     margin = models.FloatField(null=True, blank=True)
-    year = models.IntegerField(default=2023)  # Default to 2023 for existing data
+    year = models.IntegerField(default=2023, db_index=True)  # Default to 2023 for existing data
 
     class Meta:
         unique_together = ('team_name', 'week', 'year')
+        indexes = [
+            models.Index(fields=['team_name', 'year']),
+            models.Index(fields=['year', 'week']),
+        ]
 
     def __str__(self):
         return f"{self.team_name} - Week {self.week} ({self.year})"
@@ -47,9 +51,9 @@ class Player(models.Model):
 
 class PlayerRoster(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
-    fantasy_team = models.CharField(max_length=100)
-    week = models.CharField(max_length=100)
-    year = models.IntegerField()
+    fantasy_team = models.CharField(max_length=100, db_index=True)
+    week = models.CharField(max_length=100, db_index=True)
+    year = models.IntegerField(db_index=True)
     roster_status = models.CharField(max_length=20, choices=[
         ('STARTER', 'Starter'),
         ('BENCH', 'Bench'),
@@ -59,6 +63,10 @@ class PlayerRoster(models.Model):
     
     class Meta:
         unique_together = ('player', 'fantasy_team', 'week', 'year')
+        indexes = [
+            models.Index(fields=['fantasy_team', 'year']),
+            models.Index(fields=['year', 'week']),
+        ]
 
 
 class PlayerPerformance(models.Model):

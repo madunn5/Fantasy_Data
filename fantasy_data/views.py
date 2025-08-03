@@ -3,7 +3,9 @@ import re
 import os
 import logging
 import functools
+import hashlib
 from datetime import datetime
+from io import StringIO
 
 import numpy as np
 import pandas as pd
@@ -53,8 +55,10 @@ def memoize(timeout=3600):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Create a cache key based on function name and arguments
-            key = f"fantasy_cache_{func.__name__}_{str(args)}_{str(kwargs)}"
+            # Create a safe cache key using MD5 hash to avoid memcached character issues
+            key_data = f"{func.__name__}_{str(args)}_{str(kwargs)}"
+            key_hash = hashlib.md5(key_data.encode('utf-8')).hexdigest()
+            key = f"fantasy_cache_{key_hash}"
             result = cache.get(key)
             if result is None:
                 result = func(*args, **kwargs)
@@ -62,6 +66,32 @@ def memoize(timeout=3600):
             return result
         return wrapper
     return decorator
+
+
+@memoize(timeout=1800)  # Cache for 30 minutes
+def generate_cached_box_plots(df_json, selected_team, chart_type):
+    """Generate cached box plots to avoid regenerating identical charts"""
+    df = pd.read_json(StringIO(df_json))
+    
+    if selected_team != 'all':
+        df = df[df['team_name'] == selected_team]
+    
+    chart_configs = {
+        'points': ('total_points', 'Total Points by Result'),
+        'wr': ('wr_points', 'Total WR Points by Result'),
+        'qb': ('qb_points', 'Total QB Points by Result'),
+        'rb': ('rb_points', 'Total RB Points by Result'),
+        'te': ('te_points', 'Total TE Points by Result'),
+        'k': ('k_points', 'Total K Points by Result'),
+        'def': ('def_points', 'Total DEF Points by Result')
+    }
+    
+    if chart_type in chart_configs:
+        y_field, title = chart_configs[chart_type]
+        fig = px.box(df, x='result', y=y_field, color='result', title=title)
+        return fig.to_html(full_html=False)
+    
+    return None
 
 
 @staff_member_required
@@ -199,27 +229,16 @@ def team_chart(request):
     else:
         df_box_plots = df_sorted
 
-    # Create the box plots using the filtered data
-    fig_points = px.box(df_box_plots, x='result', y='total_points', color='result', title='Total Points by Result')
-    chart_points = fig_points.to_html(full_html=False)
-
-    fig_wr = px.box(df_box_plots, x='result', y='wr_points', color='result', title='Total WR Points by Result')
-    chart_wr = fig_wr.to_html(full_html=False)
-
-    fig_qb = px.box(df_box_plots, x='result', y='qb_points', color='result', title='Total QB Points by Result')
-    chart_qb = fig_qb.to_html(full_html=False)
-
-    fig_rb = px.box(df_box_plots, x='result', y='rb_points', color='result', title='Total RB Points by Result')
-    chart_rb = fig_rb.to_html(full_html=False)
-
-    fig_te = px.box(df_box_plots, x='result', y='te_points', color='result', title='Total TE Points by Result')
-    chart_te = fig_te.to_html(full_html=False)
-
-    fig_k = px.box(df_box_plots, x='result', y='k_points', color='result', title='Total K Points by Result')
-    chart_k = fig_k.to_html(full_html=False)
-
-    fig_def = px.box(df_box_plots, x='result', y='def_points', color='result', title='Total DEF Points by Result')
-    chart_def = fig_def.to_html(full_html=False)
+    # Use cached chart generation for better performance
+    df_json = df_box_plots.to_json()
+    
+    chart_points = generate_cached_box_plots(df_json, selected_team, 'points')
+    chart_wr = generate_cached_box_plots(df_json, selected_team, 'wr')
+    chart_qb = generate_cached_box_plots(df_json, selected_team, 'qb')
+    chart_rb = generate_cached_box_plots(df_json, selected_team, 'rb')
+    chart_te = generate_cached_box_plots(df_json, selected_team, 'te')
+    chart_k = generate_cached_box_plots(df_json, selected_team, 'k')
+    chart_def = generate_cached_box_plots(df_json, selected_team, 'def')
 
     context = {
         'teams': teams,
@@ -240,30 +259,37 @@ def team_chart(request):
 
     # Create the regular charts only if needed (not for box_plots only view)
     fig = px.bar(df_sorted, x='team_name', y='total_points', color='week', title='Total Points by Team Each Week')
+    fig.update_layout(width=1200, height=600)
     chart = fig.to_html(full_html=False)
 
     fig_wr_points = px.bar(df_sorted, x='team_name', y='wr_points_total', color='week',
                            title='Total WR Points by Team Each Week')
+    fig_wr_points.update_layout(width=1200, height=600)
     chart_wr_points = fig_wr_points.to_html(full_html=False)
 
     fig_qb_points = px.bar(df_sorted, x='team_name', y='qb_points', color='week',
                            title='Total QB Points by Team Each Week')
+    fig_qb_points.update_layout(width=1200, height=600)
     chart_qb_points = fig_qb_points.to_html(full_html=False)
 
     fig_rb_points = px.bar(df_sorted, x='team_name', y='rb_points_total', color='week',
                            title='Total RB Points by Team Each Week')
+    fig_rb_points.update_layout(width=1200, height=600)
     chart_rb_points = fig_rb_points.to_html(full_html=False)
 
     fig_te_points = px.bar(df_sorted, x='team_name', y='te_points_total', color='week',
                            title='Total TE Points by Team Each Week')
+    fig_te_points.update_layout(width=1200, height=600)
     chart_te_points = fig_te_points.to_html(full_html=False)
 
     fig_k_points = px.bar(df_sorted, x='team_name', y='k_points', color='week',
                           title='Total K Points by Team Each Week')
+    fig_k_points.update_layout(width=1200, height=600)
     chart_k_points = fig_k_points.to_html(full_html=False)
 
     fig_def_points = px.bar(df_sorted, x='team_name', y='def_points', color='week',
                             title='Total DEF Points by Team Each Week')
+    fig_def_points.update_layout(width=1200, height=600)
     chart_def_points = fig_def_points.to_html(full_html=False)
 
     context.update({
@@ -2438,8 +2464,8 @@ def player_list(request):
 def player_detail(request, player_id):
     """View to display individual player details"""
     player = Player.objects.get(id=player_id)
-    performances = PlayerPerformance.objects.filter(player=player).order_by('-year', 'week')
-    rosters = PlayerRoster.objects.filter(player=player).order_by('-year', 'week')
+    performances = PlayerPerformance.objects.select_related('player').filter(player=player).order_by('-year', 'week')
+    rosters = PlayerRoster.objects.select_related('player').filter(player=player).order_by('-year', 'week')
     
     context = {
         'player': player,
