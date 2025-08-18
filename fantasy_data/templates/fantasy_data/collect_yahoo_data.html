@@ -15,6 +15,25 @@
         {% endfor %}
     {% endif %}
     
+    <!-- Test Connection Card -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Test API Connection</h5>
+            <p class="card-text">
+                Test your Yahoo Fantasy API connection to ensure credentials are working properly.
+            </p>
+            
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="test_connection">
+                <button type="submit" class="btn btn-info">
+                    <i class="fas fa-plug"></i> Test Connection
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Data Collection Card -->
     <div class="card">
         <div class="card-body">
             <h5 class="card-title">Collect Team Performance Data</h5>
@@ -25,6 +44,7 @@
             
             <form method="post" class="row g-3">
                 {% csrf_token %}
+                <input type="hidden" name="action" value="collect_data">
                 
                 <div class="col-md-6">
                     <label for="week" class="form-label">Week</label>

@@ -12,36 +12,107 @@ class YahooFantasyCollector:
             # Use different OAuth file based on environment
             if settings.DEBUG:
                 oauth_file = 'oauth2.json'
+                logger.info(f"Using development OAuth file: {oauth_file}")
             else:
-                # In production, create OAuth config from environment variables
-                oauth_config = {
-                    'consumer_key': settings.YAHOO_FANTASY_CONFIG['CLIENT_ID'],
-                    'consumer_secret': settings.YAHOO_FANTASY_CONFIG['CLIENT_SECRET']
-                }
-                import json
-                with open('oauth2_prod.json', 'w') as f:
-                    json.dump(oauth_config, f)
+                # In production, use existing oauth2_prod.json
                 oauth_file = 'oauth2_prod.json'
+                logger.info(f"Using production OAuth file: {oauth_file}")
             
+            # Check if file exists
+            import os
+            if not os.path.exists(oauth_file):
+                logger.error(f"OAuth file not found: {oauth_file}")
+                raise FileNotFoundError(f"OAuth file not found: {oauth_file}")
+            
+            logger.info(f"Initializing OAuth with file: {oauth_file}")
             self.oauth = OAuth2(None, None, from_file=oauth_file)
-            self.gm = yfa.Game(self.oauth, 'nfl')
+            
+            # Test OAuth connection
+            try:
+                logger.info("Testing OAuth connection...")
+                self.gm = yfa.Game(self.oauth, 'nfl')
+                logger.info("Successfully connected to Yahoo Fantasy API")
+            except Exception as oauth_error:
+                logger.error(f"OAuth connection failed: {oauth_error}")
+                logger.error(f"This might be due to expired tokens or invalid credentials")
+                raise
+            
             self.league_key = settings.YAHOO_FANTASY_CONFIG['LEAGUE_KEY']
+            logger.info(f"Using league key: {self.league_key}")
+            
         except Exception as e:
             logger.error(f"Failed to initialize Yahoo API: {e}")
+            logger.error(f"Debug info - CLIENT_ID exists: {bool(settings.YAHOO_FANTASY_CONFIG.get('CLIENT_ID'))}")
+            logger.error(f"Debug info - CLIENT_SECRET exists: {bool(settings.YAHOO_FANTASY_CONFIG.get('CLIENT_SECRET'))}")
             raise
+    
+    def test_connection(self):
+        """Test the Yahoo API connection and return diagnostic info"""
+        try:
+            logger.info("=== Yahoo API Connection Test ===")
+            
+            # Test basic OAuth
+            logger.info("Testing OAuth token...")
+            if hasattr(self.oauth, 'token'):
+                logger.info("OAuth token exists")
+            else:
+                logger.error("No OAuth token found")
+                return False
+            
+            # Test game connection
+            logger.info("Testing game connection...")
+            game_info = self.gm.game_id()
+            logger.info(f"Connected to game: {game_info}")
+            
+            # Test league connection
+            logger.info(f"Testing league connection: {self.league_key}")
+            league = self.gm.to_league(self.league_key)
+            
+            # Get basic league info
+            league_settings = league.settings()
+            logger.info(f"League name: {league_settings.get('name', 'Unknown')}")
+            logger.info(f"League season: {league_settings.get('season', 'Unknown')}")
+            
+            # Test teams
+            teams = league.teams()
+            logger.info(f"Found {len(teams)} teams")
+            for team_key, team_data in teams.items():
+                logger.info(f"  - {team_data.get('name', 'Unknown')}: {team_key}")
+            
+            logger.info("=== Connection Test Successful ===")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Connection test failed: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            return False
     
     def get_league_data(self, week=None):
         try:
+            logger.info(f"Attempting to connect to league: {self.league_key}")
             league = self.gm.to_league(self.league_key)
+            logger.info("Successfully connected to league")
             
+            logger.info("Fetching teams...")
             teams = league.teams()
+            logger.info(f"Found {len(teams)} teams")
+            
             rosters = {}
             player_stats = {}
             
             for team_key, team_data in teams.items():
                 team_name = team_data['name']
-                roster = league.to_team(team_key).roster(week)
-                rosters[team_name] = roster
+                logger.info(f"Processing team: {team_name}")
+                
+                try:
+                    roster = league.to_team(team_key).roster(week)
+                    rosters[team_name] = roster
+                    logger.info(f"Got roster for {team_name}: {len(roster)} players")
+                except Exception as roster_error:
+                    logger.error(f"Failed to get roster for {team_name}: {roster_error}")
+                    continue
                 
                 # Get player stats for this team
                 try:
@@ -57,8 +128,11 @@ class YahooFantasyCollector:
             
             # Get transactions with required parameters
             try:
+                logger.info("Fetching transactions...")
                 transactions = league.transactions(['add', 'drop', 'trade'], 50)
-            except:
+                logger.info(f"Found {len(transactions)} transactions")
+            except Exception as trans_error:
+                logger.warning(f"Failed to get transactions: {trans_error}")
                 transactions = []
             
             return {
@@ -69,15 +143,21 @@ class YahooFantasyCollector:
             }
         except Exception as e:
             logger.error(f"Failed to collect league data: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
             raise
     
     def collect_team_performance_data(self, week, year):
         """Collect team performance data to replicate CSV upload functionality"""
         try:
+            logger.info(f"Starting data collection for week {week}, year {year}")
+            logger.info(f"Connecting to league: {self.league_key}")
+            
             league = self.gm.to_league(self.league_key)
+            logger.info("Successfully connected to league for team performance data")
             
             # Get matchups for the week
             try:
+                logger.info(f"Fetching matchups for week {week}...")
                 matchups = league.matchups(week)
                 logger.info(f"Found {len(matchups)} matchups for week {week}")
             except Exception as e:

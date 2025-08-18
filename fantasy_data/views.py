@@ -162,25 +162,40 @@ def upload_csv(request):
 def collect_yahoo_data(request):
     """Collect data from Yahoo Fantasy API to replace CSV upload"""
     if request.method == 'POST':
-        week = request.POST.get('week', 1)
-        year = request.POST.get('year', 2025)
+        action = request.POST.get('action')
         
-        try:
-            week = int(week)
-            year = int(year)
-        except (ValueError, TypeError):
-            messages.error(request, 'Invalid week or year provided.')
-            return redirect('collect_yahoo_data')
+        if action == 'test_connection':
+            try:
+                collector = YahooFantasyCollector()
+                success = collector.test_connection()
+                if success:
+                    messages.success(request, 'Yahoo API connection test successful!')
+                else:
+                    messages.error(request, 'Yahoo API connection test failed. Check server logs for details.')
+            except Exception as e:
+                logger.error(f"Connection test error: {e}")
+                messages.error(request, f'Connection test error: {str(e)}')
         
-        try:
-            collector = YahooFantasyCollector()
-            team_data = collector.collect_team_performance_data(week, year)
+        elif action == 'collect_data':
+            week = request.POST.get('week', 1)
+            year = request.POST.get('year', 2025)
             
-            messages.success(request, f'Successfully collected data for Week {week}, {year}. {len(team_data)} teams processed.')
+            try:
+                week = int(week)
+                year = int(year)
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid week or year provided.')
+                return redirect('collect_yahoo_data')
             
-        except Exception as e:
-            logger.error(f"Yahoo data collection failed: {e}")
-            messages.error(request, f'Failed to collect Yahoo data: {str(e)}')
+            try:
+                collector = YahooFantasyCollector()
+                team_data = collector.collect_team_performance_data(week, year)
+                
+                messages.success(request, f'Successfully collected data for Week {week}, {year}. {len(team_data)} teams processed.')
+                
+            except Exception as e:
+                logger.error(f"Yahoo data collection failed: {e}")
+                messages.error(request, f'Failed to collect Yahoo data: {str(e)}')
         
         return redirect('collect_yahoo_data')
     
