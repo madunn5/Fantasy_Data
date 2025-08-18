@@ -174,7 +174,11 @@ def collect_yahoo_data(request):
                     messages.error(request, 'Yahoo API connection test failed. Check server logs for details.')
             except Exception as e:
                 logger.error(f"Connection test error: {e}")
-                messages.error(request, f'Connection test error: {str(e)}')
+                if "OAuth token expired" in str(e) or "EOF when reading a line" in str(e):
+                    messages.error(request, 'OAuth token expired or missing. Please authorize the application first.')
+                    return redirect('oauth_authorize')
+                else:
+                    messages.error(request, f'Connection test error: {str(e)}')
         
         elif action == 'collect_data':
             week = request.POST.get('week', 1)
@@ -240,27 +244,32 @@ def oauth_authorize(request):
     }
     
     try:
+        # First check if OAuth is already working
         collector = YahooFantasyCollector()
-        
+        if collector.is_token_valid():
+            context['success'] = "OAuth token is already valid and working! No authorization needed."
+            return render(request, 'oauth_authorize.html', context)
+    except Exception as e:
+        # If collector fails, we need authorization
+        pass
+    
+    try:
         if request.method == 'POST':
             verifier = request.POST.get('verifier')
             if verifier:
-                try:
-                    success = collector.set_verifier(verifier)
-                    if success:
-                        context['success'] = "OAuth token successfully updated! You can now use the Yahoo API."
-                    else:
-                        context['error'] = "Failed to exchange verifier code for access token."
-                except Exception as e:
-                    context['error'] = f"Error processing verifier: {str(e)}"
+                context['success'] = f"Verifier code '{verifier}' received. Please contact administrator to complete setup."
             else:
                 context['error'] = "Please provide the verifier code from Yahoo."
         
-        auth_url = collector.get_auth_url()
-        if auth_url:
-            context['auth_url'] = auth_url
+        # Show manual authorization URL
+        import os
+        if 'DYNO' in os.environ:
+            consumer_key = settings.YAHOO_FANTASY_CONFIG['CLIENT_ID']
+            auth_url = f"https://api.login.yahoo.com/oauth2/request_auth?redirect_uri=oob&response_type=code&client_id={consumer_key}"
         else:
-            context['error'] = "Could not generate authorization URL. Check OAuth configuration."
+            auth_url = "https://api.login.yahoo.com/oauth2/request_auth?redirect_uri=oob&response_type=code&client_id=your_client_id"
+        
+        context['auth_url'] = auth_url
             
     except Exception as e:
         context['error'] = f"OAuth error: {str(e)}"

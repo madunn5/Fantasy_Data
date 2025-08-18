@@ -30,6 +30,13 @@
                     <i class="fas fa-plug"></i> Test Connection
                 </button>
             </form>
+            
+            <div class="mt-3">
+                <a href="{% url 'oauth_authorize' %}" class="btn btn-warning">
+                    <i class="fas fa-key"></i> OAuth Authorization
+                </a>
+                <small class="text-muted d-block mt-1">Use this if you get OAuth token errors</small>
+            </div>
         </div>
     </div>
     
