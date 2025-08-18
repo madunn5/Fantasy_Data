@@ -25,6 +25,7 @@ urlpatterns = [
     # Player data URLs
     path('collect-data/', views.collect_yahoo_data, name='collect_yahoo_data'),
     path('debug-team-data/', views.debug_team_data, name='debug_team_data'),
+    path('oauth-authorize/', views.oauth_authorize, name='oauth_authorize'),
     path('players/', views.player_list, name='player_list'),
     path('player/<int:player_id>/', views.player_detail, name='player_detail'),
     path('auth/callback/', views.oauth_callback, name='oauth_callback'),

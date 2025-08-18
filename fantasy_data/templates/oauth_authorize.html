@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Yahoo Fantasy API Authorization</h2>
+    
+    {% if error %}
+        <div class="alert alert-danger">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    {% endif %}
+    
+    {% if success %}
+        <div class="alert alert-success">
+            <strong>Success:</strong> {{ success }}
+        </div>
+    {% endif %}
+    
+    {% if auth_url %}
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Step 1: Authorize Application</h5>
+                <p class="card-text">Click the link below to authorize the application with Yahoo:</p>
+                <a href="{{ auth_url }}" target="_blank" class="btn btn-primary">Authorize with Yahoo</a>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Step 2: Enter Verifier Code</h5>
+                <p class="card-text">After authorizing, Yahoo will provide a verifier code. Enter it below:</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="verifier">Verifier Code:</label>
+                        <input type="text" class="form-control" id="verifier" name="verifier" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Submit Verifier</button>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+    
+    <div class="mt-3">
+        <a href="{% url 'collect_yahoo_data' %}" class="btn btn-secondary">Back to Data Collection</a>
+    </div>
+</div>
+{% endblock %}

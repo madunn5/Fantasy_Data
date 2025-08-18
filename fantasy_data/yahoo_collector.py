@@ -13,7 +13,7 @@ class YahooFantasyCollector:
             
             # Check if running on Heroku (production)
             if 'DYNO' in os.environ:
-                # Production: use environment variables
+                # Production: use environment variables with token file
                 logger.info("Using environment variables for OAuth (production)")
                 consumer_key = settings.YAHOO_FANTASY_CONFIG['CLIENT_ID']
                 consumer_secret = settings.YAHOO_FANTASY_CONFIG['CLIENT_SECRET']
@@ -21,7 +21,16 @@ class YahooFantasyCollector:
                 if not consumer_key or not consumer_secret:
                     raise ValueError("Yahoo API credentials not found in environment variables")
                 
-                self.oauth = OAuth2(consumer_key, consumer_secret)
+                # Create OAuth with credentials and specify token file location
+                self.oauth = OAuth2(consumer_key, consumer_secret, base_url='https://api.login.yahoo.com/')
+                
+                # Check if we have stored tokens
+                if hasattr(self.oauth, 'token') and self.oauth.token:
+                    logger.info("Using existing OAuth token")
+                else:
+                    logger.error("No valid OAuth token found. Manual authorization required.")
+                    raise Exception("OAuth token expired or missing. Please re-authorize the application.")
+                    
             else:
                 # Local: use oauth2_prod.json file
                 base_dir = settings.BASE_DIR
@@ -41,7 +50,11 @@ class YahooFantasyCollector:
                 logger.info("Successfully connected to Yahoo Fantasy API")
             except Exception as oauth_error:
                 logger.error(f"OAuth connection failed: {oauth_error}")
-                logger.error(f"This might be due to expired tokens or invalid credentials")
+                if 'DYNO' in os.environ:
+                    logger.error("Production OAuth failed - token may be expired")
+                    raise Exception("OAuth token expired. Please re-authorize the application through the admin interface.")
+                else:
+                    logger.error(f"Local OAuth failed - check oauth2_prod.json file")
                 raise
             
             self.league_key = settings.YAHOO_FANTASY_CONFIG['LEAGUE_KEY']
@@ -52,6 +65,38 @@ class YahooFantasyCollector:
             logger.error(f"Debug info - CLIENT_ID exists: {bool(settings.YAHOO_FANTASY_CONFIG.get('CLIENT_ID'))}")
             logger.error(f"Debug info - CLIENT_SECRET exists: {bool(settings.YAHOO_FANTASY_CONFIG.get('CLIENT_SECRET'))}")
             raise
+    
+    def get_auth_url(self):
+        """Get authorization URL for manual OAuth setup"""
+        try:
+            import os
+            if 'DYNO' in os.environ:
+                consumer_key = settings.YAHOO_FANTASY_CONFIG['CLIENT_ID']
+                consumer_secret = settings.YAHOO_FANTASY_CONFIG['CLIENT_SECRET']
+                oauth = OAuth2(consumer_key, consumer_secret, base_url='https://api.login.yahoo.com/')
+            else:
+                base_dir = settings.BASE_DIR
+                oauth_file = os.path.join(base_dir, 'oauth2_prod.json')
+                oauth = OAuth2(None, None, from_file=oauth_file)
+            
+            # Get authorization URL without triggering interactive prompt
+            auth_url = oauth.get_authorization_url()
+            return auth_url
+        except Exception as e:
+            logger.error(f"Failed to get auth URL: {e}")
+            return None
+    
+    def is_token_valid(self):
+        """Check if current OAuth token is valid"""
+        try:
+            if hasattr(self, 'oauth') and self.oauth:
+                # Try a simple API call to test token
+                test_gm = yfa.Game(self.oauth, 'nfl')
+                test_gm.game_id()
+                return True
+        except Exception as e:
+            logger.error(f"Token validation failed: {e}")
+        return False
     
     def test_connection(self):
         """Test the Yahoo API connection and return diagnostic info"""

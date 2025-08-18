@@ -228,6 +228,40 @@ def debug_team_data(request):
     return render(request, 'fantasy_data/debug_team_data.html', context)
 
 
+def oauth_authorize(request):
+    """Handle OAuth authorization for Yahoo API"""
+    if not request.user.is_staff:
+        return redirect('home')
+    
+    context = {
+        'auth_url': None,
+        'error': None,
+        'success': None
+    }
+    
+    try:
+        collector = YahooFantasyCollector()
+        
+        if request.method == 'POST':
+            verifier = request.POST.get('verifier')
+            if verifier:
+                context['success'] = "Please contact administrator to complete OAuth setup with verifier code."
+            else:
+                context['error'] = "Please provide the verifier code from Yahoo."
+        
+        auth_url = collector.get_auth_url()
+        if auth_url:
+            context['auth_url'] = auth_url
+        else:
+            context['error'] = "Could not generate authorization URL. Check OAuth configuration."
+            
+    except Exception as e:
+        context['error'] = f"OAuth error: {str(e)}"
+        logger.error(f"OAuth authorize error: {e}")
+    
+    return render(request, 'oauth_authorize.html', context)
+
+
 def team_performance_view(request):
     data = TeamPerformance.objects.all().values()
     generate_charts(data)
