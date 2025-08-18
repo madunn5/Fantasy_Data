@@ -9,21 +9,30 @@ logger = logging.getLogger(__name__)
 class YahooFantasyCollector:
     def __init__(self):
         try:
-            # Use oauth2_prod.json for both environments
             import os
             
-            # Get the base directory (where manage.py is located)
-            base_dir = settings.BASE_DIR
-            oauth_file = os.path.join(base_dir, 'oauth2_prod.json')
-            logger.info(f"Using OAuth file: {oauth_file}")
-            
-            # Check if file exists
-            if not os.path.exists(oauth_file):
-                logger.error(f"OAuth file not found: {oauth_file}")
-                raise FileNotFoundError(f"OAuth file not found: {oauth_file}")
-            
-            logger.info(f"Initializing OAuth with file: {oauth_file}")
-            self.oauth = OAuth2(None, None, from_file=oauth_file)
+            # Check if running on Heroku (production)
+            if 'DYNO' in os.environ:
+                # Production: use environment variables
+                logger.info("Using environment variables for OAuth (production)")
+                consumer_key = settings.YAHOO_FANTASY_CONFIG['CLIENT_ID']
+                consumer_secret = settings.YAHOO_FANTASY_CONFIG['CLIENT_SECRET']
+                
+                if not consumer_key or not consumer_secret:
+                    raise ValueError("Yahoo API credentials not found in environment variables")
+                
+                self.oauth = OAuth2(consumer_key, consumer_secret)
+            else:
+                # Local: use oauth2_prod.json file
+                base_dir = settings.BASE_DIR
+                oauth_file = os.path.join(base_dir, 'oauth2_prod.json')
+                logger.info(f"Using OAuth file: {oauth_file}")
+                
+                if not os.path.exists(oauth_file):
+                    logger.error(f"OAuth file not found: {oauth_file}")
+                    raise FileNotFoundError(f"OAuth file not found: {oauth_file}")
+                
+                self.oauth = OAuth2(None, None, from_file=oauth_file)
             
             # Test OAuth connection
             try:
