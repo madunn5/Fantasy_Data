@@ -9,14 +9,9 @@ logger = logging.getLogger(__name__)
 class YahooFantasyCollector:
     def __init__(self):
         try:
-            # Use different OAuth file based on environment
-            if settings.DEBUG:
-                oauth_file = 'oauth2.json'
-                logger.info(f"Using development OAuth file: {oauth_file}")
-            else:
-                # In production, use existing oauth2_prod.json
-                oauth_file = 'oauth2_prod.json'
-                logger.info(f"Using production OAuth file: {oauth_file}")
+            # Use oauth2_prod.json for both environments
+            oauth_file = 'oauth2_prod.json'
+            logger.info(f"Using OAuth file: {oauth_file}")
             
             # Check if file exists
             import os
