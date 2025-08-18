@@ -198,12 +198,28 @@ class YahooFantasyCollector:
                 logger.info(f"Processing team: {team_name}")
                 
                 try:
-                    roster = league.to_team(team_key).roster(week)
+                    # Try to get roster with error handling for position_type issues
+                    team_obj = league.to_team(team_key)
+                    roster = team_obj.roster(week)
                     rosters[team_name] = roster
                     logger.info(f"Got roster for {team_name}: {len(roster)} players")
+                except KeyError as ke:
+                    if 'position_type' in str(ke):
+                        logger.warning(f"Position type data missing for {team_name}, trying alternative approach")
+                        try:
+                            # Try without week parameter
+                            roster = team_obj.roster()
+                            rosters[team_name] = roster
+                            logger.info(f"Got roster for {team_name} (no week): {len(roster)} players")
+                        except Exception as alt_error:
+                            logger.error(f"Alternative roster fetch failed for {team_name}: {alt_error}")
+                            rosters[team_name] = []
+                    else:
+                        logger.error(f"KeyError getting roster for {team_name}: {ke}")
+                        rosters[team_name] = []
                 except Exception as roster_error:
                     logger.error(f"Failed to get roster for {team_name}: {roster_error}")
-                    continue
+                    rosters[team_name] = []
                 
                 # Get player stats for this team
                 try:
