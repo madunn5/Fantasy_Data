@@ -245,7 +245,14 @@ def oauth_authorize(request):
         if request.method == 'POST':
             verifier = request.POST.get('verifier')
             if verifier:
-                context['success'] = "Please contact administrator to complete OAuth setup with verifier code."
+                try:
+                    success = collector.set_verifier(verifier)
+                    if success:
+                        context['success'] = "OAuth token successfully updated! You can now use the Yahoo API."
+                    else:
+                        context['error'] = "Failed to exchange verifier code for access token."
+                except Exception as e:
+                    context['error'] = f"Error processing verifier: {str(e)}"
             else:
                 context['error'] = "Please provide the verifier code from Yahoo."
         

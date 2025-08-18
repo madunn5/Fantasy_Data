@@ -98,6 +98,27 @@ class YahooFantasyCollector:
             logger.error(f"Token validation failed: {e}")
         return False
     
+    def set_verifier(self, verifier_code):
+        """Set OAuth verifier code for token exchange"""
+        try:
+            import os
+            if 'DYNO' in os.environ:
+                consumer_key = settings.YAHOO_FANTASY_CONFIG['CLIENT_ID']
+                consumer_secret = settings.YAHOO_FANTASY_CONFIG['CLIENT_SECRET']
+                oauth = OAuth2(consumer_key, consumer_secret, base_url='https://api.login.yahoo.com/')
+            else:
+                base_dir = settings.BASE_DIR
+                oauth_file = os.path.join(base_dir, 'oauth2_prod.json')
+                oauth = OAuth2(None, None, from_file=oauth_file)
+            
+            # Exchange verifier for access token
+            oauth.get_access_token(verifier_code)
+            logger.info("Successfully exchanged verifier for access token")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set verifier: {e}")
+            return False
+    
     def test_connection(self):
         """Test the Yahoo API connection and return diagnostic info"""
         try:
