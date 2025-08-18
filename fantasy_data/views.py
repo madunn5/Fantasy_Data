@@ -2496,34 +2496,7 @@ def top_tens(request):
     return render(request, 'fantasy_data/top_tens.html', context)
 
 
-@staff_member_required
-def collect_yahoo_data(request):
-    """View to manually trigger Yahoo data collection"""
-    # Check if OAuth credentials are configured
-    try:
-        with open('oauth2.json', 'r') as f:
-            import json
-            config = json.load(f)
-            if config.get('consumer_key') in ['YOUR_YAHOO_CLIENT_ID', 'REPLACE_WITH_YOUR_ACTUAL_CLIENT_ID', '']:
-                messages.error(request, 'Yahoo API credentials not configured. Please update oauth2.json with your Yahoo Developer App credentials.')
-                return render(request, 'fantasy_data/collect_data.html', {'credentials_missing': True})
-    except FileNotFoundError:
-        messages.error(request, 'oauth2.json file not found. Please create it with your Yahoo API credentials.')
-        return render(request, 'fantasy_data/collect_data.html', {'credentials_missing': True})
-    
-    if request.method == 'POST':
-        week = request.POST.get('week')
-        year = request.POST.get('year')
-        
-        try:
-            from .yahoo_collector import YahooFantasyCollector
-            collector = YahooFantasyCollector()
-            collector.process_and_save_data(int(week), int(year))
-            messages.success(request, f'Successfully collected data for Week {week}, {year}')
-        except Exception as e:
-            messages.error(request, f'Failed to collect data: {e}')
-    
-    return render(request, 'fantasy_data/collect_data.html')
+
 
 
 def player_list(request):

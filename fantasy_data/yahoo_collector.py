@@ -48,8 +48,8 @@ class YahooFantasyCollector:
             
             # Test basic OAuth
             logger.info("Testing OAuth token...")
-            if hasattr(self.oauth, 'token'):
-                logger.info("OAuth token exists")
+            if hasattr(self.oauth, 'access_token') or hasattr(self.oauth, 'token_time'):
+                logger.info("OAuth token exists and is valid")
             else:
                 logger.error("No OAuth token found")
                 return False
