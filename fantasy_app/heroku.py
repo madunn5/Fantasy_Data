@@ -19,8 +19,9 @@ YAHOO_FANTASY_CONFIG = {
     'LEAGUE_ID': '605174',
     'LEAGUE_KEY': 'nfl.l.605174',
     'SEASON': 2025,
-    'CLIENT_ID': os.environ.get('YAHOO_CLIENT_ID_PROD', ''),
-    'CLIENT_SECRET': os.environ.get('YAHOO_CLIENT_SECRET_PROD', '')
+    'CLIENT_ID': os.environ.get('YAHOO_CLIENT_ID', ''),
+    'CLIENT_SECRET': os.environ.get('YAHOO_CLIENT_SECRET', ''),
+    'OAUTH_JSON': os.environ.get('YAHOO_OAUTH_JSON', '')
 }
 
 # Security settings

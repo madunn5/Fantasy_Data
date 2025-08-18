@@ -13,23 +13,41 @@ class YahooFantasyCollector:
             
             # Check if running on Heroku (production)
             if 'DYNO' in os.environ:
-                # Production: use environment variables with token file
-                logger.info("Using environment variables for OAuth (production)")
-                consumer_key = settings.YAHOO_FANTASY_CONFIG['CLIENT_ID']
-                consumer_secret = settings.YAHOO_FANTASY_CONFIG['CLIENT_SECRET']
-                
-                if not consumer_key or not consumer_secret:
-                    raise ValueError("Yahoo API credentials not found in environment variables")
-                
-                # Create OAuth with credentials and specify token file location
-                self.oauth = OAuth2(consumer_key, consumer_secret, base_url='https://api.login.yahoo.com/')
-                
-                # Check if we have stored tokens
-                if hasattr(self.oauth, 'token') and self.oauth.token:
-                    logger.info("Using existing OAuth token")
+                # Check if we have complete OAuth JSON in environment variable
+                oauth_json = os.environ.get('YAHOO_OAUTH_JSON')
+                if oauth_json:
+                    logger.info("Using YAHOO_OAUTH_JSON environment variable")
+                    import tempfile
+                    # Create temporary file with OAuth JSON
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                        f.write(oauth_json)
+                        temp_file = f.name
+                    
+                    try:
+                        self.oauth = OAuth2(None, None, from_file=temp_file)
+                        os.unlink(temp_file)  # Clean up temp file
+                        logger.info("Successfully loaded OAuth from JSON")
+                    except Exception as e:
+                        os.unlink(temp_file)  # Clean up temp file on error
+                        logger.error(f"Failed to load OAuth JSON: {e}")
+                        raise
                 else:
-                    logger.error("No valid OAuth token found. Manual authorization required.")
-                    raise Exception("OAuth token expired or missing. Please re-authorize the application.")
+                    # Fallback to individual environment variables
+                    logger.info("Using individual environment variables for OAuth")
+                    consumer_key = settings.YAHOO_FANTASY_CONFIG['CLIENT_ID']
+                    consumer_secret = settings.YAHOO_FANTASY_CONFIG['CLIENT_SECRET']
+                    
+                    if not consumer_key or not consumer_secret:
+                        raise ValueError("Yahoo API credentials not found in environment variables")
+                    
+                    self.oauth = OAuth2(consumer_key, consumer_secret, base_url='https://api.login.yahoo.com/')
+                    
+                    # Check if we have stored tokens
+                    if hasattr(self.oauth, 'token') and self.oauth.token:
+                        logger.info("Using existing OAuth token")
+                    else:
+                        logger.error("No valid OAuth token found. Manual authorization required.")
+                        raise Exception("OAuth token expired or missing. Please re-authorize the application.")
                     
             else:
                 # Local: use oauth2_prod.json file
