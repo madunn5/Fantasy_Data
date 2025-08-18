@@ -32,6 +32,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
 from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, PlayerTransaction
+from .yahoo_collector import YahooFantasyCollector
 
 
 def home(request):
@@ -155,6 +156,61 @@ def upload_csv(request):
         return redirect('upload_csv')
 
     return render(request, 'fantasy_data/upload_csv.html')
+
+
+@staff_member_required
+def collect_yahoo_data(request):
+    """Collect data from Yahoo Fantasy API to replace CSV upload"""
+    if request.method == 'POST':
+        week = request.POST.get('week', 1)
+        year = request.POST.get('year', 2025)
+        
+        try:
+            week = int(week)
+            year = int(year)
+        except (ValueError, TypeError):
+            messages.error(request, 'Invalid week or year provided.')
+            return redirect('collect_yahoo_data')
+        
+        try:
+            collector = YahooFantasyCollector()
+            team_data = collector.collect_team_performance_data(week, year)
+            
+            messages.success(request, f'Successfully collected data for Week {week}, {year}. {len(team_data)} teams processed.')
+            
+        except Exception as e:
+            logger.error(f"Yahoo data collection failed: {e}")
+            messages.error(request, f'Failed to collect Yahoo data: {str(e)}')
+        
+        return redirect('collect_yahoo_data')
+    
+    return render(request, 'fantasy_data/collect_yahoo_data.html')
+
+
+@staff_member_required
+def debug_team_data(request):
+    """Debug view to display collected team performance data"""
+    year = request.GET.get('year', 2025)
+    week = request.GET.get('week', 1)
+    
+    try:
+        year = int(year)
+        week = int(week)
+    except (ValueError, TypeError):
+        year = 2025
+        week = 1
+    
+    # Get team performance data
+    teams = TeamPerformance.objects.filter(year=year, week=f'Week {week}').order_by('team_name')
+    
+    context = {
+        'teams': teams,
+        'year': year,
+        'week': week,
+        'total_teams': teams.count()
+    }
+    
+    return render(request, 'fantasy_data/debug_team_data.html', context)
 
 
 def team_performance_view(request):

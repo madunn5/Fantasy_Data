@@ -1,0 +1,76 @@
+{% extends 'fantasy_data/base.html' %}
+
+{% block title %}Collect Yahoo Fantasy Data{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Collect Yahoo Fantasy Data</h2>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Collect Team Performance Data</h5>
+            <p class="card-text">
+                This will collect team performance data from Yahoo Fantasy API for the specified week and year.
+                The data will be processed with FLEX position calculations and saved to the database.
+            </p>
+            
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                
+                <div class="col-md-6">
+                    <label for="week" class="form-label">Week</label>
+                    <select class="form-select" id="week" name="week" required>
+                        {% for w in "123456789012345678"|make_list %}
+                            <option value="{{ forloop.counter }}" {% if forloop.counter == 1 %}selected{% endif %}>
+                                Week {{ forloop.counter }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="year" class="form-label">Year</label>
+                    <select class="form-select" id="year" name="year" required>
+                        <option value="2024" selected>2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                    </select>
+                </div>
+                
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-download"></i> Collect Yahoo Data
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <h5>Data Collection Process</h5>
+        <ul class="list-group">
+            <li class="list-group-item">
+                <strong>Team Rosters:</strong> Collects starting lineups for each team
+            </li>
+            <li class="list-group-item">
+                <strong>Position Points:</strong> Calculates QB, WR, RB, TE, K, DEF points
+            </li>
+            <li class="list-group-item">
+                <strong>FLEX Calculations:</strong> Applies normalization (WR/RB × 2/3, TE × 1/2)
+            </li>
+            <li class="list-group-item">
+                <strong>Team Performance:</strong> Saves data to TeamPerformance model
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

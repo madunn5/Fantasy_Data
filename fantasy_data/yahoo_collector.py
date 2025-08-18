@@ -71,6 +71,224 @@ class YahooFantasyCollector:
             logger.error(f"Failed to collect league data: {e}")
             raise
     
+    def collect_team_performance_data(self, week, year):
+        """Collect team performance data to replicate CSV upload functionality"""
+        try:
+            league = self.gm.to_league(self.league_key)
+            
+            # Get matchups for the week
+            try:
+                matchups = league.matchups(week)
+                logger.info(f"Found {len(matchups)} matchups for week {week}")
+            except Exception as e:
+                logger.warning(f"Could not get matchups: {e}")
+                matchups = []
+            
+            team_data = []
+            teams = league.teams()
+            
+            # Create matchup lookup
+            matchup_data = {}
+            for matchup in matchups:
+                if 'teams' in matchup:
+                    teams_in_matchup = matchup['teams']
+                    if len(teams_in_matchup) == 2:
+                        team1, team2 = teams_in_matchup
+                        team1_key = team1.get('team_key')
+                        team2_key = team2.get('team_key')
+                        team1_points = float(team1.get('team_points', {}).get('total', 0))
+                        team2_points = float(team2.get('team_points', {}).get('total', 0))
+                        
+                        matchup_data[team1_key] = {
+                            'opponent_key': team2_key,
+                            'points_for': team1_points,
+                            'points_against': team2_points
+                        }
+                        matchup_data[team2_key] = {
+                            'opponent_key': team1_key,
+                            'points_for': team2_points,
+                            'points_against': team1_points
+                        }
+            
+            for team_key, team_info in teams.items():
+                team_name = team_info['name']
+                
+                # Get roster
+                roster = league.to_team(team_key).roster(week)
+                
+                # Get player stats for this roster
+                roster_with_stats = self.add_player_stats_to_roster(league, roster, week)
+                position_points = self.calculate_position_points(roster_with_stats)
+                
+                # Get matchup info
+                matchup_info = matchup_data.get(team_key, {})
+                opponent_key = matchup_info.get('opponent_key')
+                opponent_name = teams.get(opponent_key, {}).get('name', 'TBD') if opponent_key else 'TBD'
+                points_for = matchup_info.get('points_for', 0)
+                points_against = matchup_info.get('points_against', 0)
+                
+                # Calculate result
+                if points_for > 0 and points_against > 0:
+                    result = 'W' if points_for > points_against else 'L'
+                    margin = points_for - points_against
+                else:
+                    result = 'TBD'
+                    margin = 0
+                
+                # Calculate both actual and projected points
+                if points_for > 0:
+                    total_points = points_for
+                else:
+                    total_points = 0
+                    for p in roster_with_stats:
+                        if p.get('selected_position') != 'BN':  # Only starters
+                            player_pts = p.get('player_points', {})
+                            if isinstance(player_pts, dict):
+                                pts = float(player_pts.get('total', 0))
+                            else:
+                                pts = float(player_pts or 0)
+                            total_points += pts
+                
+                # Calculate projected points separately
+                projected_points = 0
+                for p in roster_with_stats:
+                    if p.get('selected_position') != 'BN':  # Only starters
+                        proj_pts = p.get('player_projected_points', {})
+                        if isinstance(proj_pts, dict):
+                            pts = float(proj_pts.get('total', 0))
+                        else:
+                            pts = float(proj_pts or 0)
+                        projected_points += pts
+                
+                # Use actual points if no projected points available
+                if projected_points == 0:
+                    projected_points = total_points
+                
+                team_record = {
+                    'Team': team_name,
+                    'Week': f"Week {week}",
+                    'Total': total_points,
+                    'Expected Total': projected_points,
+                    'Difference': total_points - projected_points,
+                    'Points Against': points_against,
+                    'Opponent': opponent_name,
+                    'Result': result,
+                    'Margin of Matchup': margin,
+                    'Projected Result': result,
+                    **position_points
+                }
+                
+                team_data.append(team_record)
+            
+            # Save to TeamPerformance model
+            from .models import TeamPerformance
+            for record in team_data:
+                TeamPerformance.objects.update_or_create(
+                    team_name=record['Team'],
+                    week=record['Week'],
+                    year=year,
+                    defaults={
+                        'qb_points': record['QB_Points'],
+                        'wr_points': record['WR_Points'],
+                        'wr_points_total': record['WR_Points_Total'],
+                        'rb_points': record['RB_Points'],
+                        'rb_points_total': record['RB_Points_Total'],
+                        'te_points': record['TE_Points'],
+                        'te_points_total': record['TE_Points_Total'],
+                        'k_points': record['K_Points'],
+                        'def_points': record['DEF_Points'],
+                        'total_points': record['Total'],
+                        'expected_total': record['Expected Total'],
+                        'difference': record['Difference'],
+                        'points_against': record['Points Against'],
+                        'projected_wins': record['Projected Result'],
+                        'result': record['Result'],
+                        'opponent': record['Opponent'],
+                        'margin': record['Margin of Matchup']
+                    }
+                )
+            
+            logger.info(f"Successfully collected team performance data for Week {week}, {year}")
+            return team_data
+            
+        except Exception as e:
+            logger.error(f"Failed to collect team performance data: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            raise
+    
+    def calculate_position_points(self, roster):
+        """Calculate position points with FLEX normalization logic"""
+        starters = [p for p in roster if p.get('selected_position') != 'BN']
+        
+        # Group by actual position (not selected_position)
+        position_totals = {'QB': 0, 'WR': 0, 'RB': 0, 'TE': 0, 'K': 0, 'DEF': 0}
+        position_counts = {'QB': 0, 'WR': 0, 'RB': 0, 'TE': 0, 'K': 0, 'DEF': 0}
+        
+        for player in starters:
+            # Get primary position from eligible_positions
+            eligible_pos = player.get('eligible_positions', [])
+            position = eligible_pos[0] if eligible_pos else 'UNKNOWN'
+            
+            # Handle D/ST position
+            if position == 'D/ST':
+                position = 'DEF'
+            
+            # Debug: Log available player data keys
+            logger.info(f"Player {player.get('name', 'Unknown')} data keys: {list(player.keys())}")
+            
+            # Try actual points first, then projected points
+            player_points = player.get('player_points', {})
+            projected_points = player.get('player_projected_points', {})
+            
+            if isinstance(player_points, dict):
+                points = float(player_points.get('total', 0))
+            else:
+                points = float(player_points or 0)
+            
+            # If no actual points, use projected points
+            if points == 0:
+                if isinstance(projected_points, dict):
+                    points = float(projected_points.get('total', 0))
+                else:
+                    points = float(projected_points or 0)
+            
+            # Debug: Log points calculation and data structure for key positions
+            if position in ['QB', 'WR'] and points == 0:
+                logger.info(f"Player {player.get('name', 'Unknown')} - Position: {position}")
+                logger.info(f"  player_points: {player_points}")
+                logger.info(f"  player_projected_points: {projected_points}")
+                logger.info(f"  Final points: {points}")
+            
+            if position in position_totals:
+                position_totals[position] += points
+                position_counts[position] += 1
+        
+        # Apply FLEX normalization (user's specific logic)
+        wr_points = position_totals['WR']
+        rb_points = position_totals['RB'] 
+        te_points = position_totals['TE']
+        
+        # FLEX normalization: if more than standard starters, normalize
+        if position_counts['WR'] > 2:  # WR in FLEX -> normalize by 2/3
+            wr_points = position_totals['WR'] * (2/3)
+        if position_counts['RB'] > 2:  # RB in FLEX -> normalize by 2/3  
+            rb_points = position_totals['RB'] * (2/3)
+        if position_counts['TE'] > 1:  # TE in FLEX -> normalize by 1/2
+            te_points = position_totals['TE'] * (1/2)
+        
+        return {
+            'QB_Points': position_totals['QB'],
+            'WR_Points': wr_points,
+            'WR_Points_Total': position_totals['WR'],
+            'RB_Points': rb_points, 
+            'RB_Points_Total': position_totals['RB'],
+            'TE_Points': te_points,
+            'TE_Points_Total': position_totals['TE'],
+            'K_Points': position_totals['K'],
+            'DEF_Points': position_totals['DEF']
+        }
+    
     def process_and_save_data(self, week, year):
         data = self.get_league_data(week)
         
@@ -82,14 +300,31 @@ class YahooFantasyCollector:
             logger.info(f"Processing {len(roster)} players for team: {team_name}")
             for player_data in roster:
                 logger.info(f"Processing player: {player_data.get('name', 'Unknown')}")
+                logger.info(f"Player data keys: {list(player_data.keys())}")
+                logger.info(f"Eligible positions: {player_data.get('eligible_positions', [])}")
+                
+                # Extract position from eligible_positions list
+                eligible_positions = player_data.get('eligible_positions', [])
+                position = eligible_positions[0] if eligible_positions else player_data.get('position_type', 'Unknown')
+                
+                # NFL team data - Yahoo API might not provide this in roster calls
+                nfl_team = 'N/A'  # Will need to get from player details API call
+                
                 player, created = Player.objects.get_or_create(
                     yahoo_player_id=player_data['player_id'],
                     defaults={
                         'name': player_data['name'],
-                        'position': player_data['position_type'],
-                        'nfl_team': player_data.get('editorial_team_abbr', '')
+                        'position': position,
+                        'nfl_team': nfl_team
                     }
                 )
+                
+                # Update existing player data
+                if not created:
+                    player.name = player_data['name']
+                    player.position = position
+                    player.nfl_team = nfl_team
+                    player.save()
                 
                 PlayerRoster.objects.update_or_create(
                     player=player,
@@ -102,6 +337,14 @@ class YahooFantasyCollector:
                 )
                 
         logger.info(f"Completed processing. Total players in database: {Player.objects.count()}")
+        
+        # Also collect team performance data
+        try:
+            self.collect_team_performance_data(week, year)
+        except Exception as e:
+            logger.warning(f"Failed to collect team performance data: {e}")
+            import traceback
+            logger.warning(f"Full traceback: {traceback.format_exc()}")
         
         # Process player stats if available
         if data.get('player_stats'):
@@ -131,6 +374,38 @@ class YahooFantasyCollector:
                 if player['player_id'] == player_id:
                     return team_name
         return ''
+    
+    def add_player_stats_to_roster(self, league, roster, week):
+        """Add player stats/projections to roster data"""
+        roster_with_stats = []
+        
+        for player in roster:
+            player_copy = player.copy()
+            player_id = player['player_id']
+            
+            try:
+                # Try to get player stats for this week
+                stats = league.player_stats([player_id], week)
+                if stats and len(stats) > 0:
+                    player_stats = stats[0] if isinstance(stats, list) else stats
+                    # Debug: Log what stats we got for sample players
+                    if player.get('name') in ['Josh Allen', 'Mike Evans']:
+                        logger.info(f"Stats for {player.get('name')}: {player_stats}")
+                    # Add stats to player data
+                    player_copy['player_points'] = player_stats.get('player_points', {})
+                    player_copy['player_projected_points'] = player_stats.get('player_projected_points', {})
+                else:
+                    # No stats available, set to empty
+                    player_copy['player_points'] = {}
+                    player_copy['player_projected_points'] = {}
+            except Exception as e:
+                logger.warning(f"Could not get stats for player {player.get('name', player_id)}: {e}")
+                player_copy['player_points'] = {}
+                player_copy['player_projected_points'] = {}
+            
+            roster_with_stats.append(player_copy)
+        
+        return roster_with_stats
     
     def was_player_started(self, player_id, rosters):
         for team_name, roster in rosters.items():

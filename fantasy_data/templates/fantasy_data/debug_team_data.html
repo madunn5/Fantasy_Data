@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Debug Team Performance Data{% endblock %}
+
+{% block content %}
+<style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .summary { background-color: #e7f3ff; padding: 10px; margin: 10px 0; }
+</style>
+
+<h1>Debug: Team Performance Data</h1>
+    
+    <div class="summary">
+        <h3>Summary</h3>
+        <p><strong>Year:</strong> {{ year }}</p>
+        <p><strong>Week:</strong> {{ week }}</p>
+        <p><strong>Total Teams Found:</strong> {{ total_teams }}</p>
+    </div>
+
+    {% if teams %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Team Name</th>
+                    <th>Total Points</th>
+                    <th>Expected Total</th>
+                    <th>Difference</th>
+                    <th>QB Points</th>
+                    <th>WR Points</th>
+                    <th>WR Total</th>
+                    <th>RB Points</th>
+                    <th>RB Total</th>
+                    <th>TE Points</th>
+                    <th>TE Total</th>
+                    <th>K Points</th>
+                    <th>DEF Points</th>
+                    <th>Opponent</th>
+                    <th>Points Against</th>
+                    <th>Result</th>
+                    <th>Margin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for team in teams %}
+                <tr>
+                    <td>{{ team.team_name }}</td>
+                    <td>{{ team.total_points|floatformat:2 }}</td>
+                    <td>{{ team.expected_total|floatformat:2 }}</td>
+                    <td>{{ team.difference|floatformat:2 }}</td>
+                    <td>{{ team.qb_points|floatformat:2 }}</td>
+                    <td>{{ team.wr_points|floatformat:2 }}</td>
+                    <td>{{ team.wr_points_total|floatformat:2 }}</td>
+                    <td>{{ team.rb_points|floatformat:2 }}</td>
+                    <td>{{ team.rb_points_total|floatformat:2 }}</td>
+                    <td>{{ team.te_points|floatformat:2 }}</td>
+                    <td>{{ team.te_points_total|floatformat:2 }}</td>
+                    <td>{{ team.k_points|floatformat:2 }}</td>
+                    <td>{{ team.def_points|floatformat:2 }}</td>
+                    <td>{{ team.opponent }}</td>
+                    <td>{{ team.points_against|floatformat:2 }}</td>
+                    <td>{{ team.result }}</td>
+                    <td>{{ team.margin|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No team performance data found for Week {{ week }}, {{ year }}.</p>
+    {% endif %}
+
+<div style="margin-top: 20px;">
+    <h3>Check Different Week/Year:</h3>
+    <form method="get">
+        <label>Year: <input type="number" name="year" value="{{ year }}" min="2020" max="2030"></label>
+        <label>Week: <input type="number" name="week" value="{{ week }}" min="1" max="18"></label>
+        <button type="submit">Load Data</button>
+    </form>
+</div>
+{% endblock %}

@@ -14,7 +14,6 @@
                     <tr>
                         <th>Name</th>
                         <th>Position</th>
-                        <th>NFL Team</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -23,14 +22,13 @@
                     <tr>
                         <td>{{ player.name }}</td>
                         <td>{{ player.position }}</td>
-                        <td>{{ player.nfl_team|default:"N/A" }}</td>
                         <td>
                             <a href="{% url 'player_detail' player.id %}" class="btn btn-sm btn-primary">View Details</a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4">No players found. Collect data first.</td>
+                        <td colspan="3">No players found. Collect data first.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
