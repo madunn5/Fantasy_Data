@@ -10,11 +10,14 @@ class YahooFantasyCollector:
     def __init__(self):
         try:
             # Use oauth2_prod.json for both environments
-            oauth_file = 'oauth2_prod.json'
+            import os
+            
+            # Get the base directory (where manage.py is located)
+            base_dir = settings.BASE_DIR
+            oauth_file = os.path.join(base_dir, 'oauth2_prod.json')
             logger.info(f"Using OAuth file: {oauth_file}")
             
             # Check if file exists
-            import os
             if not os.path.exists(oauth_file):
                 logger.error(f"OAuth file not found: {oauth_file}")
                 raise FileNotFoundError(f"OAuth file not found: {oauth_file}")
