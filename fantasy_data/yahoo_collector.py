@@ -475,86 +475,106 @@ class YahooFantasyCollector:
             'K_Points': position_totals['K'],
             'DEF_Points': position_totals['DEF']
         }
-    
+
     def process_and_save_data(self, week, year):
-        data = self.get_league_data(week)
-        
-        logger.info(f"Processing data for Week {week}, {year}")
-        logger.info(f"Teams found: {list(data['rosters'].keys())}")
-        
-        # Process rosters
-        for team_name, roster in data['rosters'].items():
-            logger.info(f"Processing {len(roster)} players for team: {team_name}")
-            for player_data in roster:
-                logger.info(f"Processing player: {player_data.get('name', 'Unknown')}")
-                logger.info(f"Player data keys: {list(player_data.keys())}")
-                logger.info(f"Eligible positions: {player_data.get('eligible_positions', [])}")
-                
-                # Extract position from eligible_positions list
-                eligible_positions = player_data.get('eligible_positions', [])
-                position = eligible_positions[0] if eligible_positions else player_data.get('position_type', 'Unknown')
-                
-                # NFL team data - Yahoo API might not provide this in roster calls
-                nfl_team = 'N/A'  # Will need to get from player details API call
-                
+        """Collect rosters directly (without get_league_data) and write Players/Rosters,
+        then compute & save TeamPerformance."""
+        from .models import Player, PlayerRoster
+
+        logger.info(f"Processing data for Week {week}, {year} (direct roster fetch)")
+        league = self.gm.to_league(self.league_key)
+
+        # Pull teams
+        teams = league.teams()
+        logger.info(f"Found {len(teams)} teams for writing Players/Rosters")
+
+        players_created = 0
+        players_updated = 0
+        rosters_written = 0
+
+        for team_key, team_info in teams.items():
+            team_name = team_info.get('name', team_key)
+            logger.info(f"Fetching roster for team: {team_name} ({team_key})")
+
+            # Try week-specific roster; fall back to current if needed
+            try:
+                roster = league.to_team(team_key).roster(week)
+            except Exception as e:
+                logger.warning(
+                    f"Week roster failed for {team_name} (week={week}): {e}. Falling back to current roster.")
+                try:
+                    roster = league.to_team(team_key).roster()
+                except Exception as e2:
+                    logger.error(f"Could not fetch ANY roster for {team_name}: {e2}")
+                    roster = []
+
+            logger.info(f"Got {len(roster)} players for {team_name}")
+
+            # Write players & roster rows
+            for p in roster:
+                eligible_positions = p.get('eligible_positions') or []
+                position = eligible_positions[0] if eligible_positions else (p.get('position_type') or 'Unknown')
+                nfl_team = 'N/A'  # not present on roster payload; can enrich later
+
+                # Upsert Player
                 player, created = Player.objects.get_or_create(
-                    yahoo_player_id=player_data['player_id'],
+                    yahoo_player_id=p['player_id'],
                     defaults={
-                        'name': player_data['name'],
+                        'name': p.get('name', 'Unknown'),
                         'position': position,
-                        'nfl_team': nfl_team
-                    }
+                        'nfl_team': nfl_team,
+                    },
                 )
-                
-                # Update existing player data
-                if not created:
-                    player.name = player_data['name']
-                    player.position = position
-                    player.nfl_team = nfl_team
-                    player.save()
-                
-                PlayerRoster.objects.update_or_create(
+                if created:
+                    players_created += 1
+                else:
+                    updated = False
+                    new_name = p.get('name', player.name)
+                    if player.name != new_name:
+                        player.name = new_name
+                        updated = True
+                    if player.position != position:
+                        player.position = position
+                        updated = True
+                    if player.nfl_team != nfl_team:
+                        player.nfl_team = nfl_team
+                        updated = True
+                    if updated:
+                        player.save()
+                        players_updated += 1
+
+                # Upsert PlayerRoster
+                status = 'STARTER' if p.get('selected_position') != 'BN' else 'BENCH'
+                _, pr_created = PlayerRoster.objects.update_or_create(
                     player=player,
                     fantasy_team=team_name,
                     week=f"Week {week}",
                     year=year,
-                    defaults={
-                        'roster_status': 'STARTER' if player_data.get('selected_position') != 'BN' else 'BENCH'
-                    }
+                    defaults={'roster_status': status},
                 )
-                
-        logger.info(f"Completed processing. Total players in database: {Player.objects.count()}")
-        
-        # Also collect team performance data
+                if pr_created:
+                    rosters_written += 1
+
+        logger.info(
+            f"Players created: {players_created}, updated: {players_updated}; "
+            f"PlayerRoster rows written: {rosters_written}"
+        )
+
+        # Always compute & save TeamPerformance too
         try:
-            self.collect_team_performance_data(week, year)
+            team_data = self.collect_team_performance_data(week, year)
+            logger.info(f"TeamPerformance records processed: {len(team_data)}")
         except Exception as e:
-            logger.warning(f"Failed to collect team performance data: {e}")
-            import traceback
-            logger.warning(f"Full traceback: {traceback.format_exc()}")
-        
-        # Process player stats if available
-        if data.get('player_stats'):
-            for player_id, stats in data['player_stats'].items():
-                try:
-                    player = Player.objects.get(yahoo_player_id=player_id)
-                    points = stats.get('points', 0) if stats else 0
-                    
-                    PlayerPerformance.objects.update_or_create(
-                        player=player,
-                        week=f"Week {week}",
-                        year=year,
-                        defaults={
-                            'points_scored': points,
-                            'fantasy_team': self.get_player_team(player_id, data['rosters']),
-                            'was_started': self.was_player_started(player_id, data['rosters'])
-                        }
-                    )
-                except Player.DoesNotExist:
-                    logger.warning(f"Player {player_id} not found in database")
-        else:
-            logger.info("No player stats data available")
-    
+            logger.warning(f"collect_team_performance_data failed: {e}")
+            team_data = []
+
+        return {
+            'players_created': players_created,
+            'players_updated': players_updated,
+            'rosters_written': rosters_written,
+            'team_perf_count': len(team_data),
+        }
+
     def get_player_team(self, player_id, rosters):
         for team_name, roster in rosters.items():
             for player in roster:

@@ -160,15 +160,15 @@ def upload_csv(request):
 
 @staff_member_required
 def collect_yahoo_data(request):
-    """Collect data from Yahoo Fantasy API to replace CSV upload"""
+    """Collect Yahoo Fantasy data: saves Players, PlayerRoster, and TeamPerformance."""
     if request.method == 'POST':
         action = request.POST.get('action')
-        
+
         if action == 'test_connection':
             try:
                 collector = YahooFantasyCollector()
-                success = collector.test_connection()
-                if success:
+                ok = collector.test_connection()
+                if ok:
                     messages.success(request, 'Yahoo API connection test successful!')
                 else:
                     messages.error(request, 'Yahoo API connection test failed. Check server logs for details.')
@@ -177,32 +177,52 @@ def collect_yahoo_data(request):
                 if "OAuth token expired" in str(e) or "EOF when reading a line" in str(e):
                     messages.error(request, 'OAuth token expired or missing. Please authorize the application first.')
                     return redirect('oauth_authorize')
-                else:
-                    messages.error(request, f'Connection test error: {str(e)}')
-        
+                messages.error(request, f'Connection test error: {e}')
+
         elif action == 'collect_data':
             week = request.POST.get('week', 1)
             year = request.POST.get('year', 2025)
-            
             try:
                 week = int(week)
                 year = int(year)
             except (ValueError, TypeError):
                 messages.error(request, 'Invalid week or year provided.')
                 return redirect('collect_yahoo_data')
-            
+
             try:
+                from .models import Player, PlayerRoster, TeamPerformance
+
+                # Baseline counts
+                players_before = Player.objects.count()
+                rosters_before = PlayerRoster.objects.count()
+                tp_before = TeamPerformance.objects.count()
+
                 collector = YahooFantasyCollector()
-                team_data = collector.collect_team_performance_data(week, year)
-                
-                messages.success(request, f'Successfully collected data for Week {week}, {year}. {len(team_data)} teams processed.')
-                
+                logger.info("collect_data view: starting process_and_save_data()")
+                # This function saves Players, PlayerRoster, and then calls collect_team_performance_data().
+                collector.process_and_save_data(week, year)
+                logger.info("collect_data view: finished process_and_save_data()")
+
+                # Counts after run
+                players_after = Player.objects.count()
+                rosters_after = PlayerRoster.objects.count()
+                tp_after = TeamPerformance.objects.count()
+
+                messages.success(
+                    request,
+                    (
+                        f'Successfully collected Yahoo data for Week {week}, {year}. '
+                        f'Players: +{players_after - players_before} (total {players_after}). '
+                        f'Rosters: +{rosters_after - rosters_before} (total {rosters_after}). '
+                        f'TeamPerformance rows: +{tp_after - tp_before} (total {tp_after}).'
+                    )
+                )
             except Exception as e:
                 logger.error(f"Yahoo data collection failed: {e}")
-                messages.error(request, f'Failed to collect Yahoo data: {str(e)}')
-        
+                messages.error(request, f'Failed to collect Yahoo data: {e}')
+
         return redirect('collect_yahoo_data')
-    
+
     return render(request, 'fantasy_data/collect_yahoo_data.html')
 
 
