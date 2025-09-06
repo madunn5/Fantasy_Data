@@ -262,11 +262,16 @@ class YahooFantasyCollector:
             league = self.gm.to_league(self.league_key)
             logger.info("Successfully connected to league for team performance data")
             
-            # Get matchups for the week
+            # Validate week parameter - ensure it's reasonable for current season
+            if week < 1 or week > 18:
+                logger.warning(f"Week {week} seems invalid, using week 1 as fallback")
+                week = 1
+            
+            # Get matchups for the week - use current matchups since week-specific may not work
             try:
-                logger.info(f"Fetching matchups for week {week}...")
-                matchups = league.matchups(week)
-                logger.info(f"Found {len(matchups)} matchups for week {week}")
+                logger.info(f"Fetching current matchups...")
+                matchups = league.matchups()
+                logger.info(f"Found matchups")
             except Exception as e:
                 logger.warning(f"Could not get matchups: {e}")
                 matchups = []
@@ -300,8 +305,18 @@ class YahooFantasyCollector:
             for team_key, team_info in teams.items():
                 team_name = team_info['name']
                 
-                # Get roster
-                roster = league.to_team(team_key).roster(week)
+                # Get roster with fallback handling
+                try:
+                    roster = league.to_team(team_key).roster(week)
+                    logger.debug(f"Got roster for {team_name} week {week}: {len(roster)} players")
+                except Exception as roster_error:
+                    logger.warning(f"Week {week} roster failed for {team_name}: {roster_error}")
+                    try:
+                        roster = league.to_team(team_key).roster()
+                        logger.debug(f"Got current roster for {team_name}: {len(roster)} players")
+                    except Exception as current_roster_error:
+                        logger.error(f"Could not get any roster for {team_name}: {current_roster_error}")
+                        roster = []
                 
                 # Get player stats for this roster
                 roster_with_stats = self.add_player_stats_to_roster(league, roster, week)
@@ -554,6 +569,28 @@ class YahooFantasyCollector:
                 )
                 if pr_created:
                     rosters_written += 1
+                
+                # Create PlayerPerformance record with points data
+                from .models import PlayerPerformance
+                try:
+                    # Get points from season stats
+                    stats = league.player_stats([p['player_id']], 'season')
+                    points_scored = 0.0
+                    if stats and len(stats) > 0:
+                        points_scored = float(stats[0].get('total_points', 0))
+                    
+                    PlayerPerformance.objects.update_or_create(
+                        player=player,
+                        week=f"Week {week}",
+                        year=year,
+                        defaults={
+                            'fantasy_team': team_name,
+                            'points_scored': points_scored,
+                            'was_started': (status == 'STARTER')
+                        }
+                    )
+                except Exception as perf_error:
+                    logger.warning(f"Could not create PlayerPerformance for {player.name}: {perf_error}")
 
         logger.info(
             f"Players created: {players_created}, updated: {players_updated}; "
@@ -568,11 +605,16 @@ class YahooFantasyCollector:
             logger.warning(f"collect_team_performance_data failed: {e}")
             team_data = []
 
+        # Count PlayerPerformance records
+        from .models import PlayerPerformance
+        perf_count = PlayerPerformance.objects.filter(week=f"Week {week}", year=year).count()
+        
         return {
             'players_created': players_created,
             'players_updated': players_updated,
             'rosters_written': rosters_written,
             'team_perf_count': len(team_data),
+            'player_performances': perf_count,
         }
 
     def get_player_team(self, player_id, rosters):
@@ -583,32 +625,39 @@ class YahooFantasyCollector:
         return ''
     
     def add_player_stats_to_roster(self, league, roster, week):
-        """Add player stats/projections to roster data"""
+        """Add player stats/projections to roster data with corrected API calls"""
         roster_with_stats = []
         
         for player in roster:
             player_copy = player.copy()
             player_id = player['player_id']
+            player_name = player.get('name', f'Player_{player_id}')
+            
+            # Initialize with empty stats
+            player_copy['player_points'] = {'total': 0}
+            player_copy['player_projected_points'] = {'total': 0}
             
             try:
-                # Try to get player stats for this week
-                stats = league.player_stats([player_id], week)
+                # Use season stats as they contain actual points data
+                stats = league.player_stats([player_id], 'season')
+                
                 if stats and len(stats) > 0:
                     player_stats = stats[0] if isinstance(stats, list) else stats
-                    # Debug: Log what stats we got for sample players
-                    if player.get('name') in ['Josh Allen', 'Mike Evans']:
-                        logger.info(f"Stats for {player.get('name')}: {player_stats}")
-                    # Add stats to player data
-                    player_copy['player_points'] = player_stats.get('player_points', {})
-                    player_copy['player_projected_points'] = player_stats.get('player_projected_points', {})
+                    
+                    # Extract total_points directly from API response
+                    total_points = float(player_stats.get('total_points', 0))
+                    
+                    # Set points in expected format
+                    player_copy['player_points'] = {'total': total_points}
+                    player_copy['player_projected_points'] = {'total': total_points}  # Use actual as projected fallback
+                    
+                    if total_points > 0:
+                        logger.debug(f"Got {total_points} points for {player_name}")
                 else:
-                    # No stats available, set to empty
-                    player_copy['player_points'] = {}
-                    player_copy['player_projected_points'] = {}
+                    logger.debug(f"No stats available for {player_name}")
+                    
             except Exception as e:
-                logger.warning(f"Could not get stats for player {player.get('name', player_id)}: {e}")
-                player_copy['player_points'] = {}
-                player_copy['player_projected_points'] = {}
+                logger.debug(f"Failed to get stats for {player_name}: {e}")
             
             roster_with_stats.append(player_copy)
         

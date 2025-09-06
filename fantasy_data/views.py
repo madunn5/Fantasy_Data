@@ -181,10 +181,14 @@ def collect_yahoo_data(request):
 
         elif action == 'collect_data':
             week = request.POST.get('week', 1)
-            year = request.POST.get('year', 2025)
+            year = request.POST.get('year', 2024)  # Updated to current season
             try:
                 week = int(week)
                 year = int(year)
+                # Validate week range
+                if week < 1 or week > 18:
+                    messages.error(request, f'Week must be between 1 and 18, got {week}')
+                    return redirect('collect_yahoo_data')
             except (ValueError, TypeError):
                 messages.error(request, 'Invalid week or year provided.')
                 return redirect('collect_yahoo_data')
@@ -208,13 +212,18 @@ def collect_yahoo_data(request):
                 rosters_after = PlayerRoster.objects.count()
                 tp_after = TeamPerformance.objects.count()
 
+                # Get performance count
+                from .models import PlayerPerformance
+                perf_count = PlayerPerformance.objects.filter(week=f'Week {week}', year=year).count()
+                
                 messages.success(
                     request,
                     (
                         f'Successfully collected Yahoo data for Week {week}, {year}. '
                         f'Players: +{players_after - players_before} (total {players_after}). '
                         f'Rosters: +{rosters_after - rosters_before} (total {rosters_after}). '
-                        f'TeamPerformance rows: +{tp_after - tp_before} (total {tp_after}).'
+                        f'TeamPerformance: +{tp_after - tp_before} (total {tp_after}). '
+                        f'PlayerPerformance: {perf_count} records.'
                     )
                 )
             except Exception as e:
