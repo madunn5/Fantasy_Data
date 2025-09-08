@@ -2494,51 +2494,49 @@ def top_tens(request):
     # Filtering for smallest win margins where the result is 'W'
     win_margin_df = df[(df['margin'] > 0) & (df['result'] == 'W')]
 
-    # Find the top 10 smallest win margins by week
-    smallest_win_margins_rows = win_margin_df.groupby('week')['margin'].nsmallest(10).index.get_level_values(1)
-    smallest_win_margins = win_margin_df.loc[
-        smallest_win_margins_rows, ['week', 'team_name', 'total_points', 'margin', 'opponent']]
-    smallest_win_margins = smallest_win_margins.sort_values(by=['margin'], ascending=True).reset_index(drop=True)
-    smallest_win_margins = smallest_win_margins.head(10)  # Limit to top 10 rows
-    smallest_win_margins.index = smallest_win_margins.index + 1
+    # Find the top 10 smallest win margins
+    if not win_margin_df.empty:
+        smallest_win_margins = win_margin_df.nsmallest(10, 'margin')[['week', 'team_name', 'total_points', 'margin', 'opponent']]
+        smallest_win_margins = smallest_win_margins.reset_index(drop=True)
+        smallest_win_margins.index = smallest_win_margins.index + 1
+    else:
+        smallest_win_margins = pd.DataFrame(columns=['week', 'team_name', 'total_points', 'margin', 'opponent'])
 
-    # Get the top 10 largest margins by week
-    largest_win_margins_rows = df.groupby('week')['margin'].nlargest(10).index.get_level_values(1)
-    largest_win_margins = df.loc[largest_win_margins_rows, ['week', 'team_name', 'total_points', 'margin', 'opponent']]
-    largest_win_margins = largest_win_margins.sort_values(by=['margin'], ascending=False).reset_index(drop=True)
-    largest_win_margins = largest_win_margins.head(10)  # Limit to top 10 rows
-    largest_win_margins.index = largest_win_margins.index + 1
+    # Get the top 10 largest margins
+    if not df.empty:
+        largest_win_margins = df.nlargest(10, 'margin')[['week', 'team_name', 'total_points', 'margin', 'opponent']]
+        largest_win_margins = largest_win_margins.reset_index(drop=True)
+        largest_win_margins.index = largest_win_margins.index + 1
+    else:
+        largest_win_margins = pd.DataFrame(columns=['week', 'team_name', 'total_points', 'margin', 'opponent'])
 
-    # Get the top 10 largest projection margins by week
-    largest_win_projection_rows = df.groupby('week')['difference'].nlargest(10).index.get_level_values(1)
-    largest_win_projections = df.loc[largest_win_projection_rows, ['week', 'team_name', 'total_points',
-                                                                   'expected_total', 'difference', 'opponent',
-                                                                   'result']]
-    largest_win_projections = largest_win_projections.sort_values(by=['difference'], ascending=False).reset_index(
-        drop=True)
-    largest_win_projections = largest_win_projections.head(10)  # Limit to top 10 rows
-    largest_win_projections.index = largest_win_projections.index + 1
+    # Get the top 10 largest projection margins
+    if not df.empty:
+        largest_win_projections = df.nlargest(10, 'difference')[['week', 'team_name', 'total_points', 'expected_total', 'difference', 'opponent', 'result']]
+        largest_win_projections = largest_win_projections.reset_index(drop=True)
+        largest_win_projections.index = largest_win_projections.index + 1
+    else:
+        largest_win_projections = pd.DataFrame(columns=['week', 'team_name', 'total_points', 'expected_total', 'difference', 'opponent', 'result'])
 
-    # Get the top 10 largest negative projection margins by week
-    smallest_win_projection_rows = df.groupby('week')['difference'].nsmallest(10).index.get_level_values(1)
-    smallest_win_projections = df.loc[smallest_win_projection_rows, ['week', 'team_name', 'total_points',
-                                                                     'expected_total', 'difference', 'opponent',
-                                                                     'result']]
-    # Sort by 'difference' in ascending order to keep the largest negative values at the top
-    smallest_win_projections = smallest_win_projections.sort_values(by=['difference'], ascending=True).reset_index(
-        drop=True)
-    # Limit to top 10 rows
-    smallest_win_projections = smallest_win_projections.head(10)
-    smallest_win_projections.index = smallest_win_projections.index + 1
+    # Get the top 10 largest negative projection margins
+    if not df.empty:
+        smallest_win_projections = df.nsmallest(10, 'difference')[['week', 'team_name', 'total_points', 'expected_total', 'difference', 'opponent', 'result']]
+        smallest_win_projections = smallest_win_projections.reset_index(drop=True)
+        smallest_win_projections.index = smallest_win_projections.index + 1
+    else:
+        smallest_win_projections = pd.DataFrame(columns=['week', 'team_name', 'total_points', 'expected_total', 'difference', 'opponent', 'result'])
 
     # Repeat for each position: QB, WR, RB, TE, K, DEF, for both largest and smallest values
     def get_top_10_by_position(position, df, largest=True):
-        group_method = 'nlargest' if largest else 'nsmallest'
-        top_rows = df.groupby('week')[position].agg(group_method, 10).index.get_level_values(1)
-        result = df.loc[top_rows, ['week', 'team_name', position, 'opponent', 'result']]
-        order = False if largest else True
-        result = result.sort_values(by=[position], ascending=order).reset_index(drop=True)
-        result = result.head(10)  # Limit to top 10 rows
+        if df.empty:
+            return pd.DataFrame(columns=['week', 'team_name', position, 'opponent', 'result'])
+        
+        if largest:
+            result = df.nlargest(10, position)[['week', 'team_name', position, 'opponent', 'result']]
+        else:
+            result = df.nsmallest(10, position)[['week', 'team_name', position, 'opponent', 'result']]
+        
+        result = result.reset_index(drop=True)
         result.index = result.index + 1
         return result
 
