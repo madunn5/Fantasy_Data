@@ -194,41 +194,53 @@ def collect_yahoo_data(request):
                 return redirect('collect_yahoo_data')
 
             try:
-                from .models import Player, PlayerRoster, TeamPerformance
-
-                # Baseline counts
-                players_before = Player.objects.count()
-                rosters_before = PlayerRoster.objects.count()
-                tp_before = TeamPerformance.objects.count()
-
-                collector = YahooFantasyCollector()
-                logger.info("collect_data view: starting process_and_save_data()")
-                # This function saves Players, PlayerRoster, and then calls collect_team_performance_data().
-                collector.process_and_save_data(week, year)
-                logger.info("collect_data view: finished process_and_save_data()")
-
-                # Counts after run
-                players_after = Player.objects.count()
-                rosters_after = PlayerRoster.objects.count()
-                tp_after = TeamPerformance.objects.count()
-
-                # Get performance count
-                from .models import PlayerPerformance
-                perf_count = PlayerPerformance.objects.filter(week=f'Week {week}', year=year).count()
+                import django_rq
+                from .yahoo_collector import YahooFantasyCollector
                 
-                messages.success(
-                    request,
-                    (
-                        f'Successfully collected Yahoo data for Week {week}, {year}. '
+                # Try to enqueue the job, fall back to sync if Redis unavailable
+                try:
+                    queue = django_rq.get_queue('default')
+                    collector = YahooFantasyCollector()
+                    job = queue.enqueue(collector.process_and_save_data, week, year, timeout=600)
+                    
+                    messages.success(
+                        request,
+                        f'Yahoo data collection for Week {week}, {year} has been started in the background. '
+                        f'Job ID: {job.id}. Please check back in a few minutes.'
+                    )
+                except Exception as redis_error:
+                    # Fallback to synchronous execution if Redis unavailable
+                    logger.warning(f"Redis unavailable, running synchronously: {redis_error}")
+                    
+                    from .models import Player, PlayerRoster, TeamPerformance, PlayerPerformance
+                    
+                    # Baseline counts
+                    players_before = Player.objects.count()
+                    rosters_before = PlayerRoster.objects.count()
+                    tp_before = TeamPerformance.objects.count()
+                    
+                    collector = YahooFantasyCollector()
+                    logger.info("collect_data view: running synchronously")
+                    collector.process_and_save_data(week, year)
+                    
+                    # Counts after run
+                    players_after = Player.objects.count()
+                    rosters_after = PlayerRoster.objects.count()
+                    tp_after = TeamPerformance.objects.count()
+                    perf_count = PlayerPerformance.objects.filter(week=f'Week {week}', year=year).count()
+                    
+                    messages.success(
+                        request,
+                        f'Successfully collected Yahoo data for Week {week}, {year} (synchronous). '
                         f'Players: +{players_after - players_before} (total {players_after}). '
                         f'Rosters: +{rosters_after - rosters_before} (total {rosters_after}). '
                         f'TeamPerformance: +{tp_after - tp_before} (total {tp_after}). '
                         f'PlayerPerformance: {perf_count} records.'
                     )
-                )
+                    
             except Exception as e:
-                logger.error(f"Yahoo data collection failed: {e}")
-                messages.error(request, f'Failed to collect Yahoo data: {e}')
+                logger.error(f"Failed to collect Yahoo data: {e}")
+                messages.error(request, f'Failed to collect data: {e}')
 
         return redirect('collect_yahoo_data')
 

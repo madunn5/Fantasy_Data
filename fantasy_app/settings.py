@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_rq",
     "fantasy_data"
 ]
 
@@ -143,3 +144,22 @@ YAHOO_FANTASY_CONFIG = {
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
+
+# Django RQ Configuration
+RQ_QUEUES = {
+    'default': {
+        'HOST': 'localhost',
+        'PORT': 6379,
+        'DB': 0,
+        'PASSWORD': '',
+        'DEFAULT_TIMEOUT': 360,
+        'CONNECTION_CLASS': 'redis.StrictRedis',
+    }
+}
+
+# Use Redis URL from environment (Heroku Redis)
+REDIS_URL = os.environ.get('REDIS_URL')
+if REDIS_URL:
+    import dj_database_url
+    RQ_QUEUES['default'] = dj_database_url.parse(REDIS_URL, conn_max_age=600)
+    RQ_QUEUES['default']['DEFAULT_TIMEOUT'] = 360

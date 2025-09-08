@@ -17,3 +17,6 @@ whitenoise==6.7.0
 # Yahoo stack — pin to the same versions you use locally
 yahoo-fantasy-api==2.12.0
 yahoo-oauth==2.1.1
+
+django-rq
+dj-database-url
