@@ -1,5 +1,5 @@
 from django.contrib import admin
-from fantasy_data.models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, PlayerTransaction
+from fantasy_data.models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, PlayerTransaction, ProjectedPoint
 
 @admin.register(TeamPerformance)
 class TeamPerformanceAdmin(admin.ModelAdmin):
@@ -30,3 +30,9 @@ class PlayerTransactionAdmin(admin.ModelAdmin):
     list_display = ['player', 'transaction_type', 'from_team', 'to_team', 'week', 'year']
     list_filter = ['year', 'week', 'transaction_type']
     search_fields = ['player__name', 'from_team', 'to_team']
+
+@admin.register(ProjectedPoint)
+class ProjectedPointAdmin(admin.ModelAdmin):
+    list_display = ("league_key", "week", "player_name", "player_id", "position", "projected_total", "pulled_at")
+    list_filter = ("league_key", "week", "position", "source")
+    search_fields = ("player_name", "player_id", "team_key")

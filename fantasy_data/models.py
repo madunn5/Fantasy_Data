@@ -94,3 +94,26 @@ class PlayerTransaction(models.Model):
     week = models.CharField(max_length=100)
     year = models.IntegerField()
     transaction_date = models.DateTimeField(auto_now_add=True)
+
+
+class ProjectedPoint(models.Model):
+    league_key = models.CharField(max_length=32, db_index=True)
+    week = models.PositiveIntegerField(db_index=True)
+    player_id = models.PositiveIntegerField(db_index=True)
+    player_name = models.CharField(max_length=128, blank=True)
+    position = models.CharField(max_length=16, blank=True)
+    team_key = models.CharField(max_length=32, blank=True)
+    projected_total = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    projected_raw = models.JSONField(default=dict, blank=True)
+    source = models.CharField(max_length=16, default="yahoo")
+    pulled_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("league_key", "player_id", "week", "source")
+        indexes = [
+            models.Index(fields=["league_key", "week"]),
+            models.Index(fields=["player_id", "week"]),
+        ]
+
+    def __str__(self):
+        return f"{self.league_key} | W{self.week} | {self.player_name} ({self.player_id}) -> {self.projected_total}"
