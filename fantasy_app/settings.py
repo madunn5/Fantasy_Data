@@ -160,6 +160,19 @@ RQ_QUEUES = {
 # Use Redis URL from environment (Heroku Redis)
 REDIS_URL = os.environ.get('REDIS_URL')
 if REDIS_URL:
-    import dj_database_url
-    RQ_QUEUES['default'] = dj_database_url.parse(REDIS_URL, conn_max_age=600)
-    RQ_QUEUES['default']['DEFAULT_TIMEOUT'] = 360
+    import redis
+    from urllib.parse import urlparse
+    
+    url = urlparse(REDIS_URL)
+    RQ_QUEUES['default'] = {
+        'HOST': url.hostname,
+        'PORT': url.port,
+        'DB': 0,
+        'PASSWORD': url.password,
+        'DEFAULT_TIMEOUT': 360,
+        'CONNECTION_CLASS': 'redis.StrictRedis',
+    }
+    
+    # Handle SSL for Heroku Redis
+    if url.scheme == 'rediss':
+        RQ_QUEUES['default']['CONNECTION_KWARGS'] = {'ssl_cert_reqs': None}
