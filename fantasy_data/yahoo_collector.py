@@ -2,6 +2,7 @@ from django.conf import settings
 from yahoo_oauth import OAuth2
 import yahoo_fantasy_api as yfa
 from .models import Player, PlayerRoster, PlayerPerformance, PlayerTransaction
+from .yahoo_timeout_handler import TimeoutYHandler
 import logging
 import os
 
@@ -86,6 +87,12 @@ class YahooFantasyCollector:
                 f"Debug info - CLIENT_SECRET exists: {bool(settings.YAHOO_FANTASY_CONFIG.get('CLIENT_SECRET'))}")
             raise
 
+    def _league(self):
+        """Return a League with a timeout+retry YHandler injected."""
+        league = self.gm.to_league(self.league_key)
+        league.inject_yhandler(TimeoutYHandler(self.oauth))
+        return league
+
     def get_auth_url(self):
         """Get authorization URL for manual OAuth setup"""
         try:
@@ -157,7 +164,7 @@ class YahooFantasyCollector:
 
             # Test league connection
             logger.info(f"Testing league connection: {self.league_key}")
-            league = self.gm.to_league(self.league_key)
+            league = self._league()
 
             # Get basic league info
             league_settings = league.settings()
@@ -183,7 +190,7 @@ class YahooFantasyCollector:
     def get_league_data(self, week=None):
         try:
             logger.info(f"Attempting to connect to league: {self.league_key}")
-            league = self.gm.to_league(self.league_key)
+            league = self._league()
             logger.info("Successfully connected to league")
 
             logger.info("Fetching teams...")
@@ -259,7 +266,7 @@ class YahooFantasyCollector:
             logger.info(f"Starting data collection for week {week}, year {year}")
             logger.info(f"Connecting to league: {self.league_key}")
 
-            league = self.gm.to_league(self.league_key)
+            league = self._league()
             logger.info("Successfully connected to league for team performance data")
 
             # Validate week parameter - ensure it's reasonable for current season
@@ -495,7 +502,7 @@ class YahooFantasyCollector:
         """Collect rosters directly (without get_league_data) and write Players/Rosters,
         then compute & save TeamPerformance."""
         logger.info(f"Processing data for Week {week}, {year} (direct roster fetch)")
-        league = self.gm.to_league(self.league_key)
+        league = self._league()
 
         # Pull teams
         teams = league.teams()
