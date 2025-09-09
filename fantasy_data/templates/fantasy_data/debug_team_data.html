@@ -1,81 +1,263 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Debug Team Performance Data{% endblock %}
+{% block title %}Debug Team Data - Week {{ week }}, {{ year }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .missing-data { color: #dc3545; font-style: italic; }
+    .has-data { color: #198754; }
+    .week-nav { margin-bottom: 2rem; }
+    .edit-mode { background-color: #fff3cd; }
+    .edit-input { border: 1px solid #007bff; }
+</style>
+{% endblock %}
 
 {% block content %}
-<style>
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    .summary { background-color: #e7f3ff; padding: 10px; margin: 10px 0; }
-</style>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1>Debug Team Performance Data</h1>
+            
+            <!-- Week/Year Navigation -->
+            <div class="week-nav">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="year-select" class="form-label">Year:</label>
+                        <select id="year-select" class="form-select" onchange="updateView()">
+                            {% for yr in available_years %}
+                                <option value="{{ yr }}" {% if yr == year %}selected{% endif %}>{{ yr }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="week-select" class="form-label">Week:</label>
+                        <select id="week-select" class="form-select" onchange="updateView()">
+                            {% for wk in available_weeks %}
+                                <option value="{{ wk }}" {% if wk == week %}selected{% endif %}>Week {{ wk }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button class="btn btn-primary" onclick="updateView()">Load Data</button>
+                            <button class="btn btn-warning" id="edit-all-btn" onclick="toggleEditMode()">Edit All</button>
+                            <button class="btn btn-success" id="save-all-btn" onclick="saveAll()" style="display:none;">Save All</button>
+                            <button class="btn btn-secondary" id="cancel-all-btn" onclick="cancelAll()" style="display:none;">Cancel</button>
+                            <span class="ms-3 text-muted">{{ total_teams }} teams found</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-<h1>Debug: Team Performance Data</h1>
-    
-    <div class="summary">
-        <h3>Summary</h3>
-        <p><strong>Year:</strong> {{ year }}</p>
-        <p><strong>Week:</strong> {{ week }}</p>
-        <p><strong>Total Teams Found:</strong> {{ total_teams }}</p>
-    </div>
-
-    {% if teams %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Team Name</th>
-                    <th>Total Points</th>
-                    <th>Expected Total</th>
-                    <th>Difference</th>
-                    <th>QB Points</th>
-                    <th>WR Points</th>
-                    <th>WR Total</th>
-                    <th>RB Points</th>
-                    <th>RB Total</th>
-                    <th>TE Points</th>
-                    <th>TE Total</th>
-                    <th>K Points</th>
-                    <th>DEF Points</th>
-                    <th>Opponent</th>
-                    <th>Points Against</th>
-                    <th>Result</th>
-                    <th>Margin</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for team in teams %}
-                <tr>
-                    <td>{{ team.team_name }}</td>
-                    <td>{{ team.total_points|floatformat:2 }}</td>
-                    <td>{{ team.expected_total|floatformat:2 }}</td>
-                    <td>{{ team.difference|floatformat:2 }}</td>
-                    <td>{{ team.qb_points|floatformat:2 }}</td>
-                    <td>{{ team.wr_points|floatformat:2 }}</td>
-                    <td>{{ team.wr_points_total|floatformat:2 }}</td>
-                    <td>{{ team.rb_points|floatformat:2 }}</td>
-                    <td>{{ team.rb_points_total|floatformat:2 }}</td>
-                    <td>{{ team.te_points|floatformat:2 }}</td>
-                    <td>{{ team.te_points_total|floatformat:2 }}</td>
-                    <td>{{ team.k_points|floatformat:2 }}</td>
-                    <td>{{ team.def_points|floatformat:2 }}</td>
-                    <td>{{ team.opponent }}</td>
-                    <td>{{ team.points_against|floatformat:2 }}</td>
-                    <td>{{ team.result }}</td>
-                    <td>{{ team.margin|floatformat:2 }}</td>
-                </tr>
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
                 {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>No team performance data found for Week {{ week }}, {{ year }}.</p>
-    {% endif %}
+            {% endif %}
 
-<div style="margin-top: 20px;">
-    <h3>Check Different Week/Year:</h3>
-    <form method="get">
-        <label>Year: <input type="number" name="year" value="{{ year }}" min="2020" max="2030"></label>
-        <label>Week: <input type="number" name="week" value="{{ week }}" min="1" max="18"></label>
-        <button type="submit">Load Data</button>
-    </form>
+            {% if teams %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Team</th>
+                                <th>Week</th>
+                                <th>Year</th>
+                                <th>QB Points</th>
+                                <th>WR Points</th>
+                                <th>WR Total</th>
+                                <th>RB Points</th>
+                                <th>RB Total</th>
+                                <th>TE Points</th>
+                                <th>TE Total</th>
+                                <th>K Points</th>
+                                <th>DEF Points</th>
+                                <th>Total Points</th>
+                                <th>Expected Total</th>
+                                <th>Difference</th>
+                                <th>Points Against</th>
+                                <th>Projected Wins</th>
+                                <th>Actual Wins</th>
+                                <th>Wins Diff</th>
+                                <th>Result</th>
+                                <th>Opponent</th>
+                                <th>Margin</th>
+                                <th>ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for team in teams %}
+                                <tr id="row-{{ team.id }}">
+                                    <td><strong>{{ team.team_name }}</strong></td>
+                                    <td>{{ team.week }}</td>
+                                    <td>{{ team.year }}</td>
+                                    <td class="has-data">{{ team.qb_points|floatformat:1 }}</td>
+                                    <td class="has-data">{{ team.wr_points|floatformat:1 }}</td>
+                                    <td class="has-data">{{ team.wr_points_total|floatformat:1 }}</td>
+                                    <td class="has-data">{{ team.rb_points|floatformat:1 }}</td>
+                                    <td class="has-data">{{ team.rb_points_total|floatformat:1 }}</td>
+                                    <td class="has-data">{{ team.te_points|floatformat:1 }}</td>
+                                    <td class="has-data">{{ team.te_points_total|floatformat:1 }}</td>
+                                    <td class="has-data">{{ team.k_points|floatformat:1 }}</td>
+                                    <td class="has-data">{{ team.def_points|floatformat:1 }}</td>
+                                    <td class="has-data">{{ team.total_points|floatformat:1 }}</td>
+                                    <td class="{% if team.expected_total %}has-data{% else %}missing-data{% endif %}" data-field="expected_total" data-value="{{ team.expected_total|default:'' }}">
+                                        {% if team.expected_total %}{{ team.expected_total|floatformat:1 }}{% else %}Missing{% endif %}
+                                    </td>
+                                    <td class="{% if team.difference is not None %}has-data{% else %}missing-data{% endif %}">
+                                        {% if team.difference is not None %}{{ team.difference|floatformat:1 }}{% else %}Missing{% endif %}
+                                    </td>
+                                    <td class="{% if team.points_against %}has-data{% else %}missing-data{% endif %}" data-field="points_against" data-value="{{ team.points_against|default:'' }}">
+                                        {% if team.points_against %}{{ team.points_against|floatformat:1 }}{% else %}Missing{% endif %}
+                                    </td>
+                                    <td class="{% if team.projected_wins %}has-data{% else %}missing-data{% endif %}" data-field="projected_wins" data-value="{{ team.projected_wins|default:'' }}">
+                                        {% if team.projected_wins %}{{ team.projected_wins }}{% else %}Missing{% endif %}
+                                    </td>
+                                    <td class="{% if team.actual_wins is not None %}has-data{% else %}missing-data{% endif %}" data-field="actual_wins" data-value="{{ team.actual_wins|default:'' }}">
+                                        {% if team.actual_wins is not None %}{{ team.actual_wins }}{% else %}Missing{% endif %}
+                                    </td>
+                                    <td class="{% if team.wins_diff is not None %}has-data{% else %}missing-data{% endif %}" data-field="wins_diff" data-value="{{ team.wins_diff|default:'' }}">
+                                        {% if team.wins_diff is not None %}{{ team.wins_diff }}{% else %}Missing{% endif %}
+                                    </td>
+                                    <td class="{% if team.result %}has-data{% else %}missing-data{% endif %}" data-field="result" data-value="{{ team.result|default:'' }}">
+                                        {% if team.result %}{{ team.result }}{% else %}Missing{% endif %}
+                                    </td>
+                                    <td class="{% if team.opponent %}has-data{% else %}missing-data{% endif %}" data-field="opponent" data-value="{{ team.opponent|default:'' }}">
+                                        {% if team.opponent %}{{ team.opponent }}{% else %}Missing{% endif %}
+                                    </td>
+                                    <td class="{% if team.margin is not None %}has-data{% else %}missing-data{% endif %}">
+                                        {% if team.margin is not None %}{{ team.margin|floatformat:1 }}{% else %}Missing{% endif %}
+                                    </td>
+                                    <td>{{ team.id }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Hidden form for saving data -->
+                <form id="save-form" method="post" style="display:none;">
+                    {% csrf_token %}
+                    <input type="hidden" name="team_id" id="form-team-id">
+                    <input type="hidden" name="opponent" id="form-opponent">
+                    <input type="hidden" name="points_against" id="form-points-against">
+                    <input type="hidden" name="expected_total" id="form-expected-total">
+                    <input type="hidden" name="projected_wins" id="form-projected-wins">
+                    <input type="hidden" name="actual_wins" id="form-actual-wins">
+                </form>
+            {% else %}
+                <div class="alert alert-info">
+                    <h4>No Data Found</h4>
+                    <p>No team performance data found for Week {{ week }}, {{ year }}.</p>
+                    <p>Try selecting a different week or year, or collect data first using the <a href="{% url 'collect_yahoo_data' %}">Yahoo Data Collection</a> page.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
+
+<script>
+let editMode = false;
+
+function updateView() {
+    const year = document.getElementById('year-select').value;
+    const week = document.getElementById('week-select').value;
+    window.location.href = `?year=${year}&week=${week}`;
+}
+
+function toggleEditMode() {
+    editMode = !editMode;
+    const editableFields = ['expected_total', 'points_against', 'projected_wins', 'actual_wins', 'opponent'];
+    
+    if (editMode) {
+        document.getElementById('edit-all-btn').style.display = 'none';
+        document.getElementById('save-all-btn').style.display = 'inline-block';
+        document.getElementById('cancel-all-btn').style.display = 'inline-block';
+        
+        // Make all editable cells into inputs
+        editableFields.forEach(field => {
+            document.querySelectorAll(`[data-field="${field}"]`).forEach(cell => {
+                const currentValue = cell.getAttribute('data-value');
+                let input;
+                
+                if (field === 'opponent') {
+                    input = `<input type="text" class="form-control form-control-sm edit-input" value="${currentValue}" data-field="${field}">`;
+                } else if (field === 'actual_wins') {
+                    input = `<select class="form-control form-control-sm edit-input" data-field="${field}">
+                        <option value="">-</option>
+                        <option value="1" ${currentValue == '1' ? 'selected' : ''}>1</option>
+                        <option value="0" ${currentValue == '0' ? 'selected' : ''}>0</option>
+                    </select>`;
+                } else {
+                    input = `<input type="number" step="0.1" class="form-control form-control-sm edit-input" value="${currentValue}" data-field="${field}">`;
+                }
+                
+                cell.innerHTML = input;
+            });
+        });
+    }
+}
+
+function cancelAll() {
+    location.reload();
+}
+
+function saveAll() {
+    if (!editMode) {
+        alert('Please enter edit mode first.');
+        return;
+    }
+    
+    const editableFields = ['expected_total', 'points_against', 'projected_wins', 'actual_wins', 'opponent'];
+    const rows = document.querySelectorAll('tbody tr');
+    const updates = [];
+    
+    // Collect all row data
+    rows.forEach(row => {
+        const teamId = row.cells[row.cells.length - 1].textContent.trim();
+        const rowData = { team_id: teamId };
+        
+        editableFields.forEach(field => {
+            const cell = row.querySelector(`[data-field="${field}"]`);
+            if (cell) {
+                const input = cell.querySelector('input, select');
+                if (input && input.value.trim() !== '') {
+                    rowData[field] = input.value.trim();
+                }
+            }
+        });
+        
+        // Only include rows that have at least one field with data
+        if (Object.keys(rowData).length > 1) {
+            updates.push(rowData);
+        }
+    });
+    
+    if (updates.length === 0) {
+        alert('No changes to save.');
+        return;
+    }
+    
+    // Create form data and submit
+    const form = document.getElementById('save-form');
+    const formData = new FormData(form);
+    formData.append('bulk_updates', JSON.stringify(updates));
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    }).then(response => {
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error saving data');
+        }
+    });
+}
+</script>
 {% endblock %}

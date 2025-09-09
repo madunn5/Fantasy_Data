@@ -249,7 +249,7 @@ def collect_yahoo_data(request):
 
 @staff_member_required
 def debug_team_data(request):
-    """Debug view to display collected team performance data"""
+    """Debug view to display and edit collected team performance data"""
     year = request.GET.get('year', 2025)
     week = request.GET.get('week', 1)
     
@@ -260,15 +260,120 @@ def debug_team_data(request):
         year = 2025
         week = 1
     
+    # Handle form submission for updates
+    if request.method == 'POST':
+        logger.info(f"POST request received. Data: {dict(request.POST)}")
+        
+        # Check for bulk updates
+        bulk_updates = request.POST.get('bulk_updates')
+        if bulk_updates:
+            try:
+                import json
+                updates = json.loads(bulk_updates)
+                logger.info(f"Processing {len(updates)} bulk updates")
+                
+                total_updated = 0
+                for update_data in updates:
+                    team_id = update_data.get('team_id')
+                    if not team_id:
+                        continue
+                        
+                    try:
+                        team = TeamPerformance.objects.get(id=team_id)
+                        updated_fields = []
+                        
+                        # Update fields
+                        fields_to_update = ['expected_total', 'points_against', 'projected_wins', 'actual_wins', 'opponent']
+                        for field in fields_to_update:
+                            if field in update_data:
+                                value = update_data[field]
+                                old_value = getattr(team, field)
+                                
+                                if field in ['actual_wins']:
+                                    new_value = int(value)
+                                elif field in ['opponent', 'projected_wins']:
+                                    new_value = value.strip()
+                                else:
+                                    new_value = float(value)
+                                
+                                if old_value != new_value:
+                                    setattr(team, field, new_value)
+                                    updated_fields.append(field)
+                        
+                        # Auto-calculate derived fields
+                        if team.points_against is not None and team.total_points is not None:
+                            new_margin = team.total_points - team.points_against
+                            if team.margin != new_margin:
+                                team.margin = new_margin
+                                updated_fields.append('margin')
+                        
+                        if team.expected_total is not None and team.total_points is not None:
+                            new_difference = team.total_points - team.expected_total
+                            if team.difference != new_difference:
+                                team.difference = new_difference
+                                updated_fields.append('difference')
+                        
+                        # Auto-calculate result based on margin
+                        if team.margin is not None:
+                            new_result = 'W' if team.margin > 0 else 'L'
+                            if team.result != new_result:
+                                team.result = new_result
+                                updated_fields.append('result')
+                        
+                        # Auto-calculate wins_diff (actual_wins - projected_wins)
+                        if team.actual_wins is not None and team.projected_wins is not None:
+                            try:
+                                projected_wins_int = 1 if team.projected_wins == 'W' else 0
+                                new_wins_diff = team.actual_wins - projected_wins_int
+                                if team.wins_diff != new_wins_diff:
+                                    team.wins_diff = new_wins_diff
+                                    updated_fields.append('wins_diff')
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        if updated_fields:
+                            team.save()
+                            total_updated += 1
+                            logger.info(f"Updated {team.team_name}: {updated_fields}")
+                            
+                    except TeamPerformance.DoesNotExist:
+                        logger.error(f"Team with ID {team_id} not found")
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Invalid data for team {team_id}: {e}")
+                
+                messages.success(request, f'Successfully updated {total_updated} teams')
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in bulk_updates: {e}")
+                messages.error(request, 'Invalid bulk update data')
+        
+        # Handle single team update (legacy)
+        else:
+            team_id = request.POST.get('team_id')
+            if team_id:
+                # ... existing single update code ...
+                pass
+        
+        return redirect(f'/debug-team-data/?year={year}&week={week}')
+    
     # Get team performance data
     teams = TeamPerformance.objects.filter(year=year, week=f'Week {week}').order_by('team_name')
+    logger.info(f"Found {teams.count()} teams for year {year}, week {week}")
+    
+    # Get available years and weeks for dropdowns
+    available_years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('-year')
+    available_weeks = range(1, 19)  # NFL weeks 1-18
     
     context = {
         'teams': teams,
         'year': year,
         'week': week,
-        'total_teams': teams.count()
+        'total_teams': teams.count(),
+        'available_years': available_years,
+        'available_weeks': available_weeks
     }
+    
+    logger.info(f"Rendering debug_team_data.html with {teams.count()} teams")
     
     return render(request, 'fantasy_data/debug_team_data.html', context)
 
