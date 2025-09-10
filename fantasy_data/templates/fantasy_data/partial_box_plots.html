@@ -2,42 +2,39 @@
     {% if error_message %}
         <div class="alert alert-warning">{{ error_message }}</div>
     {% else %}
-        <div class="mb-5">
-            <h2 class="text-center">Total Points by Result</h2>
+        <div class="mb-4">
+            <h3 class="text-center">Total Points by Result</h3>
             <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_points|safe }}</div>
         </div>
 
-        <div class="row mb-5">
-            <div class="col-md-6">
-                <h2 class="text-center">Total QB Points by Result</h2>
-                <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_qb|safe }}</div>
-            </div>
-            <div class="col-md-6">
-                <h2 class="text-center">Total WR Points by Result</h2>
-                <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_wr|safe }}</div>
-            </div>
+        <div class="mb-4">
+            <h3 class="text-center">Total QB Points by Result</h3>
+            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_qb|safe }}</div>
         </div>
 
-        <div class="row mb-5">
-            <div class="col-md-6">
-                <h2 class="text-center">Total RB Points by Result</h2>
-                <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_rb|safe }}</div>
-            </div>
-            <div class="col-md-6">
-                <h2 class="text-center">Total TE Points by Result</h2>
-                <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_te|safe }}</div>
-            </div>
+        <div class="mb-4">
+            <h3 class="text-center">Total WR Points by Result</h3>
+            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_wr|safe }}</div>
         </div>
 
-        <div class="row mb-5">
-            <div class="col-md-6">
-                <h2 class="text-center">Total K Points by Result</h2>
-                <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_k|safe }}</div>
-            </div>
-            <div class="col-md-6">
-                <h2 class="text-center">Total DEF Points by Result</h2>
-                <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_def|safe }}</div>
-            </div>
+        <div class="mb-4">
+            <h3 class="text-center">Total RB Points by Result</h3>
+            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_rb|safe }}</div>
+        </div>
+
+        <div class="mb-4">
+            <h3 class="text-center">Total TE Points by Result</h3>
+            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_te|safe }}</div>
+        </div>
+
+        <div class="mb-4">
+            <h3 class="text-center">Total K Points by Result</h3>
+            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_k|safe }}</div>
+        </div>
+
+        <div class="mb-4">
+            <h3 class="text-center">Total DEF Points by Result</h3>
+            <div class="border p-3 rounded shadow-sm scrollable-chart">{{ chart_def|safe }}</div>
         </div>
     {% endif %}
 </div>

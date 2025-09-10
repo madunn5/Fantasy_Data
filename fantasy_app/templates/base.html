@@ -44,8 +44,22 @@
         
         /* Scrollable chart styles */
         .scrollable-chart {
-            max-height: 400px;
-            overflow-y: auto;
+            max-height: 70vh;
+            overflow: auto;
+            width: 100%;
+            padding: 10px;
+        }
+        
+        /* Plotly chart responsiveness */
+        .scrollable-chart .plotly-graph-div {
+            width: 100% !important;
+            height: auto !important;
+            min-height: 400px;
+        }
+        
+        /* Ensure charts don't overflow */
+        .scrollable-chart .js-plotly-plot {
+            width: 100% !important;
         }
         
         /* Chart card styles */

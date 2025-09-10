@@ -90,7 +90,13 @@ def generate_cached_box_plots(df_json, selected_team, chart_type):
     if chart_type in chart_configs:
         y_field, title = chart_configs[chart_type]
         fig = px.box(df, x='result', y=y_field, color='result', title=title)
-        return fig.to_html(full_html=False)
+        fig.update_layout(
+            autosize=True,
+            margin=dict(l=50, r=80, t=60, b=50),
+            height=400,
+            width=None
+        )
+        return fig.to_html(full_html=False, config={'responsive': True, 'displayModeBar': False})
     
     return None
 
@@ -2322,88 +2328,111 @@ def position_contribution_chart(request):
     # Get teams for the selected year
     teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
     selected_team = request.GET.get('team', teams.first() if teams else None)
+    view_type = request.GET.get('view', 'individual')  # 'individual' or 'league'
     
-    if not selected_team:
-        context = {
-            'teams': teams, 
-            'years': years, 
-            'selected_year': selected_year,
-            'page_title': f'Position Contribution ({selected_year})'
-        }
-        return render(request, 'fantasy_data/position_contribution.html', context)
-    
-    # Get team data
-    team_data = TeamPerformance.objects.filter(year=selected_year, team_name=selected_team)
-    df = pd.DataFrame(list(team_data.values()))
-    
-    if df.empty:
-        context = {
-            'teams': teams,
-            'selected_team': selected_team,
-            'years': years,
-            'selected_year': selected_year,
-            'error_message': f'No data available for {selected_team} in {selected_year}',
-            'page_title': f'Position Contribution ({selected_year})'
-        }
-        return render(request, 'fantasy_data/position_contribution.html', context)
-    
-    # Calculate position contribution percentages
-    position_cols = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points']
-    df_avg = df[position_cols].mean()
-    total = df_avg.sum()
-    percentages = (df_avg / total * 100).round(1)
-    
-    # Create radar chart
-    categories = ['QB', 'WR', 'RB', 'TE', 'K', 'DEF']
-    fig = go.Figure()
-    
-    fig.add_trace(go.Scatterpolar(
-        r=percentages.values,
-        theta=categories,
-        fill='toself',
-        name=selected_team
-    ))
-    
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, max(percentages.values) * 1.1]
-            )
-        ),
-        title=f"Position Contribution for {selected_team} ({selected_year})"
-    )
-    
-    chart = fig.to_html(full_html=False)
-    
-    # Create bar chart for comparison
+    # Calculate league-wide position percentages for all teams
     league_data = TeamPerformance.objects.filter(year=selected_year)
     league_df = pd.DataFrame(list(league_data.values()))
-    league_avg = league_df[position_cols].mean()
-    league_total = league_avg.sum()
-    league_percentages = (league_avg / league_total * 100).round(1)
     
-    fig_bar = go.Figure(data=[
-        go.Bar(name=selected_team, x=categories, y=percentages.values),
-        go.Bar(name='League Average', x=categories, y=league_percentages.values)
-    ])
+    position_cols = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points']
+    league_percentages_table = None
     
-    fig_bar.update_layout(
-        barmode='group',
-        title=f"Position Contribution Comparison ({selected_year})"
-    )
+    if not league_df.empty:
+        # Calculate percentages for each team
+        team_percentages = []
+        for team in teams:
+            team_data = league_df[league_df['team_name'] == team]
+            if not team_data.empty:
+                team_avg = team_data[position_cols].mean()
+                total = team_avg.sum()
+                if total > 0:
+                    percentages = (team_avg / total * 100).round(1)
+                    team_percentages.append({
+                        'team_name': team,
+                        'qb_pct': percentages['qb_points'],
+                        'wr_pct': percentages['wr_points_total'],
+                        'rb_pct': percentages['rb_points_total'],
+                        'te_pct': percentages['te_points_total'],
+                        'k_pct': percentages['k_points'],
+                        'def_pct': percentages['def_points']
+                    })
+        
+        # Sort by team name
+        team_percentages.sort(key=lambda x: x['team_name'])
+        league_percentages_table = team_percentages
     
-    comparison_chart = fig_bar.to_html(full_html=False)
+    # Individual team analysis (existing functionality)
+    chart = None
+    comparison_chart = None
+    percentages = None
+    error_message = None
+    
+    if view_type == 'individual' and selected_team:
+        # Get team data
+        team_data = TeamPerformance.objects.filter(year=selected_year, team_name=selected_team)
+        df = pd.DataFrame(list(team_data.values()))
+        
+        if df.empty:
+            error_message = f'No data available for {selected_team} in {selected_year}'
+        else:
+            # Calculate position contribution percentages
+            df_avg = df[position_cols].mean()
+            total = df_avg.sum()
+            percentages = (df_avg / total * 100).round(1)
+            
+            # Create radar chart
+            categories = ['QB', 'WR', 'RB', 'TE', 'K', 'DEF']
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatterpolar(
+                r=percentages.values,
+                theta=categories,
+                fill='toself',
+                name=selected_team
+            ))
+            
+            fig.update_layout(
+                polar=dict(
+                    radialaxis=dict(
+                        visible=True,
+                        range=[0, max(percentages.values) * 1.1]
+                    )
+                ),
+                title=f"Position Contribution for {selected_team} ({selected_year})"
+            )
+            
+            chart = fig.to_html(full_html=False)
+            
+            # Create bar chart for comparison
+            league_avg = league_df[position_cols].mean()
+            league_total = league_avg.sum()
+            league_percentages = (league_avg / league_total * 100).round(1)
+            
+            fig_bar = go.Figure(data=[
+                go.Bar(name=selected_team, x=categories, y=percentages.values),
+                go.Bar(name='League Average', x=categories, y=league_percentages.values)
+            ])
+            
+            fig_bar.update_layout(
+                barmode='group',
+                title=f"Position Contribution Comparison ({selected_year})"
+            )
+            
+            comparison_chart = fig_bar.to_html(full_html=False)
+            percentages = percentages.to_dict()
     
     context = {
         'teams': teams,
         'selected_team': selected_team,
         'years': years,
         'selected_year': selected_year,
+        'view_type': view_type,
         'chart': chart,
         'comparison_chart': comparison_chart,
-        'percentages': percentages.to_dict(),
-        'page_title': f'Position Contribution: {selected_team} ({selected_year})'
+        'percentages': percentages,
+        'league_percentages_table': league_percentages_table,
+        'error_message': error_message,
+        'page_title': f'Position Contribution ({selected_year})'
     }
     
     return render(request, 'fantasy_data/position_contribution.html', context)

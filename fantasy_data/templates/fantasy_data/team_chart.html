@@ -93,9 +93,7 @@
                     </div>
                     
                     <div id="boxPlots">
-                        {% cache 1800 box_plots selected_year selected_team %}
                         {% include 'fantasy_data/partial_box_plots.html' %}
-                        {% endcache %}
                     </div>
                 </div>
             </div>

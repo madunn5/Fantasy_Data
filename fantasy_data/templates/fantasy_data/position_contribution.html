@@ -20,93 +20,165 @@
             </div>
         </div>
         
-        <!-- Team selector -->
-        <div class="row mb-4">
-            <div class="col-md-6 offset-md-3">
-                <div class="form-group">
-                    <label for="teamSelector"><strong>Select Team:</strong></label>
-                    <select class="form-control" id="teamSelector" onchange="updateTeam()">
-                        <option value="">-- Select a Team --</option>
-                        {% for team in teams %}
-                            <option value="{{ team }}" {% if team == selected_team %}selected{% endif %}>{{ team }}</option>
-                        {% endfor %}
-                    </select>
+        <!-- View Type Tabs -->
+        <ul class="nav nav-tabs mb-4" id="viewTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if view_type == 'individual' %}active{% endif %}" 
+                        id="individual-tab" data-bs-toggle="tab" data-bs-target="#individual" 
+                        type="button" role="tab" onclick="switchView('individual')">
+                    Individual Team Analysis
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if view_type == 'league' %}active{% endif %}" 
+                        id="league-tab" data-bs-toggle="tab" data-bs-target="#league" 
+                        type="button" role="tab" onclick="switchView('league')">
+                    League Position Percentages
+                </button>
+            </li>
+        </ul>
+        
+        <!-- Tab Content -->
+        <div class="tab-content" id="viewTabContent">
+            <!-- Individual Team Analysis Tab -->
+            <div class="tab-pane fade {% if view_type == 'individual' %}show active{% endif %}" 
+                 id="individual" role="tabpanel">
+                
+                <!-- Team selector -->
+                <div class="row mb-4">
+                    <div class="col-md-6 offset-md-3">
+                        <div class="form-group">
+                            <label for="teamSelector"><strong>Select Team:</strong></label>
+                            <select class="form-control" id="teamSelector" onchange="updateTeam()">
+                                <option value="">-- Select a Team --</option>
+                                {% for team in teams %}
+                                    <option value="{{ team }}" {% if team == selected_team %}selected{% endif %}>{{ team }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {% if error_message %}
+                    <div class="alert alert-warning">{{ error_message }}</div>
+                {% elif selected_team and view_type == 'individual' %}
+                    <!-- Charts -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="card-title">Position Contribution Radar</h5>
+                                </div>
+                                <div class="card-body">
+                                    {{ chart|safe }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="card-title">Comparison with League Average</h5>
+                                </div>
+                                <div class="card-body">
+                                    {{ comparison_chart|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Position breakdown table -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title">Position Contribution Breakdown</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Position</th>
+                                        <th>Contribution (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>QB</td>
+                                        <td>{{ percentages.qb_points|floatformat:1 }}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>WR</td>
+                                        <td>{{ percentages.wr_points_total|floatformat:1 }}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>RB</td>
+                                        <td>{{ percentages.rb_points_total|floatformat:1 }}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>TE</td>
+                                        <td>{{ percentages.te_points_total|floatformat:1 }}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>K</td>
+                                        <td>{{ percentages.k_points|floatformat:1 }}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>DEF</td>
+                                        <td>{{ percentages.def_points|floatformat:1 }}%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% elif view_type == 'individual' %}
+                    <div class="alert alert-info">Please select a team to view position contribution analysis.</div>
+                {% endif %}
+            </div>
+            
+            <!-- League Position Percentages Tab -->
+            <div class="tab-pane fade {% if view_type == 'league' %}show active{% endif %}" 
+                 id="league" role="tabpanel">
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">League Position Contribution Percentages ({{ selected_year }})</h5>
+                        <p class="card-text">Average percentage contribution by position for each team</p>
+                    </div>
+                    <div class="card-body">
+                        {% if league_percentages_table %}
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Team</th>
+                                            <th>QB (%)</th>
+                                            <th>WR (%)</th>
+                                            <th>RB (%)</th>
+                                            <th>TE (%)</th>
+                                            <th>K (%)</th>
+                                            <th>DEF (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for team_data in league_percentages_table %}
+                                            <tr>
+                                                <td><strong>{{ team_data.team_name }}</strong></td>
+                                                <td>{{ team_data.qb_pct|floatformat:1 }}%</td>
+                                                <td>{{ team_data.wr_pct|floatformat:1 }}%</td>
+                                                <td>{{ team_data.rb_pct|floatformat:1 }}%</td>
+                                                <td>{{ team_data.te_pct|floatformat:1 }}%</td>
+                                                <td>{{ team_data.k_pct|floatformat:1 }}%</td>
+                                                <td>{{ team_data.def_pct|floatformat:1 }}%</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning">No data available for {{ selected_year }}</div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
-
-        {% if error_message %}
-            <div class="alert alert-warning">{{ error_message }}</div>
-        {% elif selected_team %}
-            <!-- Charts -->
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="card-title">Position Contribution Radar</h5>
-                        </div>
-                        <div class="card-body">
-                            {{ chart|safe }}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="card-title">Comparison with League Average</h5>
-                        </div>
-                        <div class="card-body">
-                            {{ comparison_chart|safe }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Position breakdown table -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title">Position Contribution Breakdown</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Position</th>
-                                <th>Contribution (%)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>QB</td>
-                                <td>{{ percentages.qb_points|floatformat:1 }}%</td>
-                            </tr>
-                            <tr>
-                                <td>WR</td>
-                                <td>{{ percentages.wr_points_total|floatformat:1 }}%</td>
-                            </tr>
-                            <tr>
-                                <td>RB</td>
-                                <td>{{ percentages.rb_points_total|floatformat:1 }}%</td>
-                            </tr>
-                            <tr>
-                                <td>TE</td>
-                                <td>{{ percentages.te_points_total|floatformat:1 }}%</td>
-                            </tr>
-                            <tr>
-                                <td>K</td>
-                                <td>{{ percentages.k_points|floatformat:1 }}%</td>
-                            </tr>
-                            <tr>
-                                <td>DEF</td>
-                                <td>{{ percentages.def_points|floatformat:1 }}%</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        {% else %}
-            <div class="alert alert-info">Please select a team to view position contribution analysis.</div>
-        {% endif %}
     </div>
 {% endblock %}
 
@@ -114,22 +186,35 @@
     <script>
         function updateYear() {
             var year = document.getElementById("yearSelector").value;
-            var team = document.getElementById("teamSelector").value;
+            var currentView = '{{ view_type }}';
+            var team = document.getElementById("teamSelector") ? document.getElementById("teamSelector").value : '';
             
-            // Redirect with both parameters if team is selected
-            if (team) {
-                window.location.href = "{% url 'position_contribution' %}?year=" + year + "&team=" + team;
-            } else {
-                window.location.href = "{% url 'position_contribution' %}?year=" + year;
+            var url = "{% url 'position_contribution' %}?year=" + year + "&view=" + currentView;
+            if (team && currentView === 'individual') {
+                url += "&team=" + team;
             }
+            window.location.href = url;
         }
         
         function updateTeam() {
             var team = document.getElementById("teamSelector").value;
             var year = document.getElementById("yearSelector").value;
             
-            // Redirect with both parameters
-            window.location.href = "{% url 'position_contribution' %}?year=" + year + "&team=" + team;
+            window.location.href = "{% url 'position_contribution' %}?year=" + year + "&view=individual&team=" + team;
+        }
+        
+        function switchView(viewType) {
+            var year = document.getElementById("yearSelector").value;
+            var url = "{% url 'position_contribution' %}?year=" + year + "&view=" + viewType;
+            
+            if (viewType === 'individual') {
+                var team = document.getElementById("teamSelector") ? document.getElementById("teamSelector").value : '';
+                if (team) {
+                    url += "&team=" + team;
+                }
+            }
+            
+            window.location.href = url;
         }
     </script>
 {% endblock %}
