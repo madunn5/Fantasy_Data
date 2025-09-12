@@ -29,4 +29,5 @@ urlpatterns = [
     path('players/', views.player_list, name='player_list'),
     path('player/<int:player_id>/', views.player_detail, name='player_detail'),
     path('auth/callback/', views.oauth_callback, name='oauth_callback'),
+    path('team-owner-mapping/', views.team_owner_mapping, name='team_owner_mapping'),
 ]

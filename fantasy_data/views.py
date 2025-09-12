@@ -31,7 +31,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
-from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, PlayerTransaction
+from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, PlayerTransaction, TeamOwnerMapping
 from .yahoo_collector import YahooFantasyCollector
 
 
@@ -172,6 +172,7 @@ def collect_yahoo_data(request):
 
         if action == 'test_connection':
             try:
+                from .yahoo_collector import YahooFantasyCollector
                 collector = YahooFantasyCollector()
                 ok = collector.test_connection()
                 if ok:
@@ -200,25 +201,15 @@ def collect_yahoo_data(request):
                 return redirect('collect_yahoo_data')
 
             try:
-                import django_rq
                 from .yahoo_collector import YahooFantasyCollector
+                from .models import Player, PlayerRoster, TeamPerformance, PlayerPerformance
                 
-                # Try to enqueue the job, fall back to sync if Redis unavailable
-                try:
-                    queue = django_rq.get_queue('default')
-                    collector = YahooFantasyCollector()
-                    job = queue.enqueue(collector.process_and_save_data, week, year, timeout=600)
-                    
-                    messages.success(
-                        request,
-                        f'Yahoo data collection for Week {week}, {year} has been started in the background. '
-                        f'Job ID: {job.id}. Please check back in a few minutes.'
-                    )
-                except Exception as redis_error:
-                    # Fallback to synchronous execution if Redis unavailable
-                    logger.warning(f"Redis unavailable, running synchronously: {redis_error}")
-                    
-                    from .models import Player, PlayerRoster, TeamPerformance, PlayerPerformance
+                # Check if running locally (development) or in production
+                is_local = not ('DYNO' in os.environ or 'HEROKU' in os.environ)
+                
+                if is_local:
+                    # Run synchronously for local development with detailed logging
+                    logger.info(f"Running locally - executing synchronously for Week {week}, {year}")
                     
                     # Baseline counts
                     players_before = Player.objects.count()
@@ -226,23 +217,70 @@ def collect_yahoo_data(request):
                     tp_before = TeamPerformance.objects.count()
                     
                     collector = YahooFantasyCollector()
-                    logger.info("collect_data view: running synchronously")
-                    collector.process_and_save_data(week, year)
+                    logger.info("Starting Yahoo data collection...")
                     
-                    # Counts after run
-                    players_after = Player.objects.count()
-                    rosters_after = PlayerRoster.objects.count()
-                    tp_after = TeamPerformance.objects.count()
-                    perf_count = PlayerPerformance.objects.filter(week=f'Week {week}', year=year).count()
-                    
-                    messages.success(
-                        request,
-                        f'Successfully collected Yahoo data for Week {week}, {year} (synchronous). '
-                        f'Players: +{players_after - players_before} (total {players_after}). '
-                        f'Rosters: +{rosters_after - rosters_before} (total {rosters_after}). '
-                        f'TeamPerformance: +{tp_after - tp_before} (total {tp_after}). '
-                        f'PlayerPerformance: {perf_count} records.'
-                    )
+                    try:
+                        collector.process_and_save_data(week, year)
+                        logger.info("Yahoo data collection completed successfully")
+                        
+                        # Counts after run
+                        players_after = Player.objects.count()
+                        rosters_after = PlayerRoster.objects.count()
+                        tp_after = TeamPerformance.objects.count()
+                        perf_count = PlayerPerformance.objects.filter(week=f'Week {week}', year=year).count()
+                        
+                        messages.success(
+                            request,
+                            f'Successfully collected Yahoo data for Week {week}, {year}. '
+                            f'Players: +{players_after - players_before} (total {players_after}). '
+                            f'Rosters: +{rosters_after - rosters_before} (total {rosters_after}). '
+                            f'TeamPerformance: +{tp_after - tp_before} (total {tp_after}). '
+                            f'PlayerPerformance: {perf_count} records.'
+                        )
+                    except Exception as collection_error:
+                        logger.error(f"Error during data collection: {collection_error}")
+                        messages.error(request, f'Data collection failed: {collection_error}')
+                        
+                else:
+                    # Try Redis for production, fall back to sync if unavailable
+                    try:
+                        import django_rq
+                        queue = django_rq.get_queue('default')
+                        collector = YahooFantasyCollector()
+                        job = queue.enqueue(collector.process_and_save_data, week, year, timeout=600)
+                        
+                        messages.success(
+                            request,
+                            f'Yahoo data collection for Week {week}, {year} has been started in the background. '
+                            f'Job ID: {job.id}. Please check back in a few minutes.'
+                        )
+                    except Exception as redis_error:
+                        # Fallback to synchronous execution if Redis unavailable
+                        logger.warning(f"Redis unavailable, running synchronously: {redis_error}")
+                        
+                        # Baseline counts
+                        players_before = Player.objects.count()
+                        rosters_before = PlayerRoster.objects.count()
+                        tp_before = TeamPerformance.objects.count()
+                        
+                        collector = YahooFantasyCollector()
+                        logger.info("Production fallback: running synchronously")
+                        collector.process_and_save_data(week, year)
+                        
+                        # Counts after run
+                        players_after = Player.objects.count()
+                        rosters_after = PlayerRoster.objects.count()
+                        tp_after = TeamPerformance.objects.count()
+                        perf_count = PlayerPerformance.objects.filter(week=f'Week {week}', year=year).count()
+                        
+                        messages.success(
+                            request,
+                            f'Successfully collected Yahoo data for Week {week}, {year} (fallback sync). '
+                            f'Players: +{players_after - players_before} (total {players_after}). '
+                            f'Rosters: +{rosters_after - rosters_before} (total {rosters_after}). '
+                            f'TeamPerformance: +{tp_after - tp_before} (total {tp_after}). '
+                            f'PlayerPerformance: {perf_count} records.'
+                        )
                     
             except Exception as e:
                 logger.error(f"Failed to collect Yahoo data: {e}")
@@ -2749,3 +2787,99 @@ def oauth_callback(request):
         return HttpResponse(f"<h3>Authorization Code:</h3><p>{code}</p><p>Copy this code and paste it in your terminal where the data collection is running.</p>")
     else:
         return HttpResponse("<h3>Error:</h3><p>No authorization code received.</p>")
+
+
+@staff_member_required
+def team_owner_mapping(request):
+    """Manage team-owner mappings"""
+    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('-year')
+    selected_year = request.GET.get('year', years.first() if years else 2025)
+    
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.first() if years else 2025
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add_mapping':
+            team_name = request.POST.get('team_name', '').strip()
+            owner_name = request.POST.get('owner_name', '').strip()
+            
+            if team_name and owner_name:
+                mapping, created = TeamOwnerMapping.objects.update_or_create(
+                    team_name=team_name,
+                    year=selected_year,
+                    defaults={'owner_name': owner_name}
+                )
+                if created:
+                    messages.success(request, f'Added mapping: {team_name} -> {owner_name}')
+                else:
+                    messages.success(request, f'Updated mapping: {team_name} -> {owner_name}')
+            else:
+                messages.error(request, 'Both team name and owner name are required')
+        
+        elif action == 'apply_mappings':
+            apply_year = int(request.POST.get('apply_year', selected_year))
+            updated_count = apply_team_owner_mappings(apply_year)
+            messages.success(request, f'Applied mappings to {updated_count} records for {apply_year}')
+        
+        elif action == 'delete_mapping':
+            mapping_id = request.POST.get('mapping_id')
+            try:
+                mapping = TeamOwnerMapping.objects.get(id=mapping_id)
+                mapping.delete()
+                messages.success(request, f'Deleted mapping for {mapping.team_name}')
+            except TeamOwnerMapping.DoesNotExist:
+                messages.error(request, 'Mapping not found')
+    
+    # Get mappings for selected year
+    mappings = TeamOwnerMapping.objects.filter(year=selected_year, is_active=True).order_by('team_name')
+    
+    # Get unique team names for the year
+    team_names = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
+    
+    context = {
+        'mappings': mappings,
+        'team_names': team_names,
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Team-Owner Mappings ({selected_year})'
+    }
+    
+    return render(request, 'fantasy_data/team_owner_mapping.html', context)
+
+
+def apply_team_owner_mappings(year):
+    """Apply team-owner mappings to all data for a specific year"""
+    mappings = TeamOwnerMapping.objects.filter(year=year, is_active=True)
+    updated_count = 0
+    
+    for mapping in mappings:
+        # Update TeamPerformance records
+        updated = TeamPerformance.objects.filter(
+            team_name=mapping.team_name, 
+            year=year
+        ).update(team_name=mapping.owner_name)
+        updated_count += updated
+        
+        # Update opponent references
+        TeamPerformance.objects.filter(
+            opponent=mapping.team_name,
+            year=year
+        ).update(opponent=mapping.owner_name)
+        
+        # Update PlayerRoster records
+        PlayerRoster.objects.filter(
+            fantasy_team=mapping.team_name,
+            year=year
+        ).update(fantasy_team=mapping.owner_name)
+        
+        # Update PlayerPerformance records
+        PlayerPerformance.objects.filter(
+            fantasy_team=mapping.team_name,
+            year=year
+        ).update(fantasy_team=mapping.owner_name)
+    
+    return updated_count

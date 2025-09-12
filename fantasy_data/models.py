@@ -117,3 +117,31 @@ class ProjectedPoint(models.Model):
 
     def __str__(self):
         return f"{self.league_key} | W{self.week} | {self.player_name} ({self.player_id}) -> {self.projected_total}"
+
+
+class TeamOwnerMapping(models.Model):
+    team_name = models.CharField(max_length=100, db_index=True)
+    owner_name = models.CharField(max_length=100)
+    year = models.IntegerField(db_index=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('team_name', 'year')
+        indexes = [
+            models.Index(fields=['team_name', 'year']),
+            models.Index(fields=['owner_name', 'year']),
+        ]
+    
+    def __str__(self):
+        return f"{self.team_name} -> {self.owner_name} ({self.year})"
+    
+    @classmethod
+    def get_owner_name(cls, team_name, year):
+        """Get owner name for a team, fallback to team name if not found"""
+        try:
+            mapping = cls.objects.get(team_name=team_name, year=year, is_active=True)
+            return mapping.owner_name
+        except cls.DoesNotExist:
+            return team_name  # Fallback to original team name

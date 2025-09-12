@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">Team-Owner Mappings</h1>
+    
+    <!-- Year selector -->
+    <div class="row mb-4">
+        <div class="col-md-6 offset-md-3">
+            <div class="form-group">
+                <label for="yearSelector"><strong>Select Year:</strong></label>
+                <select class="form-control" id="yearSelector" onchange="updateYear()">
+                    {% for year in years %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Add new mapping -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Add New Team-Owner Mapping</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_mapping">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="team_name">Team Name:</label>
+                            <select class="form-control" name="team_name" id="team_name" required>
+                                <option value="">-- Select Team --</option>
+                                {% for team in team_names %}
+                                    <option value="{{ team }}">{{ team }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="owner_name">Owner Name:</label>
+                            <input type="text" class="form-control" name="owner_name" id="owner_name" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary form-control">Add Mapping</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Current mappings -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Current Mappings for {{ selected_year }}</h5>
+        </div>
+        <div class="card-body">
+            {% if mappings %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Team Name</th>
+                                <th>Owner Name</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mapping in mappings %}
+                                <tr>
+                                    <td>{{ mapping.team_name }}</td>
+                                    <td><strong>{{ mapping.owner_name }}</strong></td>
+                                    <td>{{ mapping.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_mapping">
+                                            <input type="hidden" name="mapping_id" value="{{ mapping.id }}">
+                                            <button type="submit" class="btn btn-sm btn-danger" 
+                                                    onclick="return confirm('Delete this mapping?')">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">No mappings found for {{ selected_year }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Apply mappings -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Apply Mappings</h5>
+        </div>
+        <div class="card-body">
+            <p>This will update all team names in the database to use owner names based on the mappings above.</p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="apply_mappings">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="apply_year">Apply to Year:</label>
+                            <select class="form-control" name="apply_year" id="apply_year">
+                                {% for year in years %}
+                                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-warning form-control" 
+                                    onclick="return confirm('This will update all team names for the selected year. Continue?')">
+                                Apply Mappings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateYear() {
+        var year = document.getElementById("yearSelector").value;
+        window.location.href = "{% url 'team_owner_mapping' %}?year=" + year;
+    }
+</script>
+{% endblock %}
