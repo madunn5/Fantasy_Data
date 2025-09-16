@@ -145,16 +145,16 @@
                     <div class="card-body">
                         {% if league_percentages_table %}
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover">
+                                <table class="table table-striped table-hover" id="sortableTable">
                                     <thead class="table-dark">
                                         <tr>
-                                            <th>Team</th>
-                                            <th>QB (%)</th>
-                                            <th>WR (%)</th>
-                                            <th>RB (%)</th>
-                                            <th>TE (%)</th>
-                                            <th>K (%)</th>
-                                            <th>DEF (%)</th>
+                                            <th onclick="sortTable(0)" style="cursor: pointer;">Team ↕</th>
+                                            <th onclick="sortTable(1)" style="cursor: pointer;">QB (%) ↕</th>
+                                            <th onclick="sortTable(2)" style="cursor: pointer;">WR (%) ↕</th>
+                                            <th onclick="sortTable(3)" style="cursor: pointer;">RB (%) ↕</th>
+                                            <th onclick="sortTable(4)" style="cursor: pointer;">TE (%) ↕</th>
+                                            <th onclick="sortTable(5)" style="cursor: pointer;">K (%) ↕</th>
+                                            <th onclick="sortTable(6)" style="cursor: pointer;">DEF (%) ↕</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -215,6 +215,34 @@
             }
             
             window.location.href = url;
+        }
+        
+        function sortTable(columnIndex) {
+            const table = document.getElementById('sortableTable');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            // Determine sort direction
+            const isAscending = table.getAttribute('data-sort-dir') !== 'asc';
+            table.setAttribute('data-sort-dir', isAscending ? 'asc' : 'desc');
+            
+            rows.sort((a, b) => {
+                let aVal = a.cells[columnIndex].textContent.trim();
+                let bVal = b.cells[columnIndex].textContent.trim();
+                
+                // Handle percentage values
+                if (columnIndex > 0) {
+                    aVal = parseFloat(aVal.replace('%', ''));
+                    bVal = parseFloat(bVal.replace('%', ''));
+                    return isAscending ? aVal - bVal : bVal - aVal;
+                }
+                
+                // Handle text values
+                return isAscending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+            
+            // Re-append sorted rows
+            rows.forEach(row => tbody.appendChild(row));
         }
     </script>
 {% endblock %}

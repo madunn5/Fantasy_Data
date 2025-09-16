@@ -2395,8 +2395,24 @@ def position_contribution_chart(request):
                         'def_pct': percentages['def_points']
                     })
         
-        # Sort by team name
+        # Calculate league averages
+        league_avg = league_df[position_cols].mean()
+        league_total = league_avg.sum()
+        if league_total > 0:
+            league_percentages = (league_avg / league_total * 100).round(1)
+            league_row = {
+                'team_name': 'League Average',
+                'qb_pct': league_percentages['qb_points'],
+                'wr_pct': league_percentages['wr_points_total'],
+                'rb_pct': league_percentages['rb_points_total'],
+                'te_pct': league_percentages['te_points_total'],
+                'k_pct': league_percentages['k_points'],
+                'def_pct': league_percentages['def_points']
+            }
+        
+        # Sort by team name and add league average at bottom
         team_percentages.sort(key=lambda x: x['team_name'])
+        team_percentages.append(league_row)
         league_percentages_table = team_percentages
     
     # Individual team analysis (existing functionality)
