@@ -3,6 +3,42 @@
 {% block title %}Player List{% endblock %}
 
 {% block content %}
+<!-- Export Lineups Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Export Team Lineups</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{% url 'export_lineups_csv' %}">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="year" class="form-label">Year:</label>
+                    <select name="year" id="year" class="form-control" required>
+                        <option value="2024" selected>2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2025">2025</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="week" class="form-label">Week:</label>
+                    <select name="week" id="week" class="form-control" required>
+                        {% for week_num in "123456789012345678"|make_list %}
+                        <option value="Week {{ forloop.counter }}">Week {{ forloop.counter }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+        </form>
+        <small class="text-muted">Export includes all team lineups (starters and bench players) for the selected week and year.</small>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">
         <h5>All Players</h5>

@@ -2883,3 +2883,45 @@ def apply_team_owner_mappings(year):
         ).update(fantasy_team=mapping.owner_name)
     
     return updated_count
+
+
+def export_lineups_csv(request):
+    """Export team lineups for a specific week and year as CSV"""
+    if request.method == 'POST':
+        year = int(request.POST.get('year', 2024))
+        week = request.POST.get('week', '1')
+        
+        # Get all roster data for the specified week and year
+        rosters = PlayerRoster.objects.filter(
+            year=year, 
+            week=week
+        ).select_related('player').order_by('fantasy_team', 'roster_status', 'player__position')
+        
+        if not rosters.exists():
+            messages.error(request, f'No lineup data found for Week {week}, {year}')
+            return redirect('player_list')
+        
+        # Create CSV response
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="lineups_week_{week}_{year}.csv"'
+        
+        # Create CSV writer
+        import csv
+        writer = csv.writer(response)
+        
+        # Write header
+        writer.writerow(['Team', 'Player Name', 'Position', 'NFL Team', 'Roster Status'])
+        
+        # Write data
+        for roster in rosters:
+            writer.writerow([
+                roster.fantasy_team,
+                roster.player.name,
+                roster.player.position,
+                roster.player.nfl_team or 'N/A',
+                roster.get_roster_status_display()
+            ])
+        
+        return response
+    
+    return redirect('player_list')
