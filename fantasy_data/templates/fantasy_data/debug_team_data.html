@@ -10,6 +10,39 @@
     .week-nav { margin-bottom: 2rem; }
     .edit-mode { background-color: #fff3cd; }
     .edit-input { border: 1px solid #007bff; }
+    
+    /* Frozen team column styles */
+    .table-container {
+        overflow-x: auto;
+        border: 1px solid #dee2e6;
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .table {
+        width: 2000px;
+        margin-bottom: 0;
+    }
+    
+    .table th:first-child,
+    .table td:first-child {
+        position: sticky;
+        left: 0;
+        background-color: white;
+        z-index: 2;
+        border-right: 2px solid #007bff;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+    
+    .table thead th:first-child {
+        background-color: #212529;
+        color: white;
+        z-index: 3;
+    }
+    
+    .table-striped tbody tr:nth-of-type(odd) td:first-child {
+        background-color: #f8f9fa;
+    }
 </style>
 {% endblock %}
 
@@ -61,7 +94,7 @@
             {% endif %}
 
             {% if teams %}
-                <div class="table-responsive">
+                <div class="table-container" style="max-width: calc(100vw - 60px);">
                     <table class="table table-striped table-hover">
                         <thead class="table-dark">
                             <tr>
@@ -163,6 +196,8 @@
 
 <script>
 let editMode = false;
+
+
 
 function updateView() {
     const year = document.getElementById('year-select').value;
