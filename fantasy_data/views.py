@@ -569,42 +569,56 @@ def team_chart(request):
         return render(request, 'fantasy_data/partial_box_plots.html', context)
 
     # Create the regular charts only if needed (not for box_plots only view)
-    fig = px.bar(df_sorted, x='team_name', y='total_points', color='week', title='Total Points by Team Each Week')
+    # Aggregate data by team to show totals
+    df_totals = df_sorted.groupby('team_name').agg({
+        'total_points': 'sum',
+        'qb_points': 'sum', 
+        'wr_points_total': 'sum',
+        'rb_points_total': 'sum',
+        'te_points_total': 'sum',
+        'k_points': 'sum',
+        'def_points': 'sum',
+        'points_against': 'sum'
+    }).reset_index()
+    
+    fig = px.bar(df_totals, x='team_name', y='total_points', title='Total Points by Team', text='total_points')
+    fig.update_traces(texttemplate='%{text:.1f}', textposition='outside')
     fig.update_layout(width=1200, height=600)
     chart = fig.to_html(full_html=False)
 
-    fig_wr_points = px.bar(df_sorted, x='team_name', y='wr_points_total', color='week',
-                           title='Total WR Points by Team Each Week')
+    fig_wr_points = px.bar(df_totals, x='team_name', y='wr_points_total', title='Total WR Points by Team', text='wr_points_total')
+    fig_wr_points.update_traces(texttemplate='%{text:.1f}', textposition='outside')
     fig_wr_points.update_layout(width=1200, height=600)
     chart_wr_points = fig_wr_points.to_html(full_html=False)
 
-    fig_qb_points = px.bar(df_sorted, x='team_name', y='qb_points', color='week',
-                           title='Total QB Points by Team Each Week')
+    fig_qb_points = px.bar(df_totals, x='team_name', y='qb_points', title='Total QB Points by Team', text='qb_points')
+    fig_qb_points.update_traces(texttemplate='%{text:.1f}', textposition='outside')
     fig_qb_points.update_layout(width=1200, height=600)
     chart_qb_points = fig_qb_points.to_html(full_html=False)
 
-    fig_rb_points = px.bar(df_sorted, x='team_name', y='rb_points_total', color='week',
-                           title='Total RB Points by Team Each Week')
+    fig_rb_points = px.bar(df_totals, x='team_name', y='rb_points_total', title='Total RB Points by Team', text='rb_points_total')
+    fig_rb_points.update_traces(texttemplate='%{text:.1f}', textposition='outside')
     fig_rb_points.update_layout(width=1200, height=600)
     chart_rb_points = fig_rb_points.to_html(full_html=False)
 
-    fig_te_points = px.bar(df_sorted, x='team_name', y='te_points_total', color='week',
-                           title='Total TE Points by Team Each Week')
+    fig_te_points = px.bar(df_totals, x='team_name', y='te_points_total', title='Total TE Points by Team', text='te_points_total')
+    fig_te_points.update_traces(texttemplate='%{text:.1f}', textposition='outside')
     fig_te_points.update_layout(width=1200, height=600)
     chart_te_points = fig_te_points.to_html(full_html=False)
 
-    fig_k_points = px.bar(df_sorted, x='team_name', y='k_points', color='week',
-                          title='Total K Points by Team Each Week')
+    fig_k_points = px.bar(df_totals, x='team_name', y='k_points', title='Total K Points by Team', text='k_points')
+    fig_k_points.update_traces(texttemplate='%{text:.1f}', textposition='outside')
     fig_k_points.update_layout(width=1200, height=600)
     chart_k_points = fig_k_points.to_html(full_html=False)
 
-    fig_def_points = px.bar(df_sorted, x='team_name', y='def_points', color='week',
-                            title='Total DEF Points by Team Each Week')
+    fig_def_points = px.bar(df_totals, x='team_name', y='def_points', title='Total DEF Points by Team', text='def_points')
+    fig_def_points.update_traces(texttemplate='%{text:.1f}', textposition='outside')
     fig_def_points.update_layout(width=1200, height=600)
     chart_def_points = fig_def_points.to_html(full_html=False)
     
     # Create points against charts
-    fig_against = px.bar(df_sorted, x='team_name', y='points_against', color='week', title='Points Against by Team Each Week')
+    fig_against = px.bar(df_totals, x='team_name', y='points_against', title='Total Points Against by Team', text='points_against')
+    fig_against.update_traces(texttemplate='%{text:.1f}', textposition='outside')
     fig_against.update_layout(width=1200, height=600)
     chart_against = fig_against.to_html(full_html=False)
     
@@ -629,7 +643,10 @@ def team_chart(request):
         
         if opponent_rows:
             opp_df = pd.DataFrame(opponent_rows)
-            fig = px.bar(opp_df, x='team_name', y='opponent_points', color='week', title=title)
+            # Aggregate opponent data by team
+            opp_totals = opp_df.groupby('team_name')['opponent_points'].sum().reset_index()
+            fig = px.bar(opp_totals, x='team_name', y='opponent_points', title=title, text='opponent_points')
+            fig.update_traces(texttemplate='%{text:.1f}', textposition='outside')
             fig.update_layout(width=1200, height=600)
             return fig.to_html(full_html=False)
         return '<div class="alert alert-warning">No opponent data available</div>'
