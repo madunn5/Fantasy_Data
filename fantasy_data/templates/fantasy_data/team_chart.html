@@ -93,40 +93,22 @@
                             <div class="border p-3 rounded">{{ chart_def_points|safe }}</div>
                         </div>
                         <div id="qb-against-chart" class="bar-chart" style="display:none">
-                            <div class="border p-3 rounded alert alert-info">
-                                <h5>QB Points Against</h5>
-                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
-                            </div>
+                            <div class="border p-3 rounded">{{ chart_qb_against|safe }}</div>
                         </div>
                         <div id="wr-against-chart" class="bar-chart" style="display:none">
-                            <div class="border p-3 rounded alert alert-info">
-                                <h5>WR Points Against</h5>
-                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
-                            </div>
+                            <div class="border p-3 rounded">{{ chart_wr_against|safe }}</div>
                         </div>
                         <div id="rb-against-chart" class="bar-chart" style="display:none">
-                            <div class="border p-3 rounded alert alert-info">
-                                <h5>RB Points Against</h5>
-                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
-                            </div>
+                            <div class="border p-3 rounded">{{ chart_rb_against|safe }}</div>
                         </div>
                         <div id="te-against-chart" class="bar-chart" style="display:none">
-                            <div class="border p-3 rounded alert alert-info">
-                                <h5>TE Points Against</h5>
-                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
-                            </div>
+                            <div class="border p-3 rounded">{{ chart_te_against|safe }}</div>
                         </div>
                         <div id="k-against-chart" class="bar-chart" style="display:none">
-                            <div class="border p-3 rounded alert alert-info">
-                                <h5>K Points Against</h5>
-                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
-                            </div>
+                            <div class="border p-3 rounded">{{ chart_k_against|safe }}</div>
                         </div>
                         <div id="def-against-chart" class="bar-chart" style="display:none">
-                            <div class="border p-3 rounded alert alert-info">
-                                <h5>DEF Points Against</h5>
-                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
-                            </div>
+                            <div class="border p-3 rounded">{{ chart_def_against|safe }}</div>
                         </div>
                     </div>
                     {% endcache %}

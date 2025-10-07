@@ -506,7 +506,7 @@ def team_chart(request):
     # Only fetch the fields we need
     needed_fields = ['team_name', 'week', 'qb_points', 'wr_points', 'wr_points_total', 
                     'rb_points', 'rb_points_total', 'te_points', 'te_points_total', 
-                    'k_points', 'def_points', 'total_points', 'points_against', 'result']
+                    'k_points', 'def_points', 'total_points', 'points_against', 'opponent', 'result']
     df = pd.DataFrame(list(team_performance.values(*needed_fields)))
     
     if df.empty:
@@ -607,6 +607,39 @@ def team_chart(request):
     fig_against = px.bar(df_sorted, x='team_name', y='points_against', color='week', title='Points Against by Team Each Week')
     fig_against.update_layout(width=1200, height=600)
     chart_against = fig_against.to_html(full_html=False)
+    
+    # Create position-specific against charts using opponent lookup
+    all_team_data = pd.DataFrame(list(team_performance.values(*needed_fields)))
+    
+    def create_opponent_chart(position_field, title):
+        opponent_rows = []
+        for _, row in all_team_data.iterrows():
+            if pd.notna(row['opponent']) and row['opponent'] != 'N/A':
+                # Find opponent's data for the same week
+                opp_data = all_team_data[
+                    (all_team_data['team_name'] == row['opponent']) & 
+                    (all_team_data['week'] == row['week'])
+                ]
+                if not opp_data.empty:
+                    opponent_rows.append({
+                        'team_name': row['team_name'],
+                        'week': row['week'], 
+                        'opponent_points': opp_data.iloc[0][position_field]
+                    })
+        
+        if opponent_rows:
+            opp_df = pd.DataFrame(opponent_rows)
+            fig = px.bar(opp_df, x='team_name', y='opponent_points', color='week', title=title)
+            fig.update_layout(width=1200, height=600)
+            return fig.to_html(full_html=False)
+        return '<div class="alert alert-warning">No opponent data available</div>'
+    
+    chart_qb_against = create_opponent_chart('qb_points', 'QB Points Against by Team Each Week')
+    chart_wr_against = create_opponent_chart('wr_points_total', 'WR Points Against by Team Each Week') 
+    chart_rb_against = create_opponent_chart('rb_points_total', 'RB Points Against by Team Each Week')
+    chart_te_against = create_opponent_chart('te_points_total', 'TE Points Against by Team Each Week')
+    chart_k_against = create_opponent_chart('k_points', 'K Points Against by Team Each Week')
+    chart_def_against = create_opponent_chart('def_points', 'DEF Points Against by Team Each Week')
 
     context.update({
         'chart': chart,
@@ -617,6 +650,12 @@ def team_chart(request):
         'chart_k_points': chart_k_points,
         'chart_def_points': chart_def_points,
         'chart_against': chart_against,
+        'chart_qb_against': chart_qb_against,
+        'chart_wr_against': chart_wr_against,
+        'chart_rb_against': chart_rb_against,
+        'chart_te_against': chart_te_against,
+        'chart_k_against': chart_k_against,
+        'chart_def_against': chart_def_against,
         'page_title': f'Team Boxplot Charts ({selected_year})'
     })
 
