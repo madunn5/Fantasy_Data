@@ -38,43 +38,95 @@
                 <!-- Bar charts tab -->
                 <div class="tab-pane fade show active" id="bar-charts" role="tabpanel">
                     <div class="chart-selector mb-4">
-                        <div class="form-group">
-                            <label for="barChartSelect"><strong>Select Chart:</strong></label>
-                            <select class="form-control" id="barChartSelect">
-                                <option value="total">Total Points</option>
-                                <option value="qb">QB Points</option>
-                                <option value="wr">WR Points</option>
-                                <option value="rb">RB Points</option>
-                                <option value="te">TE Points</option>
-                                <option value="k">K Points</option>
-                                <option value="def">DEF Points</option>
-                            </select>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="barChartSelect"><strong>Select Chart:</strong></label>
+                                    <select class="form-control" id="barChartSelect">
+                                        <option value="total">Total Points</option>
+                                        <option value="qb">QB Points</option>
+                                        <option value="wr">WR Points</option>
+                                        <option value="rb">RB Points</option>
+                                        <option value="te">TE Points</option>
+                                        <option value="k">K Points</option>
+                                        <option value="def">DEF Points</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="pointsTypeSelect"><strong>Points Type:</strong></label>
+                                    <select class="form-control" id="pointsTypeSelect">
+                                        <option value="scored">Points Scored</option>
+                                        <option value="against">Points Against</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
                     <!-- Bar charts content -->
                     {% cache 1800 bar_charts selected_year %}
                     <div id="barChartsContainer">
-                        <div id="total-chart" class="bar-chart">
+                        <div id="total-scored-chart" class="bar-chart">
                             <div class="border p-3 rounded">{{ chart|safe }}</div>
                         </div>
-                        <div id="qb-chart" class="bar-chart" style="display:none">
+                        <div id="total-against-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded">{{ chart_against|safe }}</div>
+                        </div>
+                        <div id="qb-scored-chart" class="bar-chart" style="display:none">
                             <div class="border p-3 rounded">{{ chart_qb_points|safe }}</div>
                         </div>
-                        <div id="wr-chart" class="bar-chart" style="display:none">
+                        <div id="wr-scored-chart" class="bar-chart" style="display:none">
                             <div class="border p-3 rounded">{{ chart_wr_points|safe }}</div>
                         </div>
-                        <div id="rb-chart" class="bar-chart" style="display:none">
+                        <div id="rb-scored-chart" class="bar-chart" style="display:none">
                             <div class="border p-3 rounded">{{ chart_rb_points|safe }}</div>
                         </div>
-                        <div id="te-chart" class="bar-chart" style="display:none">
+                        <div id="te-scored-chart" class="bar-chart" style="display:none">
                             <div class="border p-3 rounded">{{ chart_te_points|safe }}</div>
                         </div>
-                        <div id="k-chart" class="bar-chart" style="display:none">
+                        <div id="k-scored-chart" class="bar-chart" style="display:none">
                             <div class="border p-3 rounded">{{ chart_k_points|safe }}</div>
                         </div>
-                        <div id="def-chart" class="bar-chart" style="display:none">
+                        <div id="def-scored-chart" class="bar-chart" style="display:none">
                             <div class="border p-3 rounded">{{ chart_def_points|safe }}</div>
+                        </div>
+                        <div id="qb-against-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded alert alert-info">
+                                <h5>QB Points Against</h5>
+                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
+                            </div>
+                        </div>
+                        <div id="wr-against-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded alert alert-info">
+                                <h5>WR Points Against</h5>
+                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
+                            </div>
+                        </div>
+                        <div id="rb-against-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded alert alert-info">
+                                <h5>RB Points Against</h5>
+                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
+                            </div>
+                        </div>
+                        <div id="te-against-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded alert alert-info">
+                                <h5>TE Points Against</h5>
+                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
+                            </div>
+                        </div>
+                        <div id="k-against-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded alert alert-info">
+                                <h5>K Points Against</h5>
+                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
+                            </div>
+                        </div>
+                        <div id="def-against-chart" class="bar-chart" style="display:none">
+                            <div class="border p-3 rounded alert alert-info">
+                                <h5>DEF Points Against</h5>
+                                <p>Position-specific points against data is not available. Only total points against is tracked.</p>
+                            </div>
                         </div>
                     </div>
                     {% endcache %}
@@ -134,6 +186,24 @@
             window.location.href = "{% url 'team_chart' %}?year=" + year;
         }
         
+        function updateBarChart() {
+            // Hide all bar charts
+            document.querySelectorAll('.bar-chart').forEach(function(chart) {
+                chart.style.display = 'none';
+            });
+            
+            // Get selected values
+            var chartType = document.getElementById('barChartSelect').value;
+            var pointsType = document.getElementById('pointsTypeSelect').value;
+            
+            // Show selected chart
+            var chartId = chartType + '-' + pointsType + '-chart';
+            var chartElement = document.getElementById(chartId);
+            if (chartElement) {
+                chartElement.style.display = 'block';
+            }
+        }
+        
         function updateTeam() {
             // Update only the box plots without refreshing the page
             updateBoxPlots();
@@ -144,17 +214,9 @@
             document.getElementById("yearSelector").addEventListener('change', updateYear);
             document.getElementById("teamSelector").addEventListener('change', updateTeam);
             
-            // Bar chart selector
-            document.getElementById("barChartSelect").addEventListener('change', function() {
-                // Hide all bar charts
-                document.querySelectorAll('.bar-chart').forEach(function(chart) {
-                    chart.style.display = 'none';
-                });
-                
-                // Show selected chart
-                var selectedChart = this.value + '-chart';
-                document.getElementById(selectedChart).style.display = 'block';
-            });
+            // Bar chart selectors
+            document.getElementById("barChartSelect").addEventListener('change', updateBarChart);
+            document.getElementById("pointsTypeSelect").addEventListener('change', updateBarChart);
             
             // Save active tab in session storage
             $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {

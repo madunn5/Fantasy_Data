@@ -506,7 +506,7 @@ def team_chart(request):
     # Only fetch the fields we need
     needed_fields = ['team_name', 'week', 'qb_points', 'wr_points', 'wr_points_total', 
                     'rb_points', 'rb_points_total', 'te_points', 'te_points_total', 
-                    'k_points', 'def_points', 'total_points', 'result']
+                    'k_points', 'def_points', 'total_points', 'points_against', 'result']
     df = pd.DataFrame(list(team_performance.values(*needed_fields)))
     
     if df.empty:
@@ -602,6 +602,11 @@ def team_chart(request):
                             title='Total DEF Points by Team Each Week')
     fig_def_points.update_layout(width=1200, height=600)
     chart_def_points = fig_def_points.to_html(full_html=False)
+    
+    # Create points against charts
+    fig_against = px.bar(df_sorted, x='team_name', y='points_against', color='week', title='Points Against by Team Each Week')
+    fig_against.update_layout(width=1200, height=600)
+    chart_against = fig_against.to_html(full_html=False)
 
     context.update({
         'chart': chart,
@@ -611,6 +616,7 @@ def team_chart(request):
         'chart_te_points': chart_te_points,
         'chart_k_points': chart_k_points,
         'chart_def_points': chart_def_points,
+        'chart_against': chart_against,
         'page_title': f'Team Boxplot Charts ({selected_year})'
     })
 
