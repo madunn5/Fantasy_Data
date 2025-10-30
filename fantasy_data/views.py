@@ -1634,6 +1634,61 @@ def stats_charts(request):
     else:
         combined_tables2 = "<p>Necessary columns not found in data.</p>"
 
+    # Weekly League Ranking Chart - Ranks opponents by their weekly league performance
+    if all(col in data.columns for col in ['team_name', 'opponent', 'week', 'total_points']):
+        teams = data['team_name'].unique()
+        team_tables_weekly = {}
+        average_weekly_ranks = {}
+
+        for team in teams:
+            team_df = data[data['team_name'] == team].copy()
+            team_df['score_rank'] = team_df['total_points'].rank(ascending=False, method='min').astype(int)
+            
+            # Calculate weekly league ranks for all teams
+            weekly_ranks = []
+            for _, row in team_df.iterrows():
+                week_data = data[data['week'] == row['week']]
+                week_data['weekly_league_rank'] = week_data['total_points'].rank(ascending=False, method='min').astype(int)
+                
+                # Find opponent's weekly rank
+                opponent_weekly_rank = week_data[week_data['team_name'] == row['opponent']]['weekly_league_rank'].iloc[0] if not week_data[week_data['team_name'] == row['opponent']].empty else None
+                
+                weekly_ranks.append({
+                    'week': row['week'],
+                    'total_points': row['total_points'],
+                    'score_rank': row['score_rank'],
+                    'opponent': row['opponent'],
+                    'opponent_weekly_rank': opponent_weekly_rank
+                })
+            
+            weekly_df = pd.DataFrame(weekly_ranks)
+            weekly_df['week_numeric'] = weekly_df['week'].str.extract(r'(\d+)').astype(int)
+            weekly_df.sort_values(by='week_numeric', inplace=True)
+            weekly_df.drop(columns=['week_numeric'], inplace=True)
+            
+            avg_weekly_rank = round(weekly_df['opponent_weekly_rank'].mean(), 1)
+            
+            avg_row = pd.DataFrame({
+                'week': ['Average'],
+                'total_points': [''],
+                'score_rank': [''],
+                'opponent': [''],
+                'opponent_weekly_rank': [avg_weekly_rank]
+            })
+            
+            weekly_df = pd.concat([weekly_df, avg_row], ignore_index=True)
+            
+            team_tables_weekly[team] = weekly_df.to_html(classes='table table-striped', index=False)
+            average_weekly_ranks[team] = avg_weekly_rank
+        
+        sorted_teams_weekly = sorted(average_weekly_ranks, key=average_weekly_ranks.get)
+        combined_tables_weekly_ranks = ""
+        
+        for rank, team in enumerate(sorted_teams_weekly, start=1):
+            combined_tables_weekly_ranks += f"<h3>{team} (Rank: {rank})</h3>{team_tables_weekly[team]}<br>"
+    else:
+        combined_tables_weekly_ranks = "<p>Necessary columns not found in data.</p>"
+
     # Ensure required columns exist
     if all(col in data.columns for col in ['team_name', 'opponent', 'week', 'total_points', 'points_against']):
         combined_tables3 = ""
@@ -1808,6 +1863,7 @@ def stats_charts(request):
         'record_against_everyone_by_week': combined_tables_by_week,
         'record_against_everyone_by_team': combined_tables_by_team,
         'score_rank_by_team': combined_tables2,
+        'weekly_league_ranks': combined_tables_weekly_ranks,
         'different_teams_schedules': combined_tables3,
         'different_teams_schedules_count': combined_tables_by_team2,
         'years': years,
