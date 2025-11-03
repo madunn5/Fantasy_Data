@@ -1650,7 +1650,8 @@ def stats_charts(request):
                 week_data = data[data['week'] == row['week']]
                 week_data['weekly_league_rank'] = week_data['total_points'].rank(ascending=False, method='min').astype(int)
                 
-                # Find opponent's weekly rank and points
+                # Find team's weekly rank and opponent's weekly rank and points
+                team_weekly_rank = week_data[week_data['team_name'] == row['team_name']]['weekly_league_rank'].iloc[0] if not week_data[week_data['team_name'] == row['team_name']].empty else None
                 opponent_data = week_data[week_data['team_name'] == row['opponent']]
                 opponent_weekly_rank = opponent_data['weekly_league_rank'].iloc[0] if not opponent_data.empty else None
                 opponent_total_points = opponent_data['total_points'].iloc[0] if not opponent_data.empty else None
@@ -1658,7 +1659,7 @@ def stats_charts(request):
                 weekly_ranks.append({
                     'week': row['week'],
                     'total_points': row['total_points'],
-                    'score_rank': row['score_rank'],
+                    'score_rank': team_weekly_rank,
                     'opponent': row['opponent'],
                     'opponent_total_points': opponent_total_points,
                     'opponent_weekly_rank': opponent_weekly_rank
