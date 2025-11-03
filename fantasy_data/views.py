@@ -2919,9 +2919,39 @@ def top_tens(request):
 
 
 def player_list(request):
-    """View to display all players"""
-    players = Player.objects.all().order_by('name')
-    return render(request, 'fantasy_data/player_list.html', {'players': players})
+    """View to display all players with optional team filtering"""
+    # Get available years and selected year
+    years = PlayerRoster.objects.values_list('year', flat=True).distinct().order_by('-year')
+    selected_year = request.GET.get('year', years.first() if years else 2025)
+    
+    try:
+        selected_year = int(selected_year)
+    except (ValueError, TypeError):
+        selected_year = years.first() if years else 2025
+    
+    # Get teams for the selected year
+    teams = PlayerRoster.objects.filter(year=selected_year).values_list('fantasy_team', flat=True).distinct().order_by('fantasy_team')
+    selected_team = request.GET.get('team', '')
+    
+    # Filter players based on team selection
+    if selected_team:
+        # Get players who were on the selected team at any point during the year
+        player_ids = PlayerRoster.objects.filter(
+            fantasy_team=selected_team, 
+            year=selected_year
+        ).values_list('player_id', flat=True).distinct()
+        players = Player.objects.filter(id__in=player_ids).order_by('name')
+    else:
+        players = Player.objects.all().order_by('name')
+    
+    context = {
+        'players': players,
+        'teams': teams,
+        'selected_team': selected_team,
+        'years': years,
+        'selected_year': selected_year
+    }
+    return render(request, 'fantasy_data/player_list.html', context)
 
 
 def player_detail(request, player_id):

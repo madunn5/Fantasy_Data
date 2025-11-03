@@ -44,6 +44,29 @@
         <h5>All Players</h5>
     </div>
     <div class="card-body">
+        <!-- Filter Section -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label for="filter_year" class="form-label">Year:</label>
+                <select name="year" id="filter_year" class="form-control" onchange="updateFilters()">
+                    {% for year in years %}
+                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="filter_team" class="form-label">Filter by Team:</label>
+                <select name="team" id="filter_team" class="form-control" onchange="updateFilters()">
+                    <option value="">All Teams</option>
+                    {% for team in teams %}
+                    <option value="{{ team }}" {% if team == selected_team %}selected{% endif %}>{{ team }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <small class="text-muted">{% if selected_team %}Showing players who were on {{ selected_team }} during {{ selected_year }}{% else %}Showing all players{% endif %}</small>
+            </div>
+        </div>
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead>
@@ -72,4 +95,19 @@
         </div>
     </div>
 </div>
+
+<script>
+function updateFilters() {
+    const year = document.getElementById('filter_year').value;
+    const team = document.getElementById('filter_team').value;
+    const url = new URL(window.location);
+    url.searchParams.set('year', year);
+    if (team) {
+        url.searchParams.set('team', team);
+    } else {
+        url.searchParams.delete('team');
+    }
+    window.location.href = url.toString();
+}
+</script>
 {% endblock %}
