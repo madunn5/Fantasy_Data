@@ -5,22 +5,8 @@
 {% block content %}
     <div class="container mt-4">
         <h1 class="my-4 text-center">Performance Trend Analysis</h1>
-        
-        <!-- Year selector at the top -->
-        <div class="row mb-4">
-            <div class="col-md-6 offset-md-3">
-                <div class="form-group">
-                    <label for="yearSelector"><strong>Select Year:</strong></label>
-                    <select class="form-control" id="yearSelector" onchange="updateYear()">
-                        {% for year in years %}
-                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Team selector -->
+
+        <!-- Team selector (the season is chosen in the navbar) -->
         <form id="teamForm" method="get" action="{% url 'performance_trend' %}">
             <input type="hidden" name="year" value="{{ selected_year }}">
             <div class="card mb-4">
@@ -65,11 +51,6 @@
 
 {% block extra_js %}
     <script>
-        function updateYear() {
-            var year = document.getElementById("yearSelector").value;
-            window.location.href = "{% url 'performance_trend' %}?year=" + year;
-        }
-        
         document.addEventListener('DOMContentLoaded', function() {
             // Limit the number of teams that can be selected to 5
             var checkboxes = document.querySelectorAll('input[name="teams"]');

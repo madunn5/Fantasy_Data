@@ -5,20 +5,6 @@
 {% block content %}
     <div class="container mt-4">
         <h1 class="my-4 text-center">Win Probability Heatmap</h1>
-        
-        <!-- Year selector at the top -->
-        <div class="row mb-4">
-            <div class="col-md-6 offset-md-3">
-                <div class="form-group">
-                    <label for="yearSelector"><strong>Select Year:</strong></label>
-                    <select class="form-control" id="yearSelector" onchange="updateYear()">
-                        {% for year in years %}
-                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
 
         {% if error %}
             <div class="alert alert-warning">{{ error }}</div>
@@ -43,11 +29,4 @@
     </div>
 {% endblock %}
 
-{% block extra_js %}
-    <script>
-        function updateYear() {
-            var year = document.getElementById("yearSelector").value;
-            window.location.href = "{% url 'win_probability_heatmap' %}?year=" + year;
-        }
-    </script>
-{% endblock %}
+{% block extra_js %}{% endblock %}

@@ -6,20 +6,6 @@
 {% block content %}
     <div class="container mt-4">
         <h1 class="my-4 text-center">Fantasy Team Performance Charts</h1>
-        
-        <!-- Year selector at the top -->
-        <div class="row mb-4">
-            <div class="col-md-6 offset-md-3">
-                <div class="form-group">
-                    <label for="yearSelector"><strong>Select Year:</strong></label>
-                    <select class="form-control" id="yearSelector">
-                        {% for year in years %}
-                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
 
         {% if error_message %}
             <div class="alert alert-warning">{{ error_message }}</div>
@@ -139,8 +125,8 @@
     <script>
         function updateBoxPlots() {
             var team = document.getElementById("teamSelector").value;
-            var year = document.getElementById("yearSelector").value;
-            
+            var year = {{ selected_year }};
+
             // Show loading indicator
             showLoading("boxPlots");
 
@@ -159,13 +145,6 @@
                     $('#boxPlots').html('<div class="alert alert-danger">Error loading data</div>');
                 }
             });
-        }
-        
-        function updateYear() {
-            var year = document.getElementById("yearSelector").value;
-            
-            // Redirect to the same page with just the year parameter
-            window.location.href = "{% url 'team_chart' %}?year=" + year;
         }
         
         function updateBarChart() {
@@ -193,7 +172,6 @@
         
         // Add event listeners
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById("yearSelector").addEventListener('change', updateYear);
             document.getElementById("teamSelector").addEventListener('change', updateTeam);
             
             // Bar chart selectors

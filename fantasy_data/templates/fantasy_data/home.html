@@ -3,65 +3,111 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-<div class="jumbotron">
-    <h1 class="display-4">Fantasy Stats Dashboard</h1>
-    <p class="lead">Welcome to your fantasy football statistics and analysis platform.</p>
-    <hr class="my-4">
-    <p>Explore team performance, stats, matchups, and more.</p>
-</div>
+<div class="container mt-4">
+    <h1 class="mb-1">Fantasy Dashboard <small class="text-muted">{{ selected_year }}</small></h1>
+    <p class="text-muted">Season at a glance — switch seasons with the <strong>Season</strong> picker up top.</p>
 
-<div class="row">
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">Team Analysis</h5>
+    <div class="row">
+        <!-- Power Rankings snapshot -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span>Power Rankings</span>
+                    <a href="{% url 'power_rankings' %}" class="text-white small">full table &raquo;</a>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for r in rankings %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><strong>{{ r.rank }}.</strong> {{ r.team }}</span>
+                        <span class="text-muted small">{{ r.rating|floatformat:1 }} pts/wk &middot; {{ r.wins }}-{{ r.losses }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted">No data for this season yet.</li>
+                    {% endfor %}
+                </ul>
             </div>
-            <div class="card-body">
-                <p class="card-text">View team performance charts, boxplots, and trends.</p>
-                <a href="{% url 'team_chart' %}" class="btn btn-outline-primary">Team Charts</a>
-                <a href="{% url 'team_chart_filter' %}" class="btn btn-outline-primary">Team Chart Filter</a>
-                <a href="{% url 'performance_trend' %}" class="btn btn-outline-primary">Performance Trends</a>
+        </div>
+
+        <!-- Luck -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <span>Luck Watch</span>
+                    <a href="{% url 'luck_report' %}" class="text-white small">full report &raquo;</a>
+                </div>
+                <div class="card-body">
+                    {% if luckiest %}
+                    <p class="mb-3">🍀 <strong>Luckiest: {{ luckiest.team }}</strong><br>
+                        <span class="text-muted">{{ luckiest.actual_wins }}-{{ luckiest.actual_losses }} actual vs
+                        {{ luckiest.allplay_expected_wins|floatformat:1 }} expected wins
+                        (<span class="text-success">+{{ luckiest.scoring_luck|floatformat:1 }}</span>)</span></p>
+                    {% endif %}
+                    {% if unluckiest %}
+                    <p class="mb-0">💀 <strong>Unluckiest: {{ unluckiest.team }}</strong><br>
+                        <span class="text-muted">{{ unluckiest.actual_wins }}-{{ unluckiest.actual_losses }} actual vs
+                        {{ unluckiest.allplay_expected_wins|floatformat:1 }} expected wins
+                        (<span class="text-danger">{{ unluckiest.scoring_luck|floatformat:1 }}</span>)</span></p>
+                    {% endif %}
+                    {% if not luckiest %}<p class="text-muted mb-0">No data for this season yet.</p>{% endif %}
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-success text-white">
-                <h5 class="card-title mb-0">Stats & Rankings</h5>
-            </div>
-            <div class="card-body">
-                <p class="card-text">Explore detailed statistics, filters, and top performers.</p>
-                <a href="{% url 'stats_charts' %}" class="btn btn-outline-success">Stats Tables</a>
-                <a href="{% url 'stats_charts_filter' %}" class="btn btn-outline-success">Stats Filter</a>
-                <a href="{% url 'top_tens' %}" class="btn btn-outline-success">Top 10s</a>
-            </div>
-        </div>
+
+    <!-- Latest scoreboard -->
+    {% if scoreboard %}
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">{{ latest_week }} Scoreboard</div>
+        <ul class="list-group list-group-flush">
+            {% for g in scoreboard %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>
+                    <strong {% if g.team_won %}class="text-success"{% endif %}>{{ g.team }}</strong>
+                    {{ g.team_pts|floatformat:1 }}
+                    <span class="text-muted">vs</span>
+                    {{ g.opp_pts|floatformat:1 }}
+                    <strong {% if not g.team_won %}class="text-success"{% endif %}>{{ g.opp }}</strong>
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
     </div>
-    
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-info text-white">
-                <h5 class="card-title mb-0">Matchup Analysis</h5>
-            </div>
-            <div class="card-body">
-                <p class="card-text">Compare teams and analyze win probabilities.</p>
-                <a href="{% url 'versus' %}" class="btn btn-outline-info">Team Comparisons</a>
-                <a href="{% url 'win_probability_against_all_teams' %}" class="btn btn-outline-info">Win Probability</a>
-                <a href="{% url 'win_probability_heatmap' %}" class="btn btn-outline-info">Probability Heatmap</a>
-            </div>
+    {% endif %}
+
+    <!-- Explore -->
+    <h5 class="mt-4 mb-3">Explore</h5>
+    <div class="row">
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card h-100"><div class="card-body">
+                <h6 class="card-title">Team Analysis</h6>
+                <a href="{% url 'team_chart' %}" class="d-block">Team Charts</a>
+                <a href="{% url 'team_chart_filter' %}" class="d-block">Chart Filter</a>
+                <a href="{% url 'performance_trend' %}" class="d-block">Performance Trends</a>
+            </div></div>
         </div>
-    </div>
-    
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="card-title mb-0">Position Analysis</h5>
-            </div>
-            <div class="card-body">
-                <p class="card-text">Analyze performance by player position.</p>
-                <a href="{% url 'position_contribution' %}" class="btn btn-outline-warning">Position Contribution</a>
-            </div>
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card h-100"><div class="card-body">
+                <h6 class="card-title">Stats &amp; Rankings</h6>
+                <a href="{% url 'stats_charts' %}" class="d-block">Stats Tables</a>
+                <a href="{% url 'stats_charts_filter' %}" class="d-block">Stats Filter</a>
+                <a href="{% url 'top_tens' %}" class="d-block">Top 10s</a>
+            </div></div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card h-100"><div class="card-body">
+                <h6 class="card-title">Matchups &amp; Odds</h6>
+                <a href="{% url 'playoff_odds' %}" class="d-block">Playoff Odds</a>
+                <a href="{% url 'versus' %}" class="d-block">Team Comparisons</a>
+                <a href="{% url 'win_probability_heatmap' %}" class="d-block">Probability Heatmap</a>
+            </div></div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card h-100"><div class="card-body">
+                <h6 class="card-title">Players</h6>
+                <a href="{% url 'bench_report' %}" class="d-block">Bench Report</a>
+                <a href="{% url 'position_contribution' %}" class="d-block">Position Contribution</a>
+                <a href="{% url 'player_list' %}" class="d-block">All Players</a>
+            </div></div>
         </div>
     </div>
 </div>

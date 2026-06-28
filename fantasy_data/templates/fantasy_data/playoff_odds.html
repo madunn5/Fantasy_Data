@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">Playoff Odds <small class="text-muted">{{ selected_year }}</small></h1>
+
+    {% if sim %}
+    <div class="row mb-3 align-items-center">
+        <div class="col-md-6">
+            <label for="throughWeek" class="mb-0"><strong>Simulate from after:</strong></label>
+            <select id="throughWeek" class="form-control d-inline-block ml-2" style="width:auto;" onchange="updateThrough()">
+                {% for w in sim.weeks %}
+                <option value="{{ w }}" {% if w == sim.through_week %}selected{% endif %}>Week {{ w }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-6 text-md-right text-muted">
+            {{ sim.remaining_games }} games simulated &times; {{ sim.n_sims }} runs &middot; top {{ sim.playoff_spots }} make the playoffs
+        </div>
+    </div>
+
+    {% if sim.remaining_games == 0 %}
+    <div class="alert alert-secondary">
+        This season is complete through Week {{ sim.through_week }}, so these are the final results.
+        Pick an earlier week above to see how the playoff picture looked mid-season.
+    </div>
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Team</th>
+                    <th class="text-center">Record (thru Wk {{ sim.through_week }})</th>
+                    <th style="min-width:240px;">Playoff Odds</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in sim.teams %}
+                <tr>
+                    <td><strong>{{ r.team }}</strong></td>
+                    <td class="text-center">{{ r.wins }}-{{ r.losses }}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span class="mr-2" style="width:52px;">{{ r.playoff_pct|floatformat:1 }}%</span>
+                            <div class="progress flex-grow-1" style="height:16px; background:#eee;">
+                                <div class="progress-bar {% if r.playoff_pct >= 50 %}bg-success{% else %}bg-warning{% endif %}"
+                                     role="progressbar" style="width: {{ r.playoff_pct|floatformat:0 }}%;"></div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="text-muted small mt-3">
+        Each remaining matchup is simulated by drawing both teams' scores from their season scoring
+        distribution (the same model behind <a href="{% url 'power_rankings' %}">Power Rankings</a>),
+        repeated {{ sim.n_sims }} times. Top {{ sim.playoff_spots }} teams by record (points-for breaks ties) make the playoffs.
+    </p>
+    {% else %}
+    <div class="alert alert-info text-center">No schedule data available for {{ selected_year }} yet.</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateThrough() {
+        var w = document.getElementById('throughWeek').value;
+        var url = new URL(window.location.href);
+        url.searchParams.set('through', w);
+        window.location.href = url.toString();
+    }
+</script>
+{% endblock %}

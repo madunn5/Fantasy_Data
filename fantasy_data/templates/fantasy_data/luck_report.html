@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">Luck Report <small class="text-muted">{{ selected_year }}</small></h1>
+    <p class="text-center text-muted">
+        Two ways to see luck. <strong>Scoring luck</strong> (the headline) compares your real record to your
+        <em>all-play expected wins</em> — how many games you'd average given your weekly scores against the whole
+        league — so it captures schedule luck. <strong>vs Projection</strong> compares your record to the weeks
+        Yahoo projected you to win.
+    </p>
+
+    {% if report %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Team</th>
+                    <th class="text-center">Actual</th>
+                    <th class="text-center" title="All-play expected wins">Exp. Wins</th>
+                    <th class="text-center">Scoring Luck</th>
+                    <th class="text-center text-muted" title="Weeks Yahoo projected a win">Yahoo Exp.</th>
+                    <th class="text-center text-muted">vs Projection</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in report %}
+                <tr>
+                    <td><strong>{{ r.team }}</strong></td>
+                    <td class="text-center">{{ r.actual_wins }}-{{ r.actual_losses }}</td>
+                    <td class="text-center text-muted">{{ r.allplay_expected_wins|floatformat:1 }}</td>
+                    <td class="text-center">
+                        <span class="badge badge-pill {% if r.scoring_luck > 0.05 %}badge-success{% elif r.scoring_luck < -0.05 %}badge-danger{% else %}badge-secondary{% endif %}">
+                            {% if r.scoring_luck >= 0 %}+{% endif %}{{ r.scoring_luck|floatformat:1 }}
+                        </span>
+                    </td>
+                    <td class="text-center text-muted">{{ r.yahoo_expected_wins }}-{{ r.yahoo_expected_losses }}</td>
+                    <td class="text-center text-muted">{{ r.projection_luck|stringformat:"+d" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="text-muted small mt-3">🍀 Positive scoring luck = won more than your scores deserved; 💀 negative = unlucky, scored enough but kept losing, and a candidate to bounce back. Where the two columns disagree, Yahoo simply mis-projected that team.</p>
+    {% else %}
+    <div class="alert alert-info text-center">No data available for {{ selected_year }} yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

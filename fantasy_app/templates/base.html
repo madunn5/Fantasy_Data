@@ -121,6 +121,11 @@
                         Matchup Analysis
                     </a>
                     <div class="dropdown-menu" aria-labelledby="matchupDropdown">
+                        <a class="dropdown-item" href="{% url 'power_rankings' %}">Power Rankings</a>
+                        <a class="dropdown-item" href="{% url 'playoff_odds' %}">Playoff Odds</a>
+                        <a class="dropdown-item" href="{% url 'luck_report' %}">Luck Report</a>
+                        <a class="dropdown-item" href="{% url 'bench_report' %}">Bench Report</a>
+                        <div class="dropdown-divider"></div>
                         <a class="dropdown-item" href="{% url 'versus' %}">Team Comparisons</a>
                         <a class="dropdown-item" href="{% url 'win_probability_against_all_teams' %}">Win Probability</a>
                         <a class="dropdown-item" href="{% url 'win_probability_heatmap' %}">Win Probability Heatmap</a>
@@ -153,9 +158,21 @@
                     </div>
                 </li>
             </ul>
-            
+
+            <!-- Global season (year) selector -->
+            {% if years %}
+            <form class="form-inline year-selector" onsubmit="return false;">
+                <label class="mr-2 mb-0 text-dark" for="globalYearSelector"><strong>Season:</strong></label>
+                <select class="form-control form-control-sm" id="globalYearSelector" aria-label="Select season">
+                    {% for year in years %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% endif %}
+
             <!-- Login/Logout section -->
-            <ul class="navbar-nav ml-auto">
+            <ul class="navbar-nav">
                 {% if user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown">
@@ -191,6 +208,17 @@
     
     <!-- Common JS functions -->
     <script>
+        // Global season (year) selector — preserve the current page and any
+        // other query params; the server remembers the choice in the session.
+        var globalYearSelector = document.getElementById('globalYearSelector');
+        if (globalYearSelector) {
+            globalYearSelector.addEventListener('change', function () {
+                var url = new URL(window.location.href);
+                url.searchParams.set('year', this.value);
+                window.location.href = url.toString();
+            });
+        }
+
         // Helper function to show loading indicator
         function showLoading(elementId) {
             const element = document.getElementById(elementId);
