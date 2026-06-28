@@ -5,21 +5,7 @@
 {% block content %}
     <div class="container mt-4">
         <h1 class="my-4 text-center">Position Contribution Analysis</h1>
-        
-        <!-- Year selector at the top -->
-        <div class="row mb-4">
-            <div class="col-md-6 offset-md-3">
-                <div class="form-group">
-                    <label for="yearSelector"><strong>Select Year:</strong></label>
-                    <select class="form-control" id="yearSelector" onchange="updateYear()">
-                        {% for year in years %}
-                            <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-        
+
         <!-- View Type Tabs -->
         <ul class="nav nav-tabs mb-4" id="viewTabs" role="tablist">
             <li class="nav-item" role="presentation">
@@ -184,27 +170,15 @@
 
 {% block extra_js %}
     <script>
-        function updateYear() {
-            var year = document.getElementById("yearSelector").value;
-            var currentView = '{{ view_type }}';
-            var team = document.getElementById("teamSelector") ? document.getElementById("teamSelector").value : '';
-            
-            var url = "{% url 'position_contribution' %}?year=" + year + "&view=" + currentView;
-            if (team && currentView === 'individual') {
-                url += "&team=" + team;
-            }
-            window.location.href = url;
-        }
-        
         function updateTeam() {
             var team = document.getElementById("teamSelector").value;
-            var year = document.getElementById("yearSelector").value;
-            
+            var year = {{ selected_year }};
+
             window.location.href = "{% url 'position_contribution' %}?year=" + year + "&view=individual&team=" + team;
         }
-        
+
         function switchView(viewType) {
-            var year = document.getElementById("yearSelector").value;
+            var year = {{ selected_year }};
             var url = "{% url 'position_contribution' %}?year=" + year + "&view=" + viewType;
             
             if (viewType === 'individual') {

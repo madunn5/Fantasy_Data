@@ -20,13 +20,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-h_ty3*ebdu(=7pos5_1ocbf2fq6cn4*uqqptd$@376xo)&zy&k"
+# Set DJANGO_SECRET_KEY in the deploy environment; the fallback is for local dev only.
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-dev-only-key-change-me-in-production",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Auto-detect environment: DEBUG=False on Heroku, DEBUG=True locally
-DEBUG = 'DYNO' not in os.environ
+# DEBUG defaults off; set DJANGO_DEBUG=1 (or run without DYNO) for local development.
+DEBUG = os.environ.get("DJANGO_DEBUG", "" if "DYNO" in os.environ else "1") == "1"
 
-ALLOWED_HOSTS = ['dunn-right-fantasy-a91a2b941097.herokuapp.com', 'localhost', '127.0.0.1']
+# Comma-separated list of allowed hosts, overridable per deploy environment.
+ALLOWED_HOSTS = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS",
+    "localhost,127.0.0.1,dunn-right-fantasy-a91a2b941097.herokuapp.com",
+).split(",")
 
 
 # Application definition
@@ -65,6 +73,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "fantasy_data.year_nav.year_selector",
             ],
         },
     },

@@ -4,46 +4,70 @@ import os
 import logging
 import functools
 import hashlib
-from datetime import datetime
 from io import StringIO
 
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')  # Must be before importing pyplot
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
 
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
-from django.db.models import Count, F, Q
+from django.db.models import Count
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
 from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib.auth.decorators import user_passes_test
 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
-
-from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, PlayerTransaction, TeamOwnerMapping
+from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, TeamOwnerMapping
+from .year_nav import get_selected_year
+from .predictions import win_probability, power_ratings, team_stats
+from . import analytics
 from .yahoo_collector import YahooFantasyCollector
 
 
 def home(request):
-    # Get available years for context
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = years.last() if years else 2023
-    
+    """Season dashboard: power-ranking snapshot, latest scoreboard, luck leaders."""
+    selected_year, years = get_selected_year(request)
+
+    rankings = power_ratings(selected_year)
+    luck = analytics.luck_report(selected_year)
+
+    # Latest completed week's scoreboard (one row per matchup).
+    scoreboard, latest_week = [], None
+    week_rows = TeamPerformance.objects.filter(year=selected_year).values(
+        'team_name', 'week', 'total_points', 'opponent', 'result'
+    )
+    if week_rows:
+        latest_num = max(analytics.week_number(r['week']) for r in week_rows)
+        latest_week = f"Week {latest_num}"
+        seen = set()
+        for r in week_rows:
+            if analytics.week_number(r['week']) != latest_num or not r['opponent']:
+                continue
+            key = frozenset((r['team_name'], r['opponent']))
+            if key in seen:
+                continue
+            seen.add(key)
+            opp = next((x for x in week_rows
+                        if x['team_name'] == r['opponent']
+                        and analytics.week_number(x['week']) == latest_num), None)
+            scoreboard.append({
+                'team': r['team_name'], 'team_pts': float(r['total_points'] or 0),
+                'opp': r['opponent'], 'opp_pts': float(opp['total_points']) if opp else None,
+                'team_won': (r['result'] or '').upper() == 'W',
+            })
+
     return render(request, 'fantasy_data/home.html', {
         'years': years,
         'selected_year': selected_year,
-        'page_title': 'Fantasy Stats Dashboard'
+        'rankings': rankings[:5],
+        'luckiest': luck[0] if luck else None,
+        'unluckiest': luck[-1] if luck and len(luck) > 1 else None,
+        'scoreboard': scoreboard,
+        'latest_week': latest_week,
+        'page_title': 'Fantasy Stats Dashboard',
     })
 
 # Configure logging
@@ -468,32 +492,9 @@ def oauth_authorize(request):
     return render(request, 'oauth_authorize.html', context)
 
 
-def team_performance_view(request):
-    data = TeamPerformance.objects.all().values()
-    generate_charts(data)
-    return render(request, 'fantasy_data/team_performance.html')
-
-
-def team_performance_list(request):
-    teams = TeamPerformance.objects.all()
-    return render(request, 'fantasy_data/team_performance_list.html', {'teams': teams})
-
-
-def team_detail(request, team_id):
-    team = TeamPerformance.objects.get(id=team_id)
-    return render(request, 'fantasy_data/team_detail.html', {'team': team})
-
-
 def team_chart(request):
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
+    selected_year, years = get_selected_year(request)
 
     # Load data filtered by year
     team_performance = TeamPerformance.objects.filter(year=selected_year)
@@ -698,100 +699,11 @@ def team_chart(request):
     return render(request, 'fantasy_data/team_chart.html', context)
 
 
-def generate_charts(data):
-    # Create the directory for the charts if it doesn't exist
-    chart_dir = os.path.join(settings.MEDIA_ROOT, 'charts')
-    if not os.path.exists(chart_dir):
-        os.makedirs(chart_dir)
-
-    # Only convert to DataFrame if it's not already one
-    if not isinstance(data, pd.DataFrame):
-        data = pd.DataFrame(list(data))
-    
-    if data.empty:
-        logger.warning("No data available for chart generation")
-        return
-
-    # Define a color palette for the box plots
-    boxplot_palette = {'L': 'lightblue', 'W': 'orange'}
-    
-    # Define common chart parameters
-    chart_params = {
-        'figsize': (10, 6),
-        'rotation': 90,
-        'chart_dir': chart_dir
-    }
-    
-    # Function to create and save a bar chart
-    def create_bar_chart(x, y, title, filename, color=None, label=None):
-        plt.figure(figsize=chart_params['figsize'])
-        if color and label:
-            sns.barplot(x=x, y=y, data=data, color=color, label=label)
-        else:
-            sns.barplot(x=x, y=y, data=data)
-        plt.xticks(rotation=chart_params['rotation'])
-        plt.title(title)
-        plt.tight_layout()
-        plt.savefig(os.path.join(chart_params['chart_dir'], filename))
-        plt.clf()
-    
-    # Function to create and save a box plot
-    def create_box_plot(x, y, title, filename):
-        sns.boxplot(x=x, y=y, data=data, palette=boxplot_palette)
-        plt.title(title)
-        plt.tight_layout()
-        plt.savefig(os.path.join(chart_params['chart_dir'], filename))
-        plt.clf()
-    
-    # Create bar charts
-    create_bar_chart('team_name', 'total_points', 'Total Points Distribution', 'total_points_distribution.png')
-    
-    # Expected vs Actual Wins
-    plt.figure(figsize=chart_params['figsize'])
-    sns.barplot(x='team_name', y='projected_wins', data=data, color='blue', label='Projected Wins')
-    sns.barplot(x='team_name', y='actual_wins', data=data, color='red', label='Actual Wins')
-    plt.xticks(rotation=chart_params['rotation'])
-    plt.title('Projected vs Actual Wins')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(chart_params['chart_dir'], 'projected_vs_actual_wins.png'))
-    plt.clf()
-    
-    create_bar_chart('team_name', 'points_against', 'Points Against Distribution', 'points_against_distribution.png')
-    
-    # Create box plots for different metrics
-    metrics = [
-        ('total_points', 'Total Points By Result', 'total_points_by_result.png'),
-        ('wr_points', 'Total WR Points By Result', 'total_wr_points_by_result.png'),
-        ('qb_points', 'Total QB Points By Result', 'total_qb_points_by_result.png'),
-        ('rb_points', 'Total RB Points By Result', 'total_rb_points_by_result.png'),
-        ('te_points', 'Total TE Points By Result', 'total_te_points_by_result.png'),
-        ('k_points', 'Total K Points By Result', 'total_k_points_by_result.png'),
-        ('def_points', 'Total DEF Points By Result', 'total_def_points_by_result.png')
-    ]
-    
-    for metric, title, filename in metrics:
-        create_box_plot('result', metric, title, filename)
-
-
-def charts_view(request):
-    data = TeamPerformance.objects.all().values()
-    generate_charts(data)
-    return render(request, 'fantasy_data/charts.html')
-
-
 def box_plots_filter(request):
     teams = TeamPerformance.objects.values_list('team_name', flat=True).distinct().order_by('team_name')
     
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
+    selected_year, years = get_selected_year(request)
 
     # Load data filtered by year
     team_performance = TeamPerformance.objects.filter(year=selected_year)
@@ -946,22 +858,33 @@ def box_plots_filter(request):
     return render(request, 'fantasy_data/team_chart_filter.html', context)
 
 
+def _extreme_by_team(data, col, *, want='max', ascending=False):
+    """Each team's single best/worst game for `col`, rendered as an HTML table.
+
+    Picks the row with the max (or min) value of `col` per team, then sorts.
+    Replaces ~10 copy-pasted blocks; preserves their exact output (including the
+    1-based index that to_html(index=False) then drops).
+    """
+    cols = ['team_name', 'week', col, 'result', 'opponent']
+    if not all(c in data.columns for c in cols):
+        return "<p>Necessary columns not found in data.</p>"
+    subset = data[cols]
+    grouped = subset.groupby('team_name')[col]
+    idx = grouped.idxmin() if want == 'min' else grouped.idxmax()
+    result = subset.loc[idx, cols].sort_values(by=[col], ascending=ascending).reset_index(drop=True)
+    result.index = result.index + 1
+    return result.to_html(classes='table table-striped', index=False)
+
+
 def stats_charts(request):
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
+    selected_year, years = get_selected_year(request)
         
     # Retrieve data from the database filtered by year
     data = TeamPerformance.objects.filter(year=selected_year).values()
 
     if not data:
-        print("No data retrieved from TeamPerformance model.")
+        logger.warning("No data retrieved from TeamPerformance model.")
         context = {
             'average_differential_table': "<p>No data available for average differential.</p>",
             'average_by_team_table': "<p>No data available for average by team.</p>",
@@ -1158,120 +1081,17 @@ def stats_charts(request):
     else:
         median_by_team_table = "<p>Necessary columns not found in data.</p>"
 
-    # Max points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'total_points', 'result', 'opponent']]
-        max_total_rows = data_avg_by_team.groupby('team_name')['total_points'].idxmax()
-        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'total_points', 'result', 'opponent']]
-        result = result.sort_values(by=['total_points'], ascending=False).reset_index(drop=True)
-        result.index = result.index + 1
-        max_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        max_points_by_team_table = "<p>Necessary columns not found in data.</p>"
-
-    # Max QB points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'qb_points', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'qb_points', 'result', 'opponent']]
-        max_total_rows = data_avg_by_team.groupby('team_name')['qb_points'].idxmax()
-        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'qb_points', 'result', 'opponent']]
-        result = result.sort_values(by=['qb_points'], ascending=False).reset_index(drop=True)
-        result.index = result.index + 1
-        max_qb_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        max_qb_points_by_team_table = "<p>Necessary columns not found in data.</p>"
-
-    # Max WR points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'wr_points_total', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'wr_points_total', 'result', 'opponent']]
-        max_total_rows = data_avg_by_team.groupby('team_name')['wr_points_total'].idxmax()
-        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'wr_points_total', 'result', 'opponent']]
-        result = result.sort_values(by=['wr_points_total'], ascending=False).reset_index(drop=True)
-        result.index = result.index + 1
-        max_wr_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        max_wr_points_by_team_table = "<p>Necessary columns not found in data.</p>"
-
-    # Max RB points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'rb_points_total', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'rb_points_total', 'result', 'opponent']]
-        max_total_rows = data_avg_by_team.groupby('team_name')['rb_points_total'].idxmax()
-        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'rb_points_total', 'result', 'opponent']]
-        result = result.sort_values(by=['rb_points_total'], ascending=False).reset_index(drop=True)
-        result.index = result.index + 1
-        max_rb_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        max_rb_points_by_team_table = "<p>Necessary columns not found in data.</p>"
-
-    # Max TE points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'te_points_total', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'te_points_total', 'result', 'opponent']]
-        max_total_rows = data_avg_by_team.groupby('team_name')['te_points_total'].idxmax()
-        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'te_points_total', 'result', 'opponent']]
-        result = result.sort_values(by=['te_points_total'], ascending=False).reset_index(drop=True)
-        result.index = result.index + 1
-        max_te_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        max_te_points_by_team_table = "<p>Necessary columns not found in data.</p>"
-
-    # Max K points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'k_points', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'k_points', 'result', 'opponent']]
-        max_total_rows = data_avg_by_team.groupby('team_name')['k_points'].idxmax()
-        result = data_avg_by_team.loc[
-            max_total_rows, ['team_name', 'week', 'k_points', 'result', 'opponent']]
-        result = result.sort_values(by=['k_points'], ascending=False).reset_index(drop=True)
-        result.index = result.index + 1
-        max_k_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        max_k_points_by_team_table = "<p>Necessary columns not found in data.</p>"
-
-    # Max Difference points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'difference', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'difference', 'result', 'opponent']]
-        max_total_rows = data_avg_by_team.groupby('team_name')['difference'].idxmax()
-        result = data_avg_by_team.loc[
-            max_total_rows, ['team_name', 'week', 'difference', 'result', 'opponent']]
-        result = result.sort_values(by=['difference'], ascending=False).reset_index(drop=True)
-        result.index = result.index + 1
-        max_difference_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        max_difference_points_by_team_table = "<p>Necessary columns not found in data.</p>"
-
-    # Max negative difference points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'difference', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'difference', 'result', 'opponent']]
-        # Use idxmin to get the most negative 'difference' for each team
-        max_total_rows = data_avg_by_team.groupby('team_name')['difference'].idxmin()
-        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'difference', 'result', 'opponent']]
-        # Sort by 'difference' in ascending order to show the most negative values first
-        result = result.sort_values(by=['difference'], ascending=True).reset_index(drop=True)
-        result.index = result.index + 1
-        min_difference_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        min_difference_points_by_team_table = "<p>Necessary columns not found in data.</p>"
-
-    # Max DEF points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'def_points', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'def_points', 'result', 'opponent']]
-        max_total_rows = data_avg_by_team.groupby('team_name')['def_points'].idxmax()
-        result = data_avg_by_team.loc[
-            max_total_rows, ['team_name', 'week', 'def_points', 'result', 'opponent']]
-        result = result.sort_values(by=['def_points'], ascending=False).reset_index(drop=True)
-        result.index = result.index + 1
-        max_def_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        max_def_points_by_team_table = "<p>Necessary columns not found in data.</p>"
-
-    # Min points in a single game by team
-    if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'result', 'opponent']):
-        data_avg_by_team = data[['team_name', 'week', 'total_points', 'result', 'opponent']]
-        max_total_rows = data_avg_by_team.groupby('team_name')['total_points'].idxmin()
-        result = data_avg_by_team.loc[max_total_rows, ['team_name', 'week', 'total_points', 'result', 'opponent']]
-        result = result.sort_values(by=['total_points'], ascending=False).reset_index(drop=True)
-        result.index = result.index + 1
-        min_points_by_team_table = result.to_html(classes='table table-striped', index=False)
-    else:
-        min_points_by_team_table = "<p>Necessary columns not found in data.</p>"
+    # Each team's single-game extremes by stat (see _extreme_by_team).
+    max_points_by_team_table = _extreme_by_team(data, 'total_points')
+    max_qb_points_by_team_table = _extreme_by_team(data, 'qb_points')
+    max_wr_points_by_team_table = _extreme_by_team(data, 'wr_points_total')
+    max_rb_points_by_team_table = _extreme_by_team(data, 'rb_points_total')
+    max_te_points_by_team_table = _extreme_by_team(data, 'te_points_total')
+    max_k_points_by_team_table = _extreme_by_team(data, 'k_points')
+    max_difference_points_by_team_table = _extreme_by_team(data, 'difference')
+    min_difference_points_by_team_table = _extreme_by_team(data, 'difference', want='min', ascending=True)
+    max_def_points_by_team_table = _extreme_by_team(data, 'def_points')
+    min_points_by_team_table = _extreme_by_team(data, 'total_points', want='min')
 
     # Win/Loss by margin classification
     if all(col in data.columns for col in ['team_name', 'week', 'total_points', 'points_against', 'result']):
@@ -1887,14 +1707,7 @@ def stats_charts_filter(request):
     comparison_operator = request.GET.get('comparison_operator', 'gte')  # Default to 'gte' if not specified
     
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
+    selected_year, years = get_selected_year(request)
 
     # Filter data based on user input and year
     filter_value = request.GET.get('filter_value')
@@ -1934,171 +1747,11 @@ def stats_charts_filter(request):
         return render(request, 'fantasy_data/stats_filter.html', context)
 
 
-def stats_charts_filter_less_than(request):
-    # Get selected points category
-    selected_category = request.GET.get('points_category')
-
-    # Filter data based on user input
-    filter_value = request.GET.get('filter_value')
-    if filter_value:
-        filter_value = float(filter_value)
-        filtered_data = TeamPerformance.objects.filter(**{f"{selected_category}__lte": filter_value})
-    else:
-        filtered_data = TeamPerformance.objects.all()
-
-    # Count occurrences per team for the selected category
-    result = filtered_data.values('team_name').annotate(count=Count('id')).order_by('-count')
-
-    # Count occurrences per team where the result is 'W' (win)
-    wins = filtered_data.filter(result='W').values('team_name').annotate(win_count=Count('id'))
-
-    # Prepare data for Chart.js
-    labels = [item['team_name'] for item in result]
-    counts = [item['count'] for item in result]
-
-    # Get win counts for each team and match it with the respective label
-    win_counts = [next((w['win_count'] for w in wins if w['team_name'] == label), 0) for label in labels]
-
-    # Render HTML if requested via AJAX, otherwise return JSON
-    if 'ajax' in request.GET:
-        return JsonResponse({'labels': labels, 'counts': counts, 'winCounts': win_counts})
-    else:
-        context = {'labels': labels, 'counts': counts, 'winCounts': win_counts}
-        return render(request, 'fantasy_data/stats_filter_less_than.html', context)
-
-
-def prepare_data(year=None):
-    # Define required columns
-    required_columns = [
-        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
-        'k_points', 'def_points', 'total_points', 'result', 'team_name', 'opponent'
-    ]
-    
-    # Only fetch the fields we need
-    if year:
-        team_performance = TeamPerformance.objects.filter(year=year).values(*required_columns)
-    else:
-        team_performance = TeamPerformance.objects.all().values(*required_columns)
-        
-    # Check if we have any data
-    if not team_performance.exists():
-        logger.warning("No data found for prepare_data")
-        return pd.DataFrame(), None, None, None
-        
-    df = pd.DataFrame(list(team_performance))
-    
-    # Check if we still have data after dropping NA values
-    if df.empty:
-        logger.warning("Empty dataframe after initial load")
-        return df, None, None, None
-
-    # Ensure numerical columns are in numeric format
-    numeric_columns = [
-        'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
-        'k_points', 'def_points', 'total_points'
-    ]
-    
-    # Convert all numeric columns at once
-    df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
-    
-    # Drop rows with NaNs in numeric columns
-    df = df.dropna(subset=numeric_columns)
-    
-    # Check if we still have data after converting to numeric
-    if df.empty:
-        logger.warning("Empty dataframe after converting to numeric")
-        return df, None, None, None
-
-    # Encode categorical columns
-    encoders = {}
-    for col in ['team_name', 'opponent', 'result']:
-        encoders[col] = LabelEncoder()
-        df[col] = encoders[col].fit_transform(df[col].astype(str))
-
-    # Binary outcome: 1 for win, 0 for tie, -1 for loss
-    # Use numpy vectorized operations instead of apply
-    df['win'] = np.select(
-        [df['result'] == 2, df['result'] == 0], 
-        [1, 0], 
-        default=-1
-    )
-
-    return df, encoders['team_name'], encoders['opponent'], encoders['result']
-
-
-def train_model(year=None):
-    # Use a cache key based on the year
-    cache_key = f"fantasy_model_{year}" if year else "fantasy_model_all"
-    
-    # Try to get model from cache
-    cached_model = getattr(train_model, 'cache', {}).get(cache_key)
-    if cached_model:
-        logger.info(f"Using cached model for year {year}")
-        return cached_model
-    
-    df, label_encoder_team, label_encoder_opponent, label_encoder_result = prepare_data(year)
-    
-    # Check if we have valid data
-    if df.empty or label_encoder_team is None:
-        logger.warning(f"Invalid data for model training: year={year}")
-        return None, None, None, None
-        
-    # Define required columns
-    required_columns = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 
-                        'k_points', 'def_points', 'total_points', 'win']
-                        
-    # Check if all required columns exist
-    if not all(col in df.columns for col in required_columns):
-        logger.warning(f"Missing required columns for model training: year={year}")
-        return None, None, None, None
-    
-    try:
-        # Define features and target
-        feature_columns = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 
-                          'k_points', 'def_points', 'total_points']
-        X = df[feature_columns]
-        y = df['win']
-        
-        # Check if we have enough data to train
-        if len(X) < 2:
-            logger.warning(f"Not enough data to train model: year={year}, samples={len(X)}")
-            return None, label_encoder_team, label_encoder_opponent, label_encoder_result
-
-        # Train the logistic regression model
-        model = LogisticRegression(max_iter=1000)  # Increase max_iter for better convergence
-        model.fit(X, y)
-
-        # Calculate the overall model accuracy if we have enough data
-        if len(X) >= 4:  # Need at least 4 samples to do a train/test split
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-            y_pred = model.predict(X_test)
-            accuracy = accuracy_score(y_test, y_pred)
-            logger.info(f"Model Accuracy for year {year}: {accuracy:.2f}")
-        
-        # Cache the model
-        if not hasattr(train_model, 'cache'):
-            train_model.cache = {}
-        train_model.cache[cache_key] = (model, label_encoder_team, label_encoder_opponent, label_encoder_result)
-        
-        return model, label_encoder_team, label_encoder_opponent, label_encoder_result
-        
-    except Exception as e:
-        logger.error(f"Error training model for year {year}: {e}")
-        return None, label_encoder_team, label_encoder_opponent, label_encoder_result
-
-
 def versus(request):
     page_title = "Team Comparison"
 
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
+    selected_year, years = get_selected_year(request)
     
     # Get teams for the selected year
     teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
@@ -2124,17 +1777,14 @@ def versus(request):
             'page_title': page_title
         })
 
-    # Load and prepare data for prediction
-    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model(selected_year)
-
     df = pd.DataFrame(list(team_performance.values()))
-    
+
     # Define numeric columns
     numeric_columns = [
         'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
         'k_points', 'def_points', 'total_points'
     ]
-    
+
     # Check if all required columns exist in the dataframe
     if not all(col in df.columns for col in numeric_columns):
         return render(request, 'fantasy_data/versus.html', {
@@ -2144,7 +1794,7 @@ def versus(request):
             'error': f"Missing required data columns for the selected teams in {selected_year}",
             'page_title': page_title
         })
-        
+
     # Convert columns to numeric and handle missing values
     for column in numeric_columns:
         df[column] = pd.to_numeric(df[column], errors='coerce')
@@ -2158,101 +1808,35 @@ def versus(request):
                        'error': f"No data available for one or both teams in {selected_year}",
                        'page_title': page_title})
 
-    # Check if teams are in the encoder classes
-    try:
-        if team1 not in label_encoder_team.classes_ or team2 not in label_encoder_team.classes_:
-            return render(request, 'fantasy_data/versus.html',
-                        {'teams': teams,
-                        'years': years,
-                        'selected_year': selected_year,
-                        'error': f"One or both teams '{team1}' and '{team2}' not found in training data.",
-                        'page_title': page_title})
-    except (AttributeError, TypeError):
-        # Handle case where label_encoder_team.classes_ doesn't exist or is None
-        return render(request, 'fantasy_data/versus.html',
-                    {'teams': teams,
-                    'years': years,
-                    'selected_year': selected_year,
-                    'error': f"Unable to process team data for {selected_year}",
-                    'page_title': page_title})
-
-    # Prepare the feature vectors for the teams
+    # Average stat line for each team (drives the comparison table + charts)
     df_team1 = df[df['team_name'] == team1].mean(numeric_only=True)
     df_team2 = df[df['team_name'] == team2].mean(numeric_only=True)
 
-    # Check if we have valid numeric data
-    if df_team1.empty or df_team2.empty or not all(col in df_team1.index for col in numeric_columns) or not all(col in df_team2.index for col in numeric_columns):
-        return render(request, 'fantasy_data/versus.html',
-                    {'teams': teams,
-                    'years': years,
-                    'selected_year': selected_year,
-                    'error': f"Insufficient data for comparison in {selected_year}",
-                    'page_title': page_title})
-
-    # Calculate the absolute difference between the two feature vectors
     feature_differences = df_team1[numeric_columns] - df_team2[numeric_columns]
+    difference_between_teams = [
+        {'Position': col, 'team1': df_team1[col], 'team2': df_team2[col],
+         'Difference': feature_differences[col]}
+        for col in numeric_columns
+    ]
 
-    # Prepare the data for the template
-    difference_between_teams = []
-    for col in numeric_columns:
-        difference_between_teams.append({
-            'Position': col,
-            'team1': df_team1[col],
-            'team2': df_team2[col],
-            'Difference': feature_differences[col]
-        })
-
-    # Prepare the feature vectors for prediction
-    X_team1 = pd.DataFrame([df_team1[numeric_columns].values], columns=numeric_columns)
-    X_team2 = pd.DataFrame([df_team2[numeric_columns].values], columns=numeric_columns)
-
-    # Check if model is available
-    if model is None:
-        # If no model is available, use a simple comparison of average points
-        prediction = "No prediction model available. Using simple point comparison instead."
-        prob_team1_normalized = 0.5
-        prob_team2_normalized = 0.5
-        
-        # Simple comparison based on average points
-        if df_team1['total_points'] > df_team2['total_points']:
-            prob_team1_normalized = 0.6
-            prob_team2_normalized = 0.4
-        elif df_team1['total_points'] < df_team2['total_points']:
-            prob_team1_normalized = 0.4
-            prob_team2_normalized = 0.6
+    # Head-to-head win probability from each team's weekly scoring distribution.
+    prob = win_probability(team1, team2, selected_year)
+    if prob is None:
+        prediction = "Not enough data to compare these two teams yet."
     else:
-        # Use the model for prediction
-        try:
-            # Predict probabilities for each team
-            prob_team1_win = model.predict_proba(X_team1)[:, model.classes_ == 1][0][0]
-            prob_team2_win = model.predict_proba(X_team2)[:, model.classes_ == 1][0][0]
-            
-            # Normalize win probabilities
-            total_prob = prob_team1_win + prob_team2_win
-            prob_team1_normalized = prob_team1_win / total_prob
-            prob_team2_normalized = prob_team2_win / total_prob
-        except (IndexError, ValueError) as e:
-            # Fallback if prediction fails
-            print(f"Prediction error: {e}")
-            prob_team1_normalized = 0.5
-            prob_team2_normalized = 0.5
-
-    # Generate prediction messages including the chance of a tie
-    if not 'prediction' in locals():  # Only generate if not already set in the model is None case
-        if prob_team1_normalized > prob_team2_normalized:
+        p1, p2, margin = prob['p_a'], prob['p_b'], prob['expected_margin']
+        if abs(p1 - 0.5) < 0.02:
             prediction = (
-                f"{team1} is more likely to win with a probability of {prob_team1_normalized:.2%}. "
-                f"{team2} has a probability of {prob_team2_normalized:.2%} to win. "
-            )
-        elif prob_team1_normalized < prob_team2_normalized:
-            prediction = (
-                f"{team2} is more likely to win with a probability of {prob_team2_normalized:.2%}. "
-                f"{team1} has a probability of {prob_team1_normalized:.2%} to win. "
+                f"It's a coin flip — {team1} {p1:.1%} vs {team2} {p2:.1%}. "
+                f"They average about {prob['mean_a']:.1f} and {prob['mean_b']:.1f} points per week."
             )
         else:
+            fav, fav_p = (team1, p1) if p1 >= p2 else (team2, p2)
             prediction = (
-                "It's too close to call! Both teams have similar chances with "
-                f"{team1} at {prob_team1_normalized:.2%} and {team2} at {prob_team2_normalized:.2%}. "
+                f"{fav} is favored with a {fav_p:.1%} chance to win "
+                f"(projected margin {abs(margin):.1f} pts). "
+                f"Weekly scoring: {team1} {prob['mean_a']:.1f}±{prob['std_a']:.1f}, "
+                f"{team2} {prob['mean_b']:.1f}±{prob['std_b']:.1f}."
             )
 
     # Create comparison charts
@@ -2323,14 +1907,7 @@ def win_probability_against_all_teams(request):
     page_title = "Fantasy Win Probability"
 
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
+    selected_year, years = get_selected_year(request)
     
     # Get teams for the selected year
     teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
@@ -2355,134 +1932,47 @@ def win_probability_against_all_teams(request):
             'page_title': page_title
         })
 
-    # Load and prepare data for prediction
-    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model(selected_year)
-
     team_performance = TeamPerformance.objects.filter(year=selected_year)
     df = pd.DataFrame(list(team_performance.values()))
 
-    # Define numeric columns
     numeric_columns = [
         'qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total',
         'k_points', 'def_points', 'total_points'
     ]
-    
-    # Check if all required columns exist in the dataframe
-    if not all(col in df.columns for col in numeric_columns):
-        return render(request, 'fantasy_data/probabilities.html', {
-            'teams': teams,
-            'years': years,
-            'selected_year': selected_year,
-            'error': f"Missing required data columns for {selected_year}",
-            'page_title': page_title
-        })
-        
-    # Convert columns to numeric and handle missing values
     for column in numeric_columns:
-        df[column] = pd.to_numeric(df[column], errors='coerce')
-        
-    # Drop rows with NaNs in numeric columns
-    df = df.dropna(subset=numeric_columns)
-    
-    # Check if we have data after cleaning
-    if df.empty:
-        return render(request, 'fantasy_data/probabilities.html', {
-            'teams': teams,
-            'years': years,
-            'selected_year': selected_year,
-            'error': f"No valid data found after cleaning for {selected_year}",
-            'page_title': page_title
-        })
+        if column in df.columns:
+            df[column] = pd.to_numeric(df[column], errors='coerce')
 
-    # Check if model and encoder are available
-    if model is None or label_encoder_team is None:
-        return render(request, 'fantasy_data/probabilities.html', {
-            'teams': teams,
-            'years': years,
-            'selected_year': selected_year,
-            'error': f"Unable to create prediction model for {selected_year}",
-            'page_title': page_title
-        })
-
-    # Check if selected team is in encoder classes
-    try:
-        if selected_team not in label_encoder_team.classes_:
-            return render(request, 'fantasy_data/probabilities.html', {
-                'teams': teams,
-                'years': years,
-                'selected_year': selected_year,
-                'error': f"Team '{selected_team}' not found in training data.",
-                'page_title': page_title
-            })
-    except (AttributeError, TypeError):
-        return render(request, 'fantasy_data/probabilities.html', {
-            'teams': teams,
-            'years': years,
-            'selected_year': selected_year,
-            'error': f"Error processing team data for {selected_year}",
-            'page_title': page_title
-        })
-
-    # Prepare the feature vector for the selected team
+    # Average stat line for the selected team (for the per-position difference table).
     df_selected_team = df[df['team_name'] == selected_team].mean(numeric_only=True)
-    
-    # Check if we have data for the selected team
-    if df_selected_team.empty:
-        return render(request, 'fantasy_data/probabilities.html', {
-            'teams': teams,
-            'years': years,
-            'selected_year': selected_year,
-            'error': f"No data available for {selected_team} in {selected_year}",
-            'page_title': page_title
-        })
 
+    stats = team_stats(selected_year)
     win_probabilities = []
     for opponent in teams:
         if opponent == selected_team:
             continue
-
-        # Check if opponent has data
         opponent_data = df[df['team_name'] == opponent]
         if opponent_data.empty:
             continue
 
-        # Prepare the feature vector for the opponent
+        prob = win_probability(selected_team, opponent, selected_year, stats=stats)
+        if prob is None:
+            continue
+
         df_opponent = opponent_data.mean(numeric_only=True)
-
-        # Calculate the absolute difference between the two feature vectors
         feature_differences = df_selected_team[numeric_columns] - df_opponent[numeric_columns]
-
-        # Prepare the feature vectors for prediction
-        X_selected_team = pd.DataFrame([df_selected_team[numeric_columns].values], columns=numeric_columns)
-        X_opponent = pd.DataFrame([df_opponent[numeric_columns].values], columns=numeric_columns)
-
-        try:
-            # Predict the probability of winning for each team
-            prob_selected_team = model.predict_proba(X_selected_team)[:, model.classes_ == 1][0][0]
-            prob_opponent = model.predict_proba(X_opponent)[:, model.classes_ == 1][0][0]
-
-            # Normalize probabilities
-            total_prob = prob_selected_team + prob_opponent
-            prob_selected_team_normalized = prob_selected_team / total_prob
-            prob_opponent_normalized = prob_opponent / total_prob
-        except (IndexError, ValueError):
-            # Fallback to simple comparison if prediction fails
-            if df_selected_team['total_points'] > df_opponent['total_points']:
-                prob_selected_team_normalized = 0.6
-                prob_opponent_normalized = 0.4
-            elif df_selected_team['total_points'] < df_opponent['total_points']:
-                prob_selected_team_normalized = 0.4
-                prob_opponent_normalized = 0.6
-            else:
-                prob_selected_team_normalized = 0.5
-                prob_opponent_normalized = 0.5
 
         win_probabilities.append({
             'opponent': opponent,
-            'selected_team_probability': f"{prob_selected_team_normalized:.2%}",
-            'opponent_probability': f"{prob_opponent_normalized:.2%}",
+            'selected_team_probability': f"{prob['p_a']:.1%}",
+            'opponent_probability': f"{prob['p_b']:.1%}",
+            'win_prob_value': prob['p_a'],
+            'expected_margin': prob['expected_margin'],
             'difference': feature_differences.to_dict()
         })
+
+    # Strongest matchups first.
+    win_probabilities.sort(key=lambda w: w['win_prob_value'], reverse=True)
 
     return render(request, 'fantasy_data/probabilities.html', {
         'teams': teams,
@@ -2496,14 +1986,7 @@ def win_probability_against_all_teams(request):
 
 def position_contribution_chart(request):
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
+    selected_year, years = get_selected_year(request)
     
     # Get teams for the selected year
     teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
@@ -2636,14 +2119,7 @@ def position_contribution_chart(request):
 
 def performance_trend(request):
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
+    selected_year, years = get_selected_year(request)
     
     # Get teams for the selected year
     teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
@@ -2707,73 +2183,32 @@ def performance_trend(request):
 
 def win_probability_heatmap(request):
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
-    
-    # Load model
-    model, label_encoder_team, label_encoder_opponent, label_encoder_result = train_model(selected_year)
-    
-    if model is None:
-        context = {
-            'error': 'Unable to create prediction model', 
-            'years': years, 
-            'selected_year': selected_year,
-            'page_title': f'Win Probability Heatmap ({selected_year})'
-        }
-        return render(request, 'fantasy_data/win_probability_heatmap.html', context)
+    selected_year, years = get_selected_year(request)
     
     # Get teams
     teams = TeamPerformance.objects.filter(year=selected_year).values_list('team_name', flat=True).distinct().order_by('team_name')
     teams_list = list(teams)
-    
-    # Create probability matrix
+
+    stats = team_stats(selected_year)
+    if not stats:
+        context = {
+            'error': 'No data available for this season yet.',
+            'years': years,
+            'selected_year': selected_year,
+            'page_title': f'Win Probability Heatmap ({selected_year})'
+        }
+        return render(request, 'fantasy_data/win_probability_heatmap.html', context)
+
+    # probability_matrix[i][j] = P(row team i beats column team j).
     probability_matrix = []
-    
     for team1 in teams_list:
         row = []
         for team2 in teams_list:
             if team1 == team2:
-                row.append(0.5)  # Equal probability against self
-                continue
-                
-            # Get team data
-            team1_data = TeamPerformance.objects.filter(year=selected_year, team_name=team1)
-            team2_data = TeamPerformance.objects.filter(year=selected_year, team_name=team2)
-            
-            if not team1_data.exists() or not team2_data.exists():
                 row.append(0.5)
                 continue
-                
-            # Calculate average stats
-            df1 = pd.DataFrame(list(team1_data.values()))
-            df2 = pd.DataFrame(list(team2_data.values()))
-            
-            numeric_cols = ['qb_points', 'wr_points_total', 'rb_points_total', 'te_points_total', 'k_points', 'def_points', 'total_points']
-            team1_avg = df1[numeric_cols].mean()
-            team2_avg = df2[numeric_cols].mean()
-            
-            # Predict win probability
-            try:
-                X1 = pd.DataFrame([team1_avg.values], columns=numeric_cols)
-                X2 = pd.DataFrame([team2_avg.values], columns=numeric_cols)
-                
-                prob1 = model.predict_proba(X1)[:, model.classes_ == 1][0][0]
-                prob2 = model.predict_proba(X2)[:, model.classes_ == 1][0][0]
-                
-                # Normalize probabilities
-                total_prob = prob1 + prob2
-                prob1_norm = prob1 / total_prob
-                
-                row.append(prob1_norm)
-            except:
-                row.append(0.5)
-                
+            prob = win_probability(team1, team2, selected_year, stats=stats)
+            row.append(prob['p_a'] if prob else 0.5)
         probability_matrix.append(row)
     
     # Create heatmap
@@ -2805,22 +2240,77 @@ def win_probability_heatmap(request):
     return render(request, 'fantasy_data/win_probability_heatmap.html', context)
 
 
+def power_rankings(request):
+    """Season power-ranking leaderboard (teams ranked by avg points scored)."""
+    selected_year, years = get_selected_year(request)
+    rankings = power_ratings(selected_year)
+
+    # League average points/week, for the bar that shows each team vs the field.
+    league_avg = (sum(r['avg_for'] for r in rankings) / len(rankings)) if rankings else 0
+    top_rating = rankings[0]['rating'] if rankings else 0
+
+    return render(request, 'fantasy_data/power_rankings.html', {
+        'rankings': rankings,
+        'league_avg': league_avg,
+        'top_rating': top_rating,
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Power Rankings ({selected_year})',
+    })
+
+
+def luck_report(request):
+    """Expected vs actual wins — who's been lucky / unlucky this season."""
+    selected_year, years = get_selected_year(request)
+    return render(request, 'fantasy_data/luck_report.html', {
+        'report': analytics.luck_report(selected_year),
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Luck Report ({selected_year})',
+    })
+
+
+def bench_report(request):
+    """Points left on the bench from start/sit decisions (player-level data)."""
+    selected_year, years = get_selected_year(request)
+    report = analytics.bench_report(selected_year)
+    return render(request, 'fantasy_data/bench_report.html', {
+        'report': report,
+        'has_data': bool(report),
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Bench Report ({selected_year})',
+    })
+
+
+def playoff_odds(request):
+    """Monte Carlo playoff odds, simulated from a chosen 'through week'."""
+    selected_year, years = get_selected_year(request)
+
+    through = request.GET.get('through')
+    try:
+        through_week = int(through) if through is not None else None
+    except (TypeError, ValueError):
+        through_week = None
+
+    sim = analytics.simulate_season(selected_year, through_week=through_week)
+    return render(request, 'fantasy_data/playoff_odds.html', {
+        'sim': sim,
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Playoff Odds ({selected_year})',
+    })
+
+
 def top_tens(request):
     # Get available years and selected year
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('year')
-    selected_year = request.GET.get('year', years.last() if years else 2023)
-    
-    # Convert selected_year to integer
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.last() if years else 2023
+    selected_year, years = get_selected_year(request)
         
     # Retrieve data from the database filtered by year
     data = TeamPerformance.objects.filter(year=selected_year).values()
 
     if not data:
-        print("No data retrieved from TeamPerformance model.")
+        logger.warning("No data retrieved from TeamPerformance model.")
         context = {
             'average_differential_table': "<p>No data available for average differential.</p>",
             'average_by_team_table': "<p>No data available for average by team.</p>",
@@ -2921,13 +2411,9 @@ def top_tens(request):
 def player_list(request):
     """View to display all players with optional team filtering"""
     # Get available years and selected year
-    years = PlayerRoster.objects.values_list('year', flat=True).distinct().order_by('-year')
-    selected_year = request.GET.get('year', years.first() if years else 2025)
-    
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.first() if years else 2025
+    roster_years = list(PlayerRoster.objects.values_list('year', flat=True)
+                        .distinct().order_by('-year'))
+    selected_year, years = get_selected_year(request, years=roster_years)
     
     # Get teams for the selected year
     teams = PlayerRoster.objects.filter(year=selected_year).values_list('fantasy_team', flat=True).distinct().order_by('fantasy_team')
@@ -2980,13 +2466,7 @@ def oauth_callback(request):
 @staff_member_required
 def team_owner_mapping(request):
     """Manage team-owner mappings"""
-    years = TeamPerformance.objects.values_list('year', flat=True).distinct().order_by('-year')
-    selected_year = request.GET.get('year', years.first() if years else 2025)
-    
-    try:
-        selected_year = int(selected_year)
-    except (ValueError, TypeError):
-        selected_year = years.first() if years else 2025
+    selected_year, years = get_selected_year(request)
     
     if request.method == 'POST':
         action = request.POST.get('action')

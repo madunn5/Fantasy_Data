@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">Bench Report <small class="text-muted">{{ selected_year }}</small></h1>
+    <p class="text-center text-muted">
+        Points your benched players scored — the cost of every start/sit call.
+        Higher = more points left on the bench across the season.
+    </p>
+
+    {% if has_data %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Team</th>
+                    <th class="text-right">Points on Bench</th>
+                    <th class="text-right">Points Started</th>
+                    <th class="text-center">Sits</th>
+                    <th>Biggest Sit Blunder</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in report %}
+                <tr>
+                    <td><strong>{{ r.team }}</strong></td>
+                    <td class="text-right"><strong>{{ r.bench_points|floatformat:1 }}</strong></td>
+                    <td class="text-right text-muted">{{ r.started_points|floatformat:1 }}</td>
+                    <td class="text-center text-muted">{{ r.bench_count }}</td>
+                    <td>
+                        {% if r.top_bench %}
+                            {{ r.top_bench.player }}
+                            <span class="text-muted">({{ r.top_bench.position }})</span>
+                            — <strong>{{ r.top_bench.points|floatformat:1 }}</strong> in {{ r.top_bench.week }}
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="text-muted small mt-3">Based on weekly start/sit decisions. Player-level data is collected from Yahoo, so it's only available for seasons that were tracked at the roster level.</p>
+    {% else %}
+    <div class="alert alert-info text-center">
+        No player-level roster data for {{ selected_year }} — the bench report needs the per-player
+        start/sit data that's only collected for tracked seasons (currently 2025).
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

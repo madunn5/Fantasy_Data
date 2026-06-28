@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">Power Rankings <small class="text-muted">{{ selected_year }}</small></h1>
+    <p class="text-center text-muted">
+        Teams ranked by average points scored per week — in fantasy you don't pick your opponent,
+        so scoring output is the cleanest measure of strength. League average:
+        <strong>{{ league_avg|floatformat:1 }}</strong> pts/wk.
+    </p>
+
+    {% if rankings %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th class="text-center">#</th>
+                    <th>Team</th>
+                    <th>Power Rating (pts/wk)</th>
+                    <th class="text-center">Record</th>
+                    <th class="text-right">Avg For</th>
+                    <th class="text-right">Avg Against</th>
+                    <th class="text-right">Net</th>
+                    <th class="text-right">Consistency</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rankings %}
+                <tr>
+                    <td class="text-center"><strong>{{ r.rank }}</strong></td>
+                    <td><strong>{{ r.team }}</strong></td>
+                    <td style="min-width: 220px;">
+                        <div class="d-flex align-items-center">
+                            <span class="mr-2" style="width: 48px;">{{ r.rating|floatformat:1 }}</span>
+                            <div class="progress flex-grow-1" style="height: 16px; background:#eee;">
+                                {% widthratio r.rating top_rating 100 as pct %}
+                                <div class="progress-bar bg-primary" role="progressbar"
+                                     style="width: {{ pct }}%;" aria-valuenow="{{ pct }}"
+                                     aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-center">{{ r.wins }}-{{ r.losses }}{% if r.ties %}-{{ r.ties }}{% endif %}</td>
+                    <td class="text-right">{{ r.avg_for|floatformat:1 }}</td>
+                    <td class="text-right">{{ r.avg_against|floatformat:1 }}</td>
+                    <td class="text-right {% if r.net > 0 %}text-success{% elif r.net < 0 %}text-danger{% endif %}">
+                        {{ r.net|floatformat:1 }}
+                    </td>
+                    <td class="text-right text-muted">&plusmn;{{ r.std|floatformat:1 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="text-muted small mt-3">
+        <strong>Net</strong> = points scored minus points allowed (positive = won the scoring battle on the season).
+        <strong>Consistency</strong> is the week-to-week standard deviation — a smaller number means a more predictable team.
+        These are the same per-team numbers that drive the
+        <a href="{% url 'versus' %}">Team Comparison</a> and
+        <a href="{% url 'win_probability_heatmap' %}">Win Probability</a> predictions.
+    </p>
+    {% else %}
+    <div class="alert alert-info text-center">No data available for {{ selected_year }} yet.</div>
+    {% endif %}
+</div>
+{% endblock %}
