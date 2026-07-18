@@ -90,6 +90,20 @@
                         <i class="fas fa-home"></i> Home
                     </a>
                 </li>
+                <!-- Switch to the punishments half of the site. Once the admin
+                     flips Season.bucket_open, the button points straight at the
+                     live Bucket of Death instead. -->
+                <li class="nav-item d-flex align-items-center">
+                    {% if active_season.bucket_open %}
+                        <a class="btn btn-danger btn-sm mx-2 text-nowrap" href="{% url 'draftgame:bucket_of_death' %}" title="Bucket of Death is live!">
+                            <i class="fas fa-skull"></i> Bucket of Death <span class="badge badge-light">LIVE</span>
+                        </a>
+                    {% else %}
+                        <a class="btn btn-dark btn-sm mx-2 text-nowrap" href="{% url 'draftgame:home' %}" title="Switch to Punishments &amp; Bucket of Death">
+                            <i class="fas fa-skull"></i> Punishments
+                        </a>
+                    {% endif %}
+                </li>
                 
                 <!-- Team Charts Dropdown -->
                 <li class="nav-item dropdown">
