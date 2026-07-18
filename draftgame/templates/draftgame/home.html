@@ -4,7 +4,11 @@
 <div style="margin-bottom: 2rem;">
     {% if user.is_authenticated %}
         <h1>Welcome back, {{ request.user.username }}</h1>
+        {% if active_season.voting_complete %}
+        <p style="color: var(--text-secondary); font-size: 1.05rem;">The grid is set. See what's in play and how past seasons played out.</p>
+        {% else %}
         <p style="color: var(--text-secondary); font-size: 1.05rem;">Submit your punishments, rank the pool, and see how past seasons played out.</p>
+        {% endif %}
     {% else %}
         <h1>Fantasy league punishments</h1>
         <p style="color: var(--text-secondary); font-size: 1.05rem;">Log in to submit and vote, or browse the history and grid.</p>
@@ -12,6 +16,7 @@
 </div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+    {% if not active_season.voting_complete %}
     <div class="card">
         <h3><i class="ti ti-trophy" aria-hidden="true"></i> Vote</h3>
         {% if active_season.submissions_are_open %}
@@ -28,10 +33,15 @@
         <a class="btn" aria-disabled="true" style="pointer-events: none; opacity: 0.55;">Rank punishments</a>
         {% endif %}
     </div>
+    {% endif %}
     <div class="card">
         <h3><i class="ti ti-layout-grid" aria-hidden="true"></i> Grid</h3>
+        {% if active_season.voting_complete %}
+        <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">The vote is in. This season's {{ active_season.wheel_size }} punishments are locked, and the wheel spins later this year.</p>
+        {% else %}
         <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">This season's punishments, plus past winners and history.</p>
-        <a href="{% url 'draftgame:punishment_grid' %}" class="btn {% if user.is_authenticated %}btn-secondary{% endif %}">View grid</a>
+        {% endif %}
+        <a href="{% url 'draftgame:punishment_grid' %}" class="btn {% if user.is_authenticated and not active_season.voting_complete %}btn-secondary{% endif %}">View grid</a>
     </div>
     {% if user.is_staff %}
     <div class="card">

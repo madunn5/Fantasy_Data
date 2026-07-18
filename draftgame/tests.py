@@ -294,6 +294,27 @@ class RegisterTests(TestCase):
         self.assertContains(resp, 'newmember')
 
 
+class VotingCompleteNavTests(TestCase):
+    """Once voting closes and the grid is locked, the Vote tab disappears."""
+
+    def test_vote_tab_hidden_after_grid_locked(self):
+        season = Season.get_active()
+        season.submissions_open = False
+        season.voting_open = False
+        season.save()
+        season.punishments.filter(is_seed=True).update(is_finalist=True)
+        html = self.client.get('/punishments/').content.decode()
+        self.assertNotIn('>Vote</a>', html)
+        self.assertIn('locked', html)
+
+    def test_vote_tab_shown_while_voting_open(self):
+        season = Season.get_active()
+        season.voting_open = True
+        season.save()
+        html = self.client.get('/punishments/').content.decode()
+        self.assertIn('>Vote</a>', html)
+
+
 class BucketGateTests(TestCase):
     def test_non_staff_redirected_home(self):
         user = User.objects.create_user('member', password='pw')

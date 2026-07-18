@@ -157,7 +157,7 @@
                 <a href="{% url 'draftgame:home' %}">Home</a>
                 {% if active_season.submissions_are_open %}
                     <a href="{% url 'draftgame:submit_punishment' %}">Vote</a>
-                {% else %}
+                {% elif not active_season.voting_complete %}
                     <a href="{% url 'draftgame:punishment_vote' %}">Vote</a>
                 {% endif %}
                 <a href="{% url 'draftgame:punishment_grid' %}">Grid</a>

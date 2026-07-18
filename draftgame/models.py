@@ -42,6 +42,11 @@ class Season(models.Model):
             return False
         return True
 
+    @property
+    def voting_complete(self):
+        """Voting has closed and the grid set is locked in."""
+        return not self.voting_open and self.punishments.filter(is_finalist=True).exists()
+
     def save(self, *args, **kwargs):
         # Enforce a single active season.
         if self.is_active:
