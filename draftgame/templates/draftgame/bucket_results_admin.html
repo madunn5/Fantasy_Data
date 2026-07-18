@@ -1,0 +1,62 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+<div class="card">
+    <h1>🏆 Bucket Results Admin</h1>
+    <p>Mark each team selection as a Win or Loss to calculate accurate leaderboard statistics.</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% for week_data in weeks_data %}
+        <div class="card" style="background: rgba(52, 152, 219, 0.2); margin: 2rem 0;">
+            <h3>Week {{ week_data.week_result.week_number }}</h3>
+            <p style="color: #ff6b6b; margin-bottom: 1rem;"><strong>{{ week_data.week_result.punishment }}</strong></p>
+            
+            {% if week_data.team_results %}
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Team</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team_result in week_data.team_results %}
+                        <tr>
+                            <td><strong>{{ team_result.player_name }}</strong></td>
+                            <td>{{ team_result.team_name }}</td>
+                            <td>
+                                <select name="result_{{ team_result.id }}" class="form-select" style="width: 120px;">
+                                    <option value="" {% if team_result.is_win is None %}selected{% endif %}>Pending</option>
+                                    <option value="win" {% if team_result.is_win %}selected{% endif %}>Win</option>
+                                    <option value="loss" {% if team_result.is_win == False %}selected{% endif %}>Loss</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align: center; opacity: 0.8;">No team selections for this week.</p>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="card" style="background: rgba(231, 76, 60, 0.2); text-align: center;">
+            <p>No completed weeks found.</p>
+        </div>
+        {% endfor %}
+        
+        {% if weeks_data %}
+        <div style="text-align: center; margin: 2rem 0;">
+            <button type="submit" class="btn" style="font-size: 1.2em; padding: 1rem 2rem;">
+                💾 Save Results
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

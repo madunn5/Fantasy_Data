@@ -1,0 +1,64 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+{% include 'draftgame/_subnav_view.html' %}
+
+{% if not season %}
+<p style="text-align: center; color: var(--text-secondary);">No seasons recorded yet.</p>
+{% else %}
+
+<div style="text-align: center; margin-bottom: 1.5rem;">
+    <h2 style="margin-bottom: 0.3rem;">{{ season.year }} season</h2>
+</div>
+
+{% if winner %}
+<div class="spotlight">
+    <div class="spotlight-trophy"><i class="ti ti-trophy" aria-hidden="true"></i></div>
+    <p class="spotlight-label">The punishment that was enforced</p>
+    <p class="spotlight-punishment">{{ winner }}</p>
+
+    <div class="spotlight-divider"></div>
+
+    <div class="spotlight-person">
+        <span class="spotlight-avatar">{{ loser|first|upper|default:"?" }}</span>
+        <div style="text-align: left;">
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">Enforced by</p>
+            <p style="margin: 0; font-size: 1.25rem; font-weight: 600;">{{ loser|default:"the last-place finisher" }}</p>
+        </div>
+    </div>
+
+    {% if also_assigned %}
+    <p class="spotlight-also">Also drawn on the wheel: {% for n in also_assigned %}{{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+
+    {% if winner_votes %}
+    <p class="spotlight-stats">Won the vote with {{ winner_points }} points from {{ winner_votes }} voter{{ winner_votes|pluralize }}</p>
+    {% endif %}
+</div>
+{% else %}
+<div class="spotlight">
+    <div class="spotlight-trophy" style="color: var(--text-muted);"><i class="ti ti-hourglass" aria-hidden="true"></i></div>
+    <p class="spotlight-label">This season is still in progress</p>
+    <p style="color: var(--text-secondary); margin-top: 0.5rem;">
+        {% if voter_count %}{{ voter_count }} voter{{ voter_count|pluralize }} so far. No punishment has been enforced yet.{% else %}No votes cast yet.{% endif %}
+    </p>
+    <div style="margin-top: 1.25rem;">
+        <a href="{% url 'draftgame:punishment_results' %}" class="btn btn-secondary"><i class="ti ti-chart-bar" aria-hidden="true"></i> See live results</a>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+
+<style>
+.spotlight { max-width: 620px; margin: 0 auto; background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px; padding: 2rem 1.75rem; text-align: center; }
+.spotlight-trophy { font-size: 2.75rem; color: #ffd56b; line-height: 1; margin-bottom: 0.75rem; }
+.spotlight-label { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem; }
+.spotlight-punishment { font-size: 1.2rem; font-weight: 500; line-height: 1.55; margin: 0 auto; max-width: 520px; }
+.spotlight-divider { height: 1px; background: var(--border); margin: 1.5rem auto; max-width: 240px; }
+.spotlight-person { display: inline-flex; align-items: center; gap: 0.85rem; }
+.spotlight-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-accent); color: var(--text-accent); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.25rem; flex-shrink: 0; }
+.spotlight-also { color: var(--text-secondary); font-size: 0.92rem; margin-top: 1rem; }
+.spotlight-stats { color: var(--text-muted); font-size: 0.88rem; margin-top: 0.75rem; }
+</style>
+{% endblock %}

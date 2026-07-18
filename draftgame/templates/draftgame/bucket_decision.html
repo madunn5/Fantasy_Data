@@ -1,0 +1,51 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+<div class="card">
+    <h1>🪣 Bucket of Death - Week {{ session.week_number }}</h1>
+    {% if session.is_test_mode %}
+        <span style="background: #f39c12; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold;">TEST MODE</span>
+    {% endif %}
+    
+    <div style="color: #ff6b6b; font-size: 1.2em; margin: 1rem 0;">
+        <strong>{{ session.punishment }}</strong>
+    </div>
+    
+    <div class="card" style="background: rgba(52, 152, 219, 0.2); text-align: center; margin: 2rem 0;">
+        <h2>{{ session.current_player }}'s Team:</h2>
+        <div style="font-size: 1.5em; font-weight: bold; color: #3498db; margin: 1rem 0;">
+            {{ selected_team }}
+        </div>
+    </div>
+
+    <div style="text-align: center; margin: 2rem 0;">
+        <form method="post" style="display: inline-block; margin-right: 2rem;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="keep">
+            <button type="submit" class="btn" style="background: linear-gradient(45deg, #27ae60 0%, #2ecc71 100%); font-size: 1.2em; padding: 1rem 2rem;">
+                ✅ Keep It
+            </button>
+        </form>
+        
+        {% if not is_auto_keep %}
+        <form method="post" style="display: inline-block;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="put_back">
+            <button type="submit" class="btn btn-secondary" style="font-size: 1.2em; padding: 1rem 2rem;">
+                ↩️ Put It Back
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    
+    {% if not is_auto_keep %}
+    <div style="text-align: center; margin-top: 2rem; font-size: 0.9em; opacity: 0.8;">
+        <em>Warning: If you put it back, you must keep the next team!</em>
+    </div>
+    {% else %}
+    <div style="text-align: center; margin-top: 2rem; font-size: 0.9em; opacity: 0.8;">
+        <em>{% if selected_team == "Golden Helmet of Life" %}🏆 Automatic Win!{% else %}💀 Automatic Loss!{% endif %} Must be kept.</em>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

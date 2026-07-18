@@ -1,0 +1,81 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+<div class="card">
+    <h1>📊 Bucket of Death - Leaderboard</h1>
+    {% if test_mode %}
+        <span style="background: #f39c12; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold;">TEST MODE</span>
+    {% endif %}
+    
+    <div style="color: #ff6b6b; font-size: 1.2em; margin: 1rem 0;">
+        <strong>{{ session.punishment }}</strong>
+    </div>
+    
+    {% if leaderboard %}
+    <div class="table-responsive" style="margin: 2rem 0;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>W</th>
+                    <th>L</th>
+                    <th>Win %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in leaderboard %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ player.name }}</strong></td>
+                    <td>{{ player.wins }}</td>
+                    <td>{{ player.losses }}</td>
+                    <td>{{ player.win_pct|floatformat:3 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card" style="background: rgba(231, 76, 60, 0.2); text-align: center; margin: 2rem 0;">
+        <p>No player data available yet.</p>
+    </div>
+    {% endif %}
+    
+    {% if team_tallies %}
+    <div class="card" style="background: rgba(155, 89, 182, 0.2); margin: 2rem 0;">
+        <h3>🪣 Team Selection Tallies</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>W</th>
+                        <th>L</th>
+                        <th>Total</th>
+                        <th>Win %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for team_data in team_tallies %}
+                    <tr>
+                        <td>{{ team_data.team }}</td>
+                        <td>{{ team_data.wins }}</td>
+                        <td>{{ team_data.losses }}</td>
+                        <td>{{ team_data.total }}</td>
+                        <td>{{ team_data.win_pct|floatformat:3 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div style="text-align: center; margin: 2rem 0;">
+        <a href="{% url 'draftgame:bucket_of_death' %}?week={{ current_week }}&test={% if test_mode %}1{% else %}0{% endif %}" class="btn">
+            🔄 Back to Bucket
+        </a>
+    </div>
+</div>
+{% endblock %}

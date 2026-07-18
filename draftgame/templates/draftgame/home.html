@@ -1,0 +1,44 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    {% if user.is_authenticated %}
+        <h1>Welcome back, {{ request.user.username }}</h1>
+        <p style="color: var(--text-secondary); font-size: 1.05rem;">Submit your punishments, rank the pool, and see how past seasons played out.</p>
+    {% else %}
+        <h1>Fantasy league punishments</h1>
+        <p style="color: var(--text-secondary); font-size: 1.05rem;">Log in to submit and vote, or browse the history and grid.</p>
+    {% endif %}
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+    <div class="card">
+        <h3><i class="ti ti-trophy" aria-hidden="true"></i> Vote</h3>
+        {% if active_season.submissions_are_open %}
+        <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">Suggest new punishments for this season's open slot.</p>
+        <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+            <a href="{% url 'draftgame:submit_punishment' %}" class="btn">Submit ideas</a>
+            <a href="{% url 'draftgame:suggestion_list' %}" class="btn btn-secondary">See suggestions</a>
+        </div>
+        {% elif active_season.voting_open %}
+        <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">Rank your top {{ active_season.ranking_size }}. The winners become this year's grid.</p>
+        <a href="{% url 'draftgame:punishment_vote' %}" class="btn">Rank punishments</a>
+        {% else %}
+        <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">Submissions are in. Voting opens soon.</p>
+        <a class="btn" aria-disabled="true" style="pointer-events: none; opacity: 0.55;">Rank punishments</a>
+        {% endif %}
+    </div>
+    <div class="card">
+        <h3><i class="ti ti-layout-grid" aria-hidden="true"></i> Grid</h3>
+        <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">This season's punishments, plus past winners and history.</p>
+        <a href="{% url 'draftgame:punishment_grid' %}" class="btn {% if user.is_authenticated %}btn-secondary{% endif %}">View grid</a>
+    </div>
+    {% if user.is_staff %}
+    <div class="card">
+        <h3><i class="ti ti-skull" aria-hidden="true"></i> Bucket of Death</h3>
+        <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">The weekly survival game.</p>
+        <a href="{% url 'draftgame:bucket_of_death' %}" class="btn btn-secondary">Play</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

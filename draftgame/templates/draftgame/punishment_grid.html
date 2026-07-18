@@ -1,0 +1,65 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+{% include 'draftgame/_subnav_view.html' %}
+<div style="text-align: center; margin-bottom: 1.5rem;">
+    <h2>{{ selected_season.year }} punishment grid</h2>
+    <p style="color: var(--text-secondary);">The punishments in play for the {{ selected_season.year }} season.</p>
+</div>
+
+{% if is_admin and grid_season %}
+<div class="card" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; max-width: 720px; margin: 0 auto 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 0.6rem;">
+        {% if grid_season.grid_finalized %}
+            <i class="ti ti-lock" aria-hidden="true" style="color: var(--text-warning);"></i>
+            <span><strong>Assignments finalized.</strong> The wheel is locked for {{ grid_season.year }}.</span>
+        {% else %}
+            <i class="ti ti-lock-open" aria-hidden="true" style="color: var(--text-success);"></i>
+            <span><strong>Assignments open.</strong> The wheel can still be run for {{ grid_season.year }}.</span>
+        {% endif %}
+    </div>
+    <form method="post" action="{% url 'draftgame:toggle_grid_finalized' %}" style="margin: 0;"
+          onsubmit="return confirm('{% if grid_season.grid_finalized %}Unlock the wheel for {{ grid_season.year }}?{% else %}Finalize {{ grid_season.year }} assignments? This locks the wheel.{% endif %}');">
+        {% csrf_token %}
+        <button type="submit" class="btn {% if grid_season.grid_finalized %}{% else %}btn-secondary{% endif %}" style="white-space: nowrap;">
+            {% if grid_season.grid_finalized %}<i class="ti ti-lock-open" aria-hidden="true"></i> Unlock assignments{% else %}<i class="ti ti-lock" aria-hidden="true"></i> Finalize assignments{% endif %}
+        </button>
+    </form>
+</div>
+{% endif %}
+
+{% if not voting_finalized %}
+<div style="text-align: center; color: var(--text-muted); padding: 1.75rem; border: 1px dashed var(--border); border-radius: 12px; max-width: 620px; margin: 0 auto;">
+    The {{ selected_season.year }} punishments haven't been locked in yet.
+    {% if is_admin %}Close voting on the <a href="{% url 'draftgame:punishment_results' %}" style="color: var(--text-accent);">Results</a> page and they'll seed here automatically.{% else %}They'll appear here once voting closes.{% endif %}
+</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 1.25rem;">
+    {% for item in punishments_with_names %}
+        <div class="card" {% if item.is_winner %}style="border: 2px solid #ffd56b;"{% endif %}>
+            <div style="display: flex; align-items: flex-start; gap: 1rem;">
+                <div style="background: {% if item.is_winner %}#ffd56b; color: #4a3a00{% else %}var(--bg-accent); color: var(--text-accent){% endif %}; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0;">{{ forloop.counter }}</div>
+                <div style="flex: 1;">
+                    <p style="margin: 0; line-height: 1.55;">{{ item.punishment }}</p>
+                    {% if is_admin and item.names %}
+                        <div style="margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: var(--bg-success); border-radius: var(--radius); color: var(--text-success);">
+                            <strong>Assigned to:</strong>
+                            {% for name in item.names %}{{ name }}{% if name == item.winner_name %} <i class="ti ti-trophy" aria-hidden="true" title="Ultimate winner"></i>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if item.is_winner %}
+                        <div style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: var(--bg-warning); border-radius: var(--radius); color: var(--text-warning);">
+                            <strong><i class="ti ti-trophy" aria-hidden="true"></i> Winner: {{ item.winner_name|default:"the loser" }} ultimately had to complete it</strong>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<div style="text-align: center; margin-top: 2rem;">
+    <a href="{% url 'draftgame:home' %}" class="btn btn-secondary"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back to home</a>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% with active=request.resolver_match.url_name %}
+<div class="subnav">
+    {% if active_season.voting_open %}
+    <a href="{% url 'draftgame:punishment_vote' %}" class="{% if active == 'punishment_vote' %}active{% endif %}"><i class="ti ti-trophy" aria-hidden="true"></i> Rank punishments</a>
+    {% endif %}
+    {% if active_season.submissions_are_open %}
+    <a href="{% url 'draftgame:submit_punishment' %}" class="{% if active == 'submit_punishment' %}active{% endif %}"><i class="ti ti-plus" aria-hidden="true"></i> Submit</a>
+    {% endif %}
+    <a href="{% url 'draftgame:suggestion_list' %}" class="{% if active == 'suggestion_list' %}active{% endif %}"><i class="ti ti-list" aria-hidden="true"></i> Suggested so far</a>
+</div>
+{% endwith %}

@@ -1,0 +1,52 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+<div class="card">
+    <h1>🪣 Bucket of Death - Week {{ session.week_number }}</h1>
+    {% if session.is_test_mode %}
+        <span style="background: #f39c12; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold;">TEST MODE</span>
+    {% endif %}
+    
+    <div style="color: #ff6b6b; font-size: 1.2em; margin: 1rem 0;">
+        <strong>{{ session.punishment }}</strong>
+    </div>
+    
+    <div class="card" style="background: rgba(155, 89, 182, 0.2); text-align: center; margin: 2rem 0;">
+        <h2>{{ session.current_player }} is rummaging...</h2>
+        <div id="rummaging" style="font-size: 2em; margin: 2rem 0;">
+            🪣 <span id="dots">.</span>
+        </div>
+        <div id="result" style="display: none;">
+            <h3>Selected Team:</h3>
+            <div style="font-size: 1.5em; font-weight: bold; color: #3498db; margin: 1rem 0;">
+                {{ selected_team }}
+            </div>
+            <a href="{% url 'draftgame:bucket_decision' %}" class="btn" style="margin-top: 1rem;">
+                Continue
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+let dotCount = 1;
+const maxDots = 5;
+const rummageTime = 2000; // 2 seconds
+
+function animateDots() {
+    const dotsElement = document.getElementById('dots');
+    dotsElement.textContent = '.'.repeat(dotCount);
+    dotCount = dotCount >= maxDots ? 1 : dotCount + 1;
+}
+
+// Start dot animation
+const dotInterval = setInterval(animateDots, 200);
+
+// Show result after rummage time
+setTimeout(() => {
+    clearInterval(dotInterval);
+    document.getElementById('rummaging').style.display = 'none';
+    document.getElementById('result').style.display = 'block';
+}, rummageTime);
+</script>
+{% endblock %}

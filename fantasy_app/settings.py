@@ -46,18 +46,33 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
     "django_rq",
-    "fantasy_data"
+    "fantasy_data",
+    "draftgame",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
+]
+
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",      # username/password fallback
+    "allauth.account.auth_backends.AuthenticationBackend",  # Google sign-in
 ]
 
 ROOT_URLCONF = "fantasy_app.urls"
@@ -74,6 +89,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "fantasy_data.year_nav.year_selector",
+                "draftgame.context_processors.selected_season",
             ],
         },
     },
@@ -117,7 +133,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+# The punishment app's season deadlines (submissions_close_at etc.) were
+# authored in Pacific time, so the combined site keeps that zone.
+TIME_ZONE = "America/Los_Angeles"
 
 USE_I18N = True
 
@@ -138,7 +156,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Yahoo Fantasy API Configuration
 YAHOO_FANTASY_CONFIG = {
@@ -149,10 +167,34 @@ YAHOO_FANTASY_CONFIG = {
     'CLIENT_SECRET': os.environ.get('YAHOO_CLIENT_SECRET', '')
 }
 
-# Login/Logout URLs
-LOGIN_URL = '/login/'
+# Login/Logout URLs — single sign-in for both halves of the site
+LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
+
+# --- django-allauth (Google sign-in) ---
+# One-click Google sign-in; username/password is kept as a fallback.
+ACCOUNT_EMAIL_VERIFICATION = 'none'      # friends app — don't email-verify
+ACCOUNT_EMAIL_REQUIRED = False
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = 'username'
+SOCIALACCOUNT_AUTO_SIGNUP = True         # create the account straight from the Google profile
+SOCIALACCOUNT_LOGIN_ON_GET = True        # true one-click (skip the interstitial confirm page)
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+SOCIALACCOUNT_ADAPTER = 'draftgame.adapters.ConnectByEmailAdapter'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        # Credentials come from the environment so no secrets live in the repo.
+        'APP': {
+            'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
+            'secret': os.environ.get('GOOGLE_CLIENT_SECRET', ''),
+            'key': '',
+        },
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+    }
+}
 
 # Django RQ Configuration
 RQ_QUEUES = {

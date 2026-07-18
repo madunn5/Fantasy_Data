@@ -1,0 +1,373 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+{% include 'draftgame/_subnav_view.html' %}
+<div style="text-align: center; margin-bottom: 2rem;">
+    <h2>Punishment Wheel</h2>
+</div>
+
+{% if show_confirmation %}
+<div id="confirmationBanner" style="background: linear-gradient(45deg, #2ecc71, #27ae60); color: white; padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; text-align: center; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3); transition: opacity 0.5s ease;">
+    <h3 style="margin-bottom: 0.5rem;">Punishment Saved!</h3>
+    <p style="margin: 0; font-size: 1.1rem;"><strong>{{ saved_name }}</strong> has been assigned:</p>
+    <p style="margin: 0.5rem 0 0 0; font-style: italic; opacity: 0.9;">{{ saved_punishment }}...</p>
+</div>
+<script>
+    setTimeout(function() {
+        document.getElementById('confirmationBanner').style.opacity = '0';
+        setTimeout(function() {
+            document.getElementById('confirmationBanner').style.display = 'none';
+        }, 500);
+    }, 3000);
+</script>
+{% endif %}
+
+
+
+
+
+{% if not_finalized %}
+    <div class="card" style="text-align: center; max-width: 600px; margin: 0 auto;">
+        <div style="font-size: 2.5rem; color: var(--text-muted); line-height: 1; margin-bottom: 0.5rem;"><i class="ti ti-list-check" aria-hidden="true"></i></div>
+        <h3>Voting is still open for {{ wheel_year }}</h3>
+        <p style="color: var(--text-secondary);">The wheel spins the punishments voted in. Close voting on the Results page and the {{ wheel_year }} wheel set locks in automatically, then come back to assign them.</p>
+        <a href="{% url 'draftgame:punishment_results' %}" class="btn btn-secondary" style="margin-top: 1rem;"><i class="ti ti-chart-bar" aria-hidden="true"></i> Go to Results</a>
+    </div>
+{% elif locked %}
+    <div class="card" style="text-align: center; max-width: 600px; margin: 0 auto;">
+        <div style="font-size: 2.5rem; color: var(--text-warning); line-height: 1; margin-bottom: 0.5rem;"><i class="ti ti-lock" aria-hidden="true"></i></div>
+        <h3>Wheel locked for {{ locked_year }}</h3>
+        <p style="color: var(--text-secondary);">The {{ locked_year }} grid assignments have been finalized, so the wheel can't be run. Unlock them on the Grid page if you need to make changes.</p>
+        <a href="{% url 'draftgame:punishment_grid' %}" class="btn btn-secondary" style="margin-top: 1rem;"><i class="ti ti-layout-grid" aria-hidden="true"></i> Go to Grid</a>
+    </div>
+{% elif under_construction %}
+    <div class="card" style="text-align: center; max-width: 600px; margin: 0 auto;">
+        <h3>This tab is under construction</h3>
+        <p style="opacity: 0.8;">Please check back later!</p>
+    </div>
+{% elif not show_wheel %}
+    <form method="post" style="max-width: 600px; margin: 0 auto;">
+        {% csrf_token %}
+        <div class="card">
+            <h3>Setup Wheel Spin</h3>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Player Name:</label>
+                <input type="text" name="name" required style="width: 100%; padding: 0.75rem; border: 1px solid rgba(255,255,255,0.3); border-radius: 10px; background: rgba(255,255,255,0.1); color: #fff; font-size: 1rem;">
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Exclude Punishment:</label>
+                <select name="excluded_punishment" class="form-select">
+                    <option value="">No exclusions</option>
+                    {% for punishment in punishments %}
+                        <option value="{{ forloop.counter0 }}">{{ punishment|truncatechars:60 }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <button type="submit" name="setup_wheel" class="btn" style="width: 100%;">Setup Wheel</button>
+        </div>
+    </form>
+{% else %}
+    <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+        <h3 style="margin-bottom: 2rem;">Spinning for {{ player_name }}</h3>
+        
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <canvas id="wheelCanvas" width="600" height="600" style="box-shadow: 0 0 50px rgba(0,0,0,0.4); border-radius: 50%;"></canvas>
+        </div>
+        
+        <div id="spinControls">
+            <button id="spinBtn" class="btn" style="margin-bottom: 1rem;">Spin!</button>
+            <p id="spinStatus">Ready for first spin</p>
+        </div>
+        
+        <div id="results" style="display: none;">
+            <h4>Final Results:</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 2rem 0;">
+                <div id="option1" style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 10px; border: 2px solid #667eea;">
+                    <h4 style="color: #667eea; margin-bottom: 1rem;">Option 1</h4>
+                    <p id="result1" style="line-height: 1.5;"></p>
+                </div>
+                <div id="option2" style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 10px; border: 2px solid #764ba2;">
+                    <h4 style="color: #764ba2; margin-bottom: 1rem;">Option 2</h4>
+                    <p id="result2" style="line-height: 1.5;"></p>
+                </div>
+            </div>
+            
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="player_name" value="{{ player_name }}">
+                <p style="margin-bottom: 1rem; font-weight: 600;">Choose which punishment to keep:</p>
+                <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <button type="button" name="choose_punishment" id="choose1" class="btn" onclick="handleChoice(this)">Choose Option 1</button>
+                    <button type="button" name="choose_punishment" id="choose2" class="btn btn-secondary" onclick="handleChoice(this)">Choose Option 2</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/zarocknz/javascript-winwheel@master/Winwheel.js"></script>
+    
+    <script>
+        const punishments = [
+            {% for punishment in available_punishments %}
+                "{{ punishment|escapejs }}"{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        const spinBtn = document.getElementById('spinBtn');
+        const spinStatus = document.getElementById('spinStatus');
+        const results = document.getElementById('results');
+        
+        let spinCount = 0;
+        let selectedPunishments = [];
+        let availablePunishments = [...punishments];
+        let theWheel;
+        
+        // Create audio context for sound effects
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playClickSound() {
+            const duration = 0.08;
+            const sampleRate = audioContext.sampleRate;
+            const frameCount = sampleRate * duration;
+            const buffer = audioContext.createBuffer(1, frameCount, sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            for (let i = 0; i < frameCount; i++) {
+                const t = i / sampleRate;
+                const envelope = Math.exp(-t * 50);
+                const noise = (Math.random() * 2 - 1) * 0.3;
+                const click = Math.sin(t * 2000 * Math.PI) * envelope * 0.4;
+                data[i] = (noise + click) * envelope;
+            }
+            
+            const source = audioContext.createBufferSource();
+            const gainNode = audioContext.createGain();
+            
+            source.buffer = buffer;
+            source.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            gainNode.gain.value = 0.15;
+            
+            source.start();
+        }
+        
+        function drawTrianglePointer() {
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const pointerY = 5;
+            
+            // Save current context state
+            ctx.save();
+            
+            // Draw triangle pointer
+            ctx.fillStyle = '#ff4444';
+            ctx.strokeStyle = '#cc0000';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX - 20, pointerY);
+            ctx.lineTo(centerX + 20, pointerY);
+            ctx.lineTo(centerX, pointerY + 40);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Restore context state
+            ctx.restore();
+        }
+        
+        function playWinSound() {
+            // Trumpet fanfare sequence
+            const notes = [
+                { freq: 523, start: 0, duration: 0.3 },    // C5
+                { freq: 659, start: 0.1, duration: 0.3 },  // E5
+                { freq: 784, start: 0.2, duration: 0.4 },  // G5
+                { freq: 1047, start: 0.3, duration: 0.5 }  // C6
+            ];
+            
+            notes.forEach(note => {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(note.freq, audioContext.currentTime);
+                    oscillator.type = 'sawtooth'; // Trumpet-like sound
+                    
+                    // Trumpet envelope
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.05);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + note.duration);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + note.duration);
+                }, note.start * 1000);
+            });
+        }
+        
+        function playCongratsFanfare() {
+            // Victory fanfare - longer and more celebratory
+            const notes = [
+                { freq: 392, start: 0, duration: 0.4 },    // G4
+                { freq: 523, start: 0.2, duration: 0.4 },  // C5
+                { freq: 659, start: 0.4, duration: 0.4 },  // E5
+                { freq: 784, start: 0.6, duration: 0.6 },  // G5
+                { freq: 1047, start: 0.8, duration: 0.8 }, // C6
+                { freq: 1319, start: 1.0, duration: 1.0 }  // E6
+            ];
+            
+            notes.forEach(note => {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(note.freq, audioContext.currentTime);
+                    oscillator.type = 'sawtooth';
+                    
+                    // Celebratory envelope
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.1);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + note.duration);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + note.duration);
+                }, note.start * 1000);
+            });
+        }
+        
+        function createWheel() {
+            const segments = availablePunishments.map((punishment, index) => ({
+                'fillStyle': `hsl(${(index * 360 / availablePunishments.length) % 360}, 70%, 60%)`,
+                'text': punishment.length > 30 ? punishment.substring(0, 27) + '...' : punishment,
+                'textFontSize': 14,
+                'textFontWeight': 'bold',
+                'textFillStyle': '#fff',
+                'textOrientation': 'horizontal',
+                'textAlignment': 'center',
+                'textDirection': 'normal'
+            }));
+            
+            theWheel = new Winwheel({
+                'canvasId': 'wheelCanvas',
+                'numSegments': availablePunishments.length,
+                'outerRadius': 280,
+                'innerRadius': 30,
+                'textFontSize': 14,
+                'textFontWeight': 'bold',
+                'textFillStyle': '#fff',
+                'textOrientation': 'horizontal',
+                'textAlignment': 'center',
+                'textMargin': 0,
+                'borderWidth': 3,
+                'borderColor': '#fff',
+                'segments': segments,
+                'pointerAngle': 0,
+                'responsive': true,
+                'pins': {
+                    'number': availablePunishments.length,
+                    'fillStyle': 'silver',
+                    'outerRadius': 4,
+                },
+                'drawPointer': false,
+                'pointerGuide': {
+                    'display': false
+                },
+                'animation': {
+                    'type': 'spinToStop',
+                    'duration': 4,
+                    'spins': 8,
+                    'easing': 'Power3.easeOut',
+                    'callbackAfter': drawTrianglePointer,
+                    'callbackFinished': function(indicatedSegment) {
+                        playWinSound();
+                        const selectedPunishment = indicatedSegment.text.endsWith('...') ? 
+                            availablePunishments.find(p => p.startsWith(indicatedSegment.text.slice(0, -3))) :
+                            indicatedSegment.text;
+                        
+                        selectedPunishments.push(selectedPunishment);
+                        spinCount++;
+                        
+                        if (spinCount === 1) {
+                            spinStatus.textContent = `First spin: ${selectedPunishment.substring(0, 50)}... Ready for second spin!`;
+                            setTimeout(() => {
+                                spinBtn.disabled = false;
+                            }, 1000);
+                        } else {
+                            spinStatus.textContent = 'Both spins complete!';
+                            document.getElementById('result1').textContent = selectedPunishments[0];
+                            document.getElementById('result2').textContent = selectedPunishments[1];
+                            document.getElementById('choose1').value = selectedPunishments[0];
+                            document.getElementById('choose2').value = selectedPunishments[1];
+                            setTimeout(() => {
+                                results.style.display = 'block';
+                                document.getElementById('spinControls').style.display = 'none';
+                            }, 1500);
+                        }
+                    },
+                    'callbackSound': playClickSound
+                }
+            });
+            
+            // Draw initial triangle pointer
+            setTimeout(drawTrianglePointer, 100);
+        }
+        
+        function spin() {
+            if (spinCount >= 2) return;
+            
+            spinBtn.disabled = true;
+            
+            // If this is the second spin, remove the first selected punishment and recreate wheel
+            if (spinCount === 1) {
+                availablePunishments = availablePunishments.filter(p => p !== selectedPunishments[0]);
+                createWheel();
+            }
+            
+            // Pick random segment to land on
+            const randomSegment = Math.floor(Math.random() * availablePunishments.length) + 1;
+            theWheel.animation.stopAngle = theWheel.getRandomForSegment(randomSegment);
+            theWheel.startAnimation();
+        }
+        
+        function handleChoice(button) {
+            // Play congratulatory fanfare
+            playCongratsFanfare();
+            
+            // Disable buttons to prevent double-click
+            document.getElementById('choose1').disabled = true;
+            document.getElementById('choose2').disabled = true;
+            
+            // Wait for fanfare to finish (2 seconds) then submit form
+            setTimeout(() => {
+                const form = button.closest('form');
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'choose_punishment';
+                input.value = button.id === 'choose1' ? selectedPunishments[0] : selectedPunishments[1];
+                form.appendChild(input);
+                form.submit();
+            }, 2100); // Slightly longer than fanfare duration
+        }
+        
+        spinBtn.addEventListener('click', spin);
+        createWheel();
+    </script>
+{% endif %}
+
+<div style="text-align: center; margin-top: 2rem;">
+    <a href="{% url 'draftgame:home' %}" class="btn btn-secondary">← Back to Home</a>
+</div>
+{% endblock %}

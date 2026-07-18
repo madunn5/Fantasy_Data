@@ -1,0 +1,76 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+<div class="card">
+    <h1>🪣 Bucket of Death</h1>
+    <div style="color: #ff6b6b; font-size: 1.2em; margin-bottom: 2rem;">
+        <strong>{{ session.punishment }}</strong>
+    </div>
+    
+    <div class="card" style="background: rgba(52, 152, 219, 0.2); text-align: center; margin-bottom: 2rem;">
+        <h2>Selected Team:</h2>
+        <div style="font-size: 1.5em; font-weight: bold; color: #3498db; margin: 1rem 0;">
+            {{ selected_team }}
+        </div>
+    </div>
+
+    {% if must_keep %}
+    <div class="card" style="background: rgba(231, 76, 60, 0.2); text-align: center;">
+        <h3>⚠️ You Must Keep This Team!</h3>
+        <p>You put back the last team, so you have to keep this one.</p>
+        
+        <form method="post" action="{% url 'draftgame:bucket_of_death' %}?week={{ session.week_number }}&test={% if session.is_test_mode %}1{% else %}0{% endif %}" style="margin-top: 1rem;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="keep">
+            <input type="hidden" name="team" value="{{ selected_team }}">
+            <div style="margin-bottom: 1rem;">
+                <input type="text" name="person" placeholder="Who will take this team?" 
+                       style="padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.3); 
+                              background: rgba(255,255,255,0.1); color: #fff; width: 300px; max-width: 100%;" required>
+            </div>
+            <button type="submit" class="btn" style="background: linear-gradient(45deg, #e74c3c 0%, #c0392b 100%);">
+                ✅ Keep Team
+            </button>
+        </form>
+    </div>
+    {% else %}
+    <div style="text-align: center;">
+        <div style="margin-bottom: 2rem;">
+            <form method="post" action="{% url 'draftgame:bucket_of_death' %}?week={{ session.week_number }}&test={% if session.is_test_mode %}1{% else %}0{% endif %}" style="display: inline-block; margin-right: 1rem;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="keep">
+                <input type="hidden" name="team" value="{{ selected_team }}">
+                <div style="margin-bottom: 1rem;">
+                    <input type="text" name="person" placeholder="Who will take this team?" 
+                           style="padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.3); 
+                                  background: rgba(255,255,255,0.1); color: #fff; width: 300px; max-width: 100%;" required>
+                </div>
+                <button type="submit" class="btn" style="background: linear-gradient(45deg, #27ae60 0%, #2ecc71 100%);">
+                    ✅ Keep It
+                </button>
+            </form>
+        </div>
+        
+        <div>
+            <form method="post" action="{% url 'draftgame:bucket_of_death' %}?week={{ session.week_number }}&test={% if session.is_test_mode %}1{% else %}0{% endif %}" style="display: inline-block;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="put_back">
+                <button type="submit" class="btn btn-secondary">
+                    ↩️ Put It Back
+                </button>
+            </form>
+        </div>
+        
+        <p style="margin-top: 1rem; font-size: 0.9em; opacity: 0.8;">
+            <em>Warning: If you put it back, you must keep the next team!</em>
+        </p>
+    </div>
+    {% endif %}
+
+    <div style="text-align: center; margin-top: 2rem;">
+        <a href="{% url 'draftgame:bucket_of_death' %}?week={{ session.week_number }}&test={% if session.is_test_mode %}1{% else %}0{% endif %}" class="btn btn-secondary">
+            🏠 Back to Bucket
+        </a>
+    </div>
+</div>
+{% endblock %}

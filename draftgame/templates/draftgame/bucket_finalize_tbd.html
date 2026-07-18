@@ -1,0 +1,40 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+<div class="card">
+    <h1>🪣 Finalize Team Names - Week {{ current_week }}</h1>
+    
+    <div style="color: #ff6b6b; font-size: 1.2em; margin: 1rem 0;">
+        <strong>{{ session.punishment }}</strong>
+    </div>
+    
+    <div class="card" style="background: rgba(243, 156, 18, 0.2); margin: 2rem 0;">
+        <h3>⚠️ Teams Need Final Names</h3>
+        <p>The following teams were marked as "To Be Decided" and need final team names before completing the week:</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="finalize_tbd">
+            
+            {% for team_entry in tbd_teams %}
+                <div style="margin: 1rem 0; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                    <div style="margin-bottom: 0.5rem; font-weight: bold;">
+                        {{ team_entry|cut:" (TBD)" }}
+                    </div>
+                    <label style="display: block; margin-bottom: 0.5rem;">Final team name:</label>
+                    <input type="text" name="tbd_team_{{ forloop.counter0 }}" required 
+                           style="padding: 0.5rem; border-radius: 5px; border: 1px solid rgba(255,255,255,0.3); 
+                                  background: rgba(255,255,255,0.1); color: #fff; width: 300px; max-width: 100%;"
+                           placeholder="e.g., New York Giants">
+                </div>
+            {% endfor %}
+            
+            <div style="text-align: center; margin-top: 2rem;">
+                <button type="submit" class="btn" style="background: linear-gradient(45deg, #27ae60 0%, #2ecc71 100%); font-size: 1.2em; padding: 1rem 2rem;">
+                    ✅ Finalize and Complete Week
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+{% include 'draftgame/_subnav_participate.html' %}
+<div style="max-width: 700px; margin: 0 auto;">
+    <div style="margin-bottom: 1.25rem;">
+        <h2>Submit a punishment</h2>
+        <p style="color: var(--text-secondary);">
+            Suggest as many as you like for the {{ season.year }} season.
+            {% if season.submissions_close_at %}Submissions close {{ season.submissions_close_at|date:"l, N j \a\t g:i A T" }}.{% endif %}
+        </p>
+    </div>
+
+    {% if season.submissions_are_open %}
+        {% if season.submissions_close_at %}
+        <div class="card" style="margin-bottom: 1.5rem; text-align: center;">
+            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.35rem;"><i class="ti ti-clock" aria-hidden="true"></i> Time left to submit</div>
+            <div id="closeCountdown" data-close="{{ season.submissions_close_at|date:'c' }}" style="font-size: 1.7rem; font-weight: 700; letter-spacing: 0.5px; font-variant-numeric: tabular-nums;"></div>
+        </div>
+        {% endif %}
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <form method="post">
+                {% csrf_token %}
+                <textarea name="text" rows="4" class="form-select" placeholder="Describe the punishment in full: rules, conditions, deadlines." style="resize: vertical;"></textarea>
+                <div style="display: flex; justify-content: flex-end; margin-top: 0.85rem;">
+                    <button type="submit" class="btn"><i class="ti ti-plus" aria-hidden="true"></i> Submit</button>
+                </div>
+            </form>
+        </div>
+    {% else %}
+        <div class="card" style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+            Submissions are currently closed for the {{ season.year }} season.
+        </div>
+    {% endif %}
+
+    <h3>Your submissions</h3>
+    {% if my_submissions %}
+        {% for punishment in my_submissions %}
+        <div class="card" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+            <span>{{ punishment.text }}</span>
+            {% if season.submissions_are_open %}
+            <form method="post" onsubmit="return confirm('Remove this submission?');" style="margin: 0;">
+                {% csrf_token %}
+                <input type="hidden" name="delete_id" value="{{ punishment.id }}">
+                <button type="submit" class="btn btn-secondary" style="white-space: nowrap;"><i class="ti ti-trash" aria-hidden="true"></i> Remove</button>
+            </form>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p style="color: var(--text-muted);">You haven't submitted any punishments yet.</p>
+    {% endif %}
+
+    <div style="margin-top: 1.5rem;">
+        <a href="{% url 'draftgame:home' %}" class="btn btn-secondary"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back to home</a>
+    </div>
+</div>
+
+{% if season.submissions_are_open and season.submissions_close_at %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('closeCountdown');
+    var closeAt = new Date(el.getAttribute('data-close')).getTime();
+    var timer;
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function tick() {
+        var ms = closeAt - Date.now();
+        if (ms <= 0) {
+            el.textContent = 'Submissions are closed';
+            if (timer) clearInterval(timer);
+            setTimeout(function() { window.location.reload(); }, 2000);
+            return;
+        }
+        var s = Math.floor(ms / 1000);
+        var d = Math.floor(s / 86400);
+        var h = Math.floor((s % 86400) / 3600);
+        var m = Math.floor((s % 3600) / 60);
+        el.textContent = (d > 0 ? d + 'd ' : '') + pad(h) + 'h ' + pad(m) + 'm ' + pad(s % 60) + 's';
+    }
+    tick();
+    timer = setInterval(tick, 1000);
+});
+</script>
+{% endif %}
+{% endblock %}

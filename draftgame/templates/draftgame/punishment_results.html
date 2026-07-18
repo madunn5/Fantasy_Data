@@ -1,0 +1,92 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+{% include 'draftgame/_subnav_view.html' %}
+<div style="text-align: center; margin-bottom: 0.5rem;">
+    <h2 style="margin-bottom: 0.4rem;">{{ season.year }} voting results</h2>
+    <p style="color: var(--text-secondary); font-size: 0.95rem;">Ranked by total points (1st = {{ season.ranking_size }}pts, 2nd = {{ season.ranking_size|add:"-1" }}pts, and so on).</p>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin-bottom: 1.5rem;">
+    <span style="color: var(--text-secondary); font-size: 0.95rem;">{{ voter_count }} voter{{ voter_count|pluralize }}</span>
+    {% if season.voting_open %}
+        <span class="yr-badge" style="background: var(--bg-success); color: var(--text-success);"><i class="ti ti-point" aria-hidden="true"></i> Live</span>
+    {% else %}
+        <span class="yr-badge" style="background: var(--surface-1); color: var(--text-secondary);">Closed</span>
+    {% endif %}
+</div>
+
+{% if user.is_staff %}
+<div class="card" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; max-width: 720px; margin: 0 auto 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 0.6rem;">
+        {% if season.voting_open %}
+            <i class="ti ti-point" aria-hidden="true" style="color: var(--text-success);"></i>
+            <span><strong>Voting is open.</strong> Closing it auto-locks the top {{ season.wheel_size }} as the {{ season.year }} wheel set.</span>
+        {% else %}
+            <i class="ti ti-list-check" aria-hidden="true" style="color: var(--text-success);"></i>
+            <span><strong>Voting closed.</strong> Top {{ finalist_count }} locked in as the {{ season.year }} wheel set.</span>
+        {% endif %}
+    </div>
+    <form method="post" action="{% url 'draftgame:toggle_voting' %}" style="margin: 0;"
+          onsubmit="return confirm('{% if season.voting_open %}Close {{ season.year }} voting? This locks in the top {{ season.wheel_size }} as the wheel set.{% else %}Reopen {{ season.year }} voting? This clears the locked-in wheel set.{% endif %}');">
+        {% csrf_token %}
+        <button type="submit" class="btn {% if not season.voting_open %}btn-secondary{% endif %}" style="white-space: nowrap;">
+            {% if season.voting_open %}<i class="ti ti-lock" aria-hidden="true"></i> Close voting &amp; lock in{% else %}<i class="ti ti-lock-open" aria-hidden="true"></i> Reopen voting{% endif %}
+        </button>
+    </form>
+</div>
+{% if season.voting_open %}
+<div class="card" style="max-width: 720px; margin: 0 auto 1.5rem;">
+    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.35rem;"><i class="ti ti-users" aria-hidden="true"></i> Voted so far ({{ voter_count }})</p>
+    {% if voted_users %}
+        <p style="font-size: 0.95rem;">{{ voted_users|join:", " }}</p>
+    {% else %}
+        <p style="color: var(--text-muted); font-size: 0.95rem;">No ballots saved yet.</p>
+    {% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+{% if not results %}
+<div style="text-align: center; color: var(--text-muted); padding: 1.75rem; border: 1px dashed var(--border); border-radius: 12px;">
+    No votes have been cast for the {{ season.year }} season yet.{% if season.voting_open %} Results appear here live as people rank their punishments.{% endif %}
+</div>
+{% else %}
+<div class="table-responsive">
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 48px;">#</th>
+                <th>Punishment</th>
+                <th style="width: 70px; text-align: right;">Points</th>
+                <th style="width: 60px; text-align: right;">Votes</th>
+                <th>Individual ranks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for result in results %}
+            <tr>
+                <td>
+                    <div style="background: var(--bg-accent); color: var(--text-accent); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.85rem;">{{ forloop.counter }}</div>
+                </td>
+                <td>{{ result.punishment }}</td>
+                <td style="text-align: right; font-weight: 600;">{{ result.total_points }}</td>
+                <td style="text-align: right; color: var(--text-secondary);">{{ result.vote_count }}</td>
+                <td style="font-size: 0.85rem; color: var(--text-secondary);">
+                    {% for ranking in result.rankings %}{{ ranking.vote__user__username }}: {{ ranking.rank }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div style="margin-top: 1.5rem;">
+    <a href="{% url 'draftgame:home' %}" class="btn btn-secondary"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back to home</a>
+</div>
+
+<style>
+.yr-badge{font-size:0.78rem;font-weight:500;padding:0.2rem 0.65rem;border-radius:999px}
+</style>
+{% endblock %}

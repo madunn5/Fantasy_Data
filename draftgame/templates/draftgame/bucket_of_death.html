@@ -1,0 +1,214 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h1>🪣 Bucket of Death - Week {{ current_week }}</h1>
+    </div>
+    
+    <!-- Week Tabs -->
+    <div style="margin-bottom: 2rem; border-bottom: 2px solid rgba(255,255,255,0.2);">
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            {% for week in previous_weeks %}
+                <a href="?week={{ week.week_number }}" style="padding: 0.5rem 1rem; text-decoration: none; color: {% if week.week_number == current_week %}#3498db{% else %}#fff{% endif %}; border-bottom: {% if week.week_number == current_week %}2px solid #3498db{% else %}none{% endif %};">Week {{ week.week_number }}</a>
+            {% endfor %}
+            {% if current_week not in previous_week_numbers %}
+            <a href="?week={{ current_week }}" style="padding: 0.5rem 1rem; text-decoration: none; color: #3498db; border-bottom: 2px solid #3498db;">Week {{ current_week }} (Current)</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div style="color: #ff6b6b; font-size: 1.2em; margin-bottom: 1rem;">
+        <strong>{{ session.punishment }}</strong>
+    </div>
+    
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="end_bucket">
+            <button type="submit" class="btn btn-secondary">
+                📊 View Leaderboard
+            </button>
+        </form>
+    </div>
+    
+    <div style="margin-bottom: 2rem;">
+        <p><strong>Teams Remaining:</strong> {{ teams_remaining }}</p>
+        <p><strong>Teams Kept:</strong> {{ total_teams_kept }}</p>
+    </div>
+
+    {% if current_kept_teams %}
+    <div class="card" style="background: rgba(46, 204, 113, 0.2);">
+        <h3>Teams Kept:</h3>
+        <ul style="list-style: none; padding: 0;">
+            {% for team_obj in current_teams_with_status %}
+            <li style="padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    {% if user.is_authenticated and user.is_staff %}
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_session_{{ team_obj.index }}">
+                            <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8em; background: #e74c3c; color: white;" onclick="return confirm('Delete this team?')">
+                                ✕
+                            </button>
+                        </form>
+                    {% endif %}
+                    <span>{{ team_obj.name }}</span>
+                </div>
+                {% if user.is_authenticated and user.is_staff %}
+                    <div style="display: flex; gap: 0.5rem;">
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="mark_session_{{ team_obj.index }}_win">
+                            <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8em; {% if team_obj.is_win %}background: #27ae60;{% else %}background: rgba(255,255,255,0.2);{% endif %}">
+                                W
+                            </button>
+                        </form>
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="mark_session_{{ team_obj.index }}_loss">
+                            <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8em; {% if team_obj.is_win == False %}background: #e74c3c;{% else %}background: rgba(255,255,255,0.2);{% endif %}">
+                                L
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% if can_complete %}
+        <div style="text-align: center; margin-top: 1rem;">
+            <form method="post" style="display: inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="complete_week">
+                <button type="submit" class="btn" style="background: linear-gradient(45deg, #27ae60 0%, #2ecc71 100%);">
+                    ✅ Complete Week {{ current_week }}
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <!-- Completed Week Results -->
+    {% if completed_week_teams %}
+    <div class="card" style="background: rgba(155, 89, 182, 0.2); margin-bottom: 2rem;">
+        <h3>Week {{ current_week }} Results:</h3>
+        <ul style="list-style: none; padding: 0;">
+            {% for team in completed_week_teams %}
+            <li style="padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    {% if user.is_authenticated and user.is_staff %}
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_{{ team.id }}">
+                            <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8em; background: #e74c3c; color: white;" onclick="return confirm('Delete this team?')">
+                                ✕
+                            </button>
+                        </form>
+                    {% endif %}
+                    <span>{{ team.name }}</span>
+                </div>
+                {% if user.is_authenticated and user.is_staff %}
+                    <div style="display: flex; gap: 0.5rem;">
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="mark_{{ team.id }}_win">
+                            <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8em; {% if team.is_win %}background: #27ae60;{% else %}background: rgba(255,255,255,0.2);{% endif %}">
+                                W
+                            </button>
+                        </form>
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="mark_{{ team.id }}_loss">
+                            <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8em; {% if team.is_win == False %}background: #e74c3c;{% else %}background: rgba(255,255,255,0.2);{% endif %}">
+                                L
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    {% if team.is_win %}
+                        <span style="color: #27ae60; font-weight: bold;">WIN</span>
+                    {% elif team.is_win == False %}
+                        <span style="color: #e74c3c; font-weight: bold;">LOSS</span>
+                    {% else %}
+                        <span style="color: #f39c12; font-weight: bold;">PENDING</span>
+                    {% endif %}
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if available_teams and user.is_staff %}
+    <div class="card" style="background: rgba(52, 152, 219, 0.2); margin: 2rem 0;">
+        <h3>Enter Player</h3>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="start_player">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem;">Player Name:</label>
+                <input type="text" name="player_name" required 
+                       style="padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.3); 
+                              background: rgba(255,255,255,0.1); color: #fff; width: 300px; max-width: 100%;">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem;">Week:</label>
+                <select name="week" class="form-select" style="width: 300px; max-width: 100%;">
+                    {% for week_num in weeks_range %}
+                        <option value="{{ week_num }}" {% if week_num == current_week %}selected{% endif %}>Week {{ week_num }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn" style="font-size: 1.2em; padding: 1rem 2rem;">
+                🎲 Start Rummaging
+            </button>
+        </form>
+    </div>
+    {% elif not user.is_authenticated %}
+    <div class="card" style="background: rgba(52, 152, 219, 0.2); margin: 2rem 0; text-align: center;">
+        <h3>View Only Mode</h3>
+        <p>You can view past picks and the leaderboard. <a href="{% url 'login' %}">Login</a> as admin to run the game.</p>
+    </div>
+    {% elif not user.is_staff %}
+    <div class="card" style="background: rgba(52, 152, 219, 0.2); margin: 2rem 0; text-align: center;">
+        <h3>View Only Mode</h3>
+        <p>You can view past picks and the leaderboard, but only admins can run the game.</p>
+    </div>
+    {% else %}
+    <div class="card" style="background: rgba(231, 76, 60, 0.2); text-align: center;">
+        <h2>🎉 All Teams Have Been Kept!</h2>
+        <p>The bucket is empty. {% if can_complete %}Week complete!{% else %}Game complete!{% endif %}</p>
+        {% if can_complete %}
+        <form method="post" style="margin-top: 1rem;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="complete_week">
+            <button type="submit" class="btn" style="background: linear-gradient(45deg, #27ae60 0%, #2ecc71 100%);">
+                ✅ Complete Week {{ current_week }}
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if user.is_authenticated and user.is_staff %}
+    <div style="text-align: center; margin-top: 2rem;">
+        <form method="post" style="display: inline; margin-right: 1rem;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="clear_teams">
+            <button type="submit" class="btn btn-secondary" onclick="return confirm('Clear all kept teams for this session?')">
+                🗑️ Clear Teams
+            </button>
+        </form>
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reset">
+            <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure you want to reset the game?')">
+                🔄 Reset Game
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

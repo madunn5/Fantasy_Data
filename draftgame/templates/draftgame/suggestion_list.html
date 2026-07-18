@@ -1,0 +1,32 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+{% include 'draftgame/_subnav_participate.html' %}
+<div style="max-width: 700px; margin: 0 auto;">
+    <div style="margin-bottom: 1.25rem;">
+        <h2>Suggested so far <span style="color: var(--text-muted); font-weight: 400;">({{ all_suggestions|length }})</span></h2>
+        <p style="color: var(--text-secondary);">Everyone's suggestions for the {{ season.year }} season, newest first. Names aren't shown.</p>
+    </div>
+
+    {% for text in all_suggestions %}
+    <div class="card" style="padding: 0.75rem 1rem;">{{ text }}</div>
+    {% empty %}
+    <p style="color: var(--text-muted);">Nothing yet. Be the first.</p>
+    {% endfor %}
+
+    {% if duplicates %}
+    <h3 style="margin-top: 2rem;">Consolidated duplicates</h3>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem;">These matched an earlier submission, so they won't be on the ballot.</p>
+    {% for text in duplicates %}
+    <div class="card" style="padding: 0.75rem 1rem; opacity: 0.6;">
+        <span style="text-decoration: line-through;">{{ text }}</span>
+        <span style="font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; margin-left: 0.5rem;">duplicate</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div style="margin-top: 1.5rem;">
+        <a href="{% url 'draftgame:submit_punishment' %}" class="btn btn-secondary"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back to submitting</a>
+    </div>
+</div>
+{% endblock %}

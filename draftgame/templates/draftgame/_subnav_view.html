@@ -1,0 +1,12 @@
+{% with active=request.resolver_match.url_name %}
+<div class="subnav">
+    <a href="{% url 'draftgame:punishment_grid' %}" class="{% if active == 'punishment_grid' %}active{% endif %}"><i class="ti ti-layout-grid" aria-hidden="true"></i> Grid</a>
+    {% if selected_season_ended %}
+        <a href="{% url 'draftgame:punishment_history' %}" class="{% if active == 'punishment_history' %}active{% endif %}"><i class="ti ti-history" aria-hidden="true"></i> History</a>
+    {% endif %}
+    {% if user.is_staff %}
+        <a href="{% url 'draftgame:punishment_wheel' %}" class="{% if active == 'punishment_wheel' %}active{% endif %}"><i class="ti ti-rotate-clockwise" aria-hidden="true"></i> Wheel</a>
+        <a href="{% url 'draftgame:punishment_results' %}" class="{% if active == 'punishment_results' %}active{% endif %}"><i class="ti ti-chart-bar" aria-hidden="true"></i> Results</a>
+    {% endif %}
+</div>
+{% endwith %}

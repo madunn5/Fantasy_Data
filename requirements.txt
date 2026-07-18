@@ -17,3 +17,6 @@ yahoo-oauth==2.1.1
 
 django-rq
 dj-database-url
+
+# Punishments / Bucket of Death (draftgame) — Google sign-in
+django-allauth==0.61.1

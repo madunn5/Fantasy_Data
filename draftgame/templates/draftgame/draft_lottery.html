@@ -1,0 +1,332 @@
+{% extends 'draftgame/base.html' %}
+{% load draftgame_extras %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 2rem;">
+    <h2>Fantasy Draft Order - Lottery</h2>
+    <p style="font-size: 1.1rem; opacity: 0.9;">Lottery ball simulation to determine draft order</p>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto 2rem;">
+    <h3>Lottery Participants</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        {% for name, balls in participants %}
+            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; text-align: center;">
+                <div style="font-weight: bold; font-size: 1.1rem;">{{ name }}</div>
+                <div style="margin-top: 0.5rem;">
+                    {% for i in balls|get_range %}
+                        <span style="display: inline-block; width: 12px; height: 12px; background: hsl({{ forloop.counter0|add:name|length }}, 70%, 60%); border-radius: 50%; margin: 0 2px;"></span>
+                    {% endfor %}
+                </div>
+                <div style="margin-top: 0.5rem; opacity: 0.8;">{{ balls }} balls</div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    {% if not animation_complete %}
+        <form method="post" style="text-align: center;">
+            {% csrf_token %}
+            <button type="submit" name="run_lottery" class="btn" style="font-size: 1.2rem; padding: 0.75rem 2rem;">
+                Run Lottery
+            </button>
+        </form>
+    {% endif %}
+</div>
+
+{% if animation_complete %}
+    <div class="card" style="max-width: 1000px; margin: 0 auto 2rem;">
+        <h3>Draft Order Results</h3>
+        
+        <!-- Control button at the top for mobile -->        
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <button id="nextPickBtn" class="btn" style="font-size: 1.1rem; padding: 0.75rem 1.5rem;">Announce Next Pick</button>
+        </div>
+        
+        <!-- Flexible layout container for lottery machine and odds -->        
+        <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: flex-start;">
+            <!-- Left side: Lottery machine -->            
+            <div style="flex: 1 1 350px; min-width: 300px;">
+                <div id="lotteryContainer" style="position: relative; height: 350px; margin: 0 auto; overflow: hidden; background: linear-gradient(to bottom, #333, #111); border-radius: 15px; box-shadow: inset 0 0 30px rgba(0,0,0,0.5);">
+                    <div id="lotteryMachine" style="position: relative; width: 250px; height: 250px; margin: 50px auto; background: rgba(255,255,255,0.1); border-radius: 50%; box-shadow: inset 0 0 30px rgba(0,0,0,0.5), 0 0 20px rgba(255,255,255,0.1); overflow: hidden;">
+                        <div id="ballsContainer"></div>
+                    </div>
+                    <div id="tube" style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 100px; background: rgba(255,255,255,0.1); border-top-left-radius: 40px; border-top-right-radius: 40px;"></div>
+                    <div id="selectedBall" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 60px; height: 60px; border-radius: 50%; background: #ff4444; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; opacity: 0; box-shadow: 0 0 15px rgba(255,255,255,0.3);"></div>
+                </div>
+            </div>
+            
+            <!-- Right side: Odds display -->            
+            <div style="flex: 1 1 350px; min-width: 300px;">
+                <div id="oddsDisplay">
+                    <h4 style="text-align: center; margin-bottom: 1rem;">Current Draft Odds</h4>
+                    <div id="oddsTable" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem;">
+                        <!-- Odds will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Draft order list -->        
+        <div id="draftOrderList" style="margin: 2rem auto; max-width: 400px;">
+            <h4 style="text-align: center; margin-bottom: 1rem;">Draft Order</h4>
+            <ol id="orderList" style="padding-left: 2rem;">
+                {% for name in draft_order %}
+                    <li style="margin-bottom: 0.5rem; opacity: 0;" class="order-item" data-name="{{ name }}">
+                        <span style="font-weight: bold;">{{ name }}</span>
+                    </li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        // Store the draft order from the server
+        const draftOrder = [
+            {% for name in draft_order %}
+                "{{ name }}"{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Create lottery balls
+        const ballsContainer = document.getElementById('ballsContainer');
+        const selectedBall = document.getElementById('selectedBall');
+        const orderItems = document.querySelectorAll('.order-item');
+        
+        // Audio context for sound effects
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Variables to track current pick
+        let currentPickIndex = 0;
+        let isAnimating = false;
+        
+        // Store participant data for odds calculation
+        const participants = {};
+        {% for name, balls in participants %}
+            participants["{{ name }}"] = {{ balls }};
+        {% endfor %}
+        
+        function playBallSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(500 + Math.random() * 200, audioContext.currentTime);
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        }
+        
+        function playSelectionSound() {
+            const notes = [
+                { freq: 523, start: 0, duration: 0.2 },
+                { freq: 659, start: 0.1, duration: 0.2 },
+                { freq: 784, start: 0.2, duration: 0.3 }
+            ];
+            
+            notes.forEach(note => {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(note.freq, audioContext.currentTime);
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + note.duration);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + note.duration);
+                }, note.start * 1000);
+            });
+        }
+        
+        // Create initial balls
+        function createBalls(count) {
+            for (let i = 0; i < count; i++) {
+                const ball = document.createElement('div');
+                ball.className = 'lottery-ball';
+                
+                // Random position within the container
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 100;
+                const x = 125 + Math.cos(angle) * distance;
+                const y = 125 + Math.sin(angle) * distance;
+                
+                // Random color
+                const hue = Math.floor(Math.random() * 360);
+                
+                ball.style.position = 'absolute';
+                ball.style.width = '40px';
+                ball.style.height = '40px';
+                ball.style.borderRadius = '50%';
+                ball.style.background = `hsl(${hue}, 70%, 60%)`;
+                ball.style.left = `${x - 20}px`;
+                ball.style.top = `${y - 20}px`;
+                ball.style.display = 'flex';
+                ball.style.alignItems = 'center';
+                ball.style.justifyContent = 'center';
+                ball.style.color = 'white';
+                ball.style.fontWeight = 'bold';
+                ball.style.fontSize = '14px';
+                ball.style.boxShadow = 'inset 0 0 10px rgba(255,255,255,0.3), 0 0 5px rgba(0,0,0,0.5)';
+                
+                ballsContainer.appendChild(ball);
+            }
+        }
+        
+        // Animate balls bouncing around
+        function animateBalls() {
+            const balls = document.querySelectorAll('.lottery-ball');
+            
+            balls.forEach(ball => {
+                // Random movement
+                const xMove = (Math.random() - 0.5) * 40;
+                const yMove = (Math.random() - 0.5) * 40;
+                
+                const currentX = parseInt(ball.style.left);
+                const currentY = parseInt(ball.style.top);
+                
+                // Keep balls within container
+                let newX = currentX + xMove;
+                let newY = currentY + yMove;
+                
+                if (newX < 0) newX = 0;
+                if (newX > 210) newX = 210;
+                if (newY < 0) newY = 0;
+                if (newY > 210) newY = 210;
+                
+                ball.style.left = `${newX}px`;
+                ball.style.top = `${newY}px`;
+            });
+            
+            playBallSound();
+        }
+        
+        // Function to calculate and display current odds
+        function updateOdds() {
+            const oddsTable = document.getElementById('oddsTable');
+            oddsTable.innerHTML = '';
+            
+            // Get remaining participants
+            const remainingParticipants = {};
+            let totalBalls = 0;
+            
+            for (const name in participants) {
+                // Skip participants already picked
+                if (currentPickIndex > 0 && draftOrder.slice(0, currentPickIndex).includes(name)) {
+                    continue;
+                }
+                
+                remainingParticipants[name] = participants[name];
+                totalBalls += participants[name];
+            }
+            
+            // Calculate and display odds
+            for (const name in remainingParticipants) {
+                const odds = (remainingParticipants[name] / totalBalls * 100).toFixed(1);
+                
+                const oddsCard = document.createElement('div');
+                oddsCard.style.background = 'rgba(255,255,255,0.05)';
+                oddsCard.style.padding = '0.75rem';
+                oddsCard.style.borderRadius = '8px';
+                oddsCard.style.textAlign = 'center';
+                
+                // Determine color based on odds
+                let oddsColor = '#ffffff';
+                if (odds > 20) oddsColor = '#4cd137'; // High odds - green
+                else if (odds > 10) oddsColor = '#fbc531'; // Medium odds - yellow
+                else oddsColor = '#e84118'; // Low odds - red
+                
+                oddsCard.innerHTML = `
+                    <div style="font-weight: bold;">${name}</div>
+                    <div style="font-size: 1.2rem; color: ${oddsColor}; margin-top: 0.25rem;">${odds}%</div>
+                    <div style="opacity: 0.7; font-size: 0.9rem;">${remainingParticipants[name]} balls</div>
+                `;
+                
+                oddsTable.appendChild(oddsCard);
+            }
+        }
+        
+        function animationComplete() {
+            // Show selected ball
+            playSelectionSound();
+            selectedBall.textContent = draftOrder[currentPickIndex];
+            selectedBall.style.opacity = '1';
+            
+            // Show in the list
+            setTimeout(() => {
+                const orderItems = document.querySelectorAll('.order-item');
+                orderItems[currentPickIndex].style.opacity = '1';
+                
+                // Update for next pick
+                currentPickIndex++;
+                isAnimating = false;
+                
+                // Update button
+                const nextBtn = document.getElementById('nextPickBtn');
+                if (currentPickIndex >= draftOrder.length) {
+                    nextBtn.textContent = 'Draft Complete!';
+                    nextBtn.disabled = true;
+                    document.getElementById('oddsDisplay').style.display = 'none';
+                } else {
+                    nextBtn.textContent = `Announce Pick #${currentPickIndex + 1}`;
+                    nextBtn.disabled = false;
+                    updateOdds(); // Update odds for next pick
+                }
+            }, 1500);
+        }
+        
+        // Handle next pick button click
+        document.getElementById('nextPickBtn').addEventListener('click', function() {
+            if (isAnimating || currentPickIndex >= draftOrder.length) return;
+            
+            isAnimating = true;
+            this.disabled = true;
+            this.textContent = 'Selecting...';
+            
+            // Clear previous ball
+            selectedBall.style.opacity = '0';
+            selectedBall.textContent = '';
+            
+            // Create new balls if needed
+            if (ballsContainer.children.length < 10) {
+                createBalls(20);
+            }
+            
+            // Animate balls
+            let animationCount = 0;
+            const animationInterval = setInterval(() => {
+                animateBalls();
+                animationCount++;
+                
+                if (animationCount >= 10) {
+                    clearInterval(animationInterval);
+                    animationComplete();
+                }
+            }, 300);
+        });
+        
+        // Initialize balls on page load
+        window.addEventListener('load', () => {
+            createBalls(30);
+            document.getElementById('nextPickBtn').textContent = 'Announce Pick #1';
+            updateOdds(); // Show initial odds
+        });
+    </script>
+{% endif %}
+
+<div style="text-align: center; margin-top: 2rem;">
+    <a href="{% url 'draftgame:home' %}" class="btn btn-secondary">← Back to Home</a>
+</div>
+{% endblock %}

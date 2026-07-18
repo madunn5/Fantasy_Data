@@ -1,0 +1,161 @@
+{% extends 'draftgame/base.html' %}
+
+{% block content %}
+{% include 'draftgame/_subnav_participate.html' %}
+{{ pool_json|json_script:"poolData" }}
+{{ existing_order|json_script:"existingOrder" }}
+
+<div style="margin-bottom: 1.25rem;">
+    <h2>Rank your top {{ ranking_size }} punishments</h2>
+    <p style="color: var(--text-secondary);">Tap a punishment to add it to your {{ season.year }} ranking, then reorder or remove. Your #1 is the one you most want to win.</p>
+</div>
+
+{% if my_submission_count %}
+<div style="display: flex; align-items: center; gap: 0.6rem; background: var(--bg-accent); color: var(--text-accent); border-radius: var(--radius); padding: 0.75rem 1rem; margin-bottom: 1.25rem;">
+    <i class="ti ti-eye-off" aria-hidden="true" style="flex: none;"></i>
+    <span>Heads up: your {{ my_submission_count }} submission{{ my_submission_count|pluralize }} {{ my_submission_count|pluralize:"isn't,aren't" }} listed below. You can't vote for your own, so don't go looking for {{ my_submission_count|pluralize:"it,them" }}.</span>
+</div>
+{% endif %}
+
+<form method="post" id="voteForm">
+    {% csrf_token %}
+    <div id="hiddenInputs"></div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+        <div style="background: var(--surface-1); border-radius: 12px; padding: 0.85rem;">
+            <p style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.6rem; font-weight: 500;">
+                <span><i class="ti ti-list" aria-hidden="true"></i> Available</span>
+                <span id="poolCount"></span>
+            </p>
+            <div id="pool"></div>
+        </div>
+        <div style="background: var(--surface-1); border-radius: 12px; padding: 0.85rem;">
+            <p style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.6rem; font-weight: 500;">
+                <span><i class="ti ti-trophy" aria-hidden="true"></i> Your ranking</span>
+                <span id="rankCount"></span>
+            </p>
+            <div id="ranked"></div>
+            <p id="emptyHint" style="color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 1.25rem 0;">Tap a punishment to start ranking.</p>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; justify-content: center; margin-top: 1.5rem;">
+        <button type="submit" class="btn" id="saveBtn">Save rankings</button>
+        <a href="{% url 'draftgame:home' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+
+    <div class="pv-mobilebar">
+        <span id="barCount" style="font-weight: 600;"></span>
+        <button type="submit" class="btn">Save rankings</button>
+    </div>
+</form>
+
+<style>
+.pv-row{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;background:var(--surface-2);font-size:0.92rem;line-height:1.3}
+.pv-row:hover{border-color:var(--border-strong);background:var(--surface-1)}
+.pv-rank{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;background:var(--surface-2);font-size:0.92rem;line-height:1.3}
+.pv-num{flex:none;width:24px;height:24px;border-radius:50%;background:var(--bg-accent);color:var(--text-accent);display:flex;align-items:center;justify-content:center;font-size:0.82rem;font-weight:600}
+.pv-ico{flex:none;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px;font-size:1rem;line-height:1}
+.pv-ico:hover{color:var(--text-primary)}
+.pv-mobilebar{display:none}
+@media (max-width: 700px){
+    .pv-mobilebar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;align-items:center;justify-content:space-between;gap:0.75rem;padding:0.7rem 1rem calc(0.7rem + env(safe-area-inset-bottom));background:var(--surface-0);border-top:1px solid var(--border);box-shadow:0 -4px 16px rgba(0,0,0,0.25)}
+    body{padding-bottom:80px}
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var TARGET = {{ ranking_size }};
+    var allItems = JSON.parse(document.getElementById('poolData').textContent);
+    var existingOrder = JSON.parse(document.getElementById('existingOrder').textContent);
+    var byId = {};
+    allItems.forEach(function(it) { byId[it.id] = it; });
+
+    var ranked = existingOrder.filter(function(id) { return byId[id]; });
+    var rankedSet = {};
+    ranked.forEach(function(id) { rankedSet[id] = true; });
+    var pool = allItems.filter(function(it) { return !rankedSet[it.id]; }).map(function(it) { return it.id; });
+
+    var poolEl = document.getElementById('pool');
+    var rankedEl = document.getElementById('ranked');
+    var hiddenEl = document.getElementById('hiddenInputs');
+
+    function render() {
+        poolEl.innerHTML = '';
+        pool.forEach(function(id) {
+            var d = document.createElement('div');
+            d.className = 'pv-row';
+            d.innerHTML = '<i class="ti ti-plus" style="font-size:0.95rem;color:var(--text-muted)" aria-hidden="true"></i><span>' + escapeHtml(byId[id].text) + '</span>';
+            d.onclick = function() {
+                if (ranked.length >= TARGET) return;
+                ranked.push(id);
+                pool = pool.filter(function(x) { return x !== id; });
+                render();
+            };
+            poolEl.appendChild(d);
+        });
+
+        rankedEl.innerHTML = '';
+        ranked.forEach(function(id, i) {
+            var d = document.createElement('div');
+            d.className = 'pv-rank';
+            d.innerHTML = '<span class="pv-num">' + (i + 1) + '</span><span style="flex:1">' + escapeHtml(byId[id].text) + '</span>';
+            d.appendChild(iconBtn('ti-chevron-up', 'Move up', function() {
+                if (i > 0) { var t = ranked[i-1]; ranked[i-1] = ranked[i]; ranked[i] = t; render(); }
+            }));
+            d.appendChild(iconBtn('ti-chevron-down', 'Move down', function() {
+                if (i < ranked.length - 1) { var t = ranked[i+1]; ranked[i+1] = ranked[i]; ranked[i] = t; render(); }
+            }));
+            d.appendChild(iconBtn('ti-x', 'Remove', function() {
+                pool.unshift(id);
+                ranked.splice(i, 1);
+                render();
+            }));
+            rankedEl.appendChild(d);
+        });
+
+        document.getElementById('emptyHint').style.display = ranked.length ? 'none' : 'block';
+        document.getElementById('poolCount').textContent = pool.length + ' left';
+        var rc = document.getElementById('rankCount');
+        rc.textContent = ranked.length + ' of ' + TARGET;
+        rc.style.color = ranked.length === TARGET ? 'var(--text-success)' : 'var(--text-secondary)';
+        var bar = document.getElementById('barCount');
+        bar.textContent = 'Picked ' + ranked.length + ' of ' + TARGET;
+        bar.style.color = ranked.length === TARGET ? 'var(--text-success)' : 'var(--text-primary)';
+
+        hiddenEl.innerHTML = '';
+        ranked.forEach(function(id, i) {
+            var inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'punishment_' + (i + 1);
+            inp.value = id;
+            hiddenEl.appendChild(inp);
+        });
+    }
+
+    function iconBtn(icon, label, fn) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pv-ico';
+        b.setAttribute('aria-label', label);
+        b.innerHTML = '<i class="ti ' + icon + '"></i>';
+        b.onclick = fn;
+        return b;
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    document.getElementById('voteForm').addEventListener('submit', function(e) {
+        if (ranked.length !== TARGET) {
+            e.preventDefault();
+            alert('Please rank ' + TARGET + ' punishments. You have ' + ranked.length + ' so far.');
+        }
+    });
+
+    render();
+});
+</script>
+{% endblock %}

@@ -1,31 +1,32 @@
 """
-URL configuration for fantasy_app project.
+URL configuration for the combined fantasy site.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+Two halves share one project:
+  /data/        — league stats & analytics (fantasy_data)
+  /punishments/ — punishment voting, wheel, Bucket of Death (draftgame)
+  /             — landing page that routes to either half
+  /accounts/    — single sign-in for both (Google via allauth + username/password)
 """
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
-from django.contrib.auth import views as auth_views
+from django.views.generic import TemplateView
+
+from draftgame.auth_views import CustomLoginView
+from draftgame.views import logout_view, register
 
 urlpatterns = [
+    path('', TemplateView.as_view(template_name='landing.html'), name='landing'),
     path('admin/', admin.site.urls),
     path('django-rq/', include('django_rq.urls')),
-    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('', include('fantasy_data.urls')),
+    path('accounts/login/', CustomLoginView.as_view(), name='login'),
+    path('accounts/logout/', logout_view, name='logout'),
+    path('accounts/register/', register, name='register'),
+    path('accounts/', include('django.contrib.auth.urls')),
+    path('accounts/', include('allauth.urls')),  # Google sign-in (and social routes)
+    path('data/', include('fantasy_data.urls')),
+    path('punishments/', include('draftgame.urls')),
 ]
 
 if settings.DEBUG:

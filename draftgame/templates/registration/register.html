@@ -3,22 +3,22 @@
 
 {% block content %}
 <div class="card" style="max-width: 420px; margin: 1rem auto;">
-    <h2>Log in</h2>
+    <h2>Create account</h2>
 
     {% if google_auth_enabled %}
     <a href="{% provider_login_url 'google' %}" class="btn btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-bottom: 1rem;">
-        <i class="ti ti-brand-google" aria-hidden="true"></i> Sign in with Google
+        <i class="ti ti-brand-google" aria-hidden="true"></i> Sign up with Google
     </a>
-    <div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">or use a username</div>
+    <div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">or pick a username</div>
     {% endif %}
 
     <form method="post">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit" class="btn" style="margin-top: 0.5rem;">Log in</button>
+        <button type="submit" class="btn" style="margin-top: 0.5rem;">Create account</button>
     </form>
     <p style="margin-top: 1rem; color: var(--text-secondary);">
-        Don't have an account? <a href="{% url 'register' %}" style="color: var(--text-accent);">Create one</a>
+        Already have an account? <a href="{% url 'login' %}" style="color: var(--text-accent);">Log in</a>
     </p>
 </div>
 {% endblock %}
