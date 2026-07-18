@@ -48,9 +48,11 @@ merged in from the old fantasy_project repo July 2026).
 - `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` are env-driven
   (`DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`).
 - Production settings: `fantasy_app/heroku.py` (set
-  `DJANGO_SETTINGS_MODULE=fantasy_app.heroku`). Target Heroku app is
-  `fantasy-draft-order` (it has the Postgres add-on and the Google OAuth
-  registration); `dunn-right-fantasy` has no dynos or DB and is being retired.
+  `DJANGO_SETTINGS_MODULE=fantasy_app.heroku`). Heroku app: `dunn-right-fantasy`
+  (renamed from `fantasy-draft-order` July 2026) at
+  https://dunn-right-fantasy-048860865119.herokuapp.com — Basic dyno +
+  Essential-0 Postgres. `dunn-right-fantasy-old` is the retired original app
+  (empty, $0), kept only as a name placeholder.
 - Google sign-in needs `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` env vars.
 - No Redis: `collect_yahoo_data` falls back to synchronous collection
   (by design, to avoid a Redis add-on cost).
