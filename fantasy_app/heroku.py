@@ -7,19 +7,17 @@ from .settings import *
 # Production settings
 DEBUG = False
 ALLOWED_HOSTS = [
-    'fantasy-draft-order-890f802bbbec.herokuapp.com',
-    'dunn-right-fantasy-a91a2b941097.herokuapp.com',
+    'dunn-right-fantasy-048860865119.herokuapp.com',
     '.herokuapp.com',
 ]
 
 # Django 4+ requires the full https origin for CSRF on POSTs.
 CSRF_TRUSTED_ORIGINS = [
-    'https://fantasy-draft-order-890f802bbbec.herokuapp.com',
-    'https://dunn-right-fantasy-a91a2b941097.herokuapp.com',
+    'https://dunn-right-fantasy-048860865119.herokuapp.com',
 ]
 
-# The surviving Heroku app (fantasy-draft-order) sets SECRET_KEY rather than
-# DJANGO_SECRET_KEY; accept either.
+# The Heroku app (dunn-right-fantasy, formerly fantasy-draft-order) sets
+# SECRET_KEY rather than DJANGO_SECRET_KEY; accept either.
 if os.environ.get('SECRET_KEY'):
     SECRET_KEY = os.environ['SECRET_KEY']
 
