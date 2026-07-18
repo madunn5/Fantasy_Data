@@ -1,7 +1,16 @@
 # Fantasy_Data — project guide for Claude
 
-Django fantasy-football analytics app (Heroku app `dunn-right-fantasy`,
-GitHub `madunn5/Fantasy_Data`).
+Combined Django fantasy-football site (GitHub `madunn5/Fantasy_Data`): league
+analytics (`fantasy_data`) plus punishments / Bucket of Death (`draftgame`,
+merged in from the old fantasy_project repo July 2026).
+
+## URL structure
+- `/` — landing page (`fantasy_app/templates/landing.html`), two paths.
+- `/data/...` — analytics site (`fantasy_data.urls`, un-namespaced names).
+- `/punishments/...` — punishment site (`draftgame.urls`, namespace `draftgame:`).
+- `/accounts/...` — shared auth: allauth Google sign-in + username/password
+  (`login`/`logout`/`register` are global URL names; draftgame's
+  `CustomLoginView` + `logout_view`/`register` are mounted here).
 
 ## Workflow preferences
 - **Commit directly to `main`** in small, logical commits. Do **not** create
@@ -13,7 +22,7 @@ GitHub `madunn5/Fantasy_Data`).
   plotly + the Yahoo stack). There is no in-tree virtualenv.
 - **Run the app:** `/Users/Matt/venv/bin/python manage.py runserver`
   (local DB is `db.sqlite3`, already seeded with real production data).
-- **Tests:** `/Users/Matt/venv/bin/python manage.py test fantasy_data`
+- **Tests:** `/Users/Matt/venv/bin/python manage.py test fantasy_data draftgame`
 - **Django check:** `/Users/Matt/venv/bin/python manage.py check`
 
 ## Layout
@@ -23,6 +32,11 @@ GitHub `madunn5/Fantasy_Data`).
 - `fantasy_data/year_nav.py` — global season picker (`?year=` → session → latest).
 - `fantasy_data/yahoo_collector.py` — pulls weekly data from the Yahoo API.
 - Templates in `fantasy_data/templates/fantasy_data/`, base in `fantasy_app/templates/base.html`.
+- `draftgame/` — punishment voting, wheel, draft lottery, Bucket of Death.
+  Its templates live in `draftgame/templates/` (base: `draftgame/base.html`);
+  season picker via `draftgame.context_processors.selected_season`.
+- Dev-server note: Django caches templates even with DEBUG on — restart
+  `runserver` after editing templates if changes don't show.
 
 ## Data
 - `TeamPerformance` (team-week stats; full 2023–2025), `Player` / `PlayerRoster` /
@@ -33,6 +47,13 @@ GitHub `madunn5/Fantasy_Data`).
 ## Deploy / config
 - `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` are env-driven
   (`DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`).
+- Production settings: `fantasy_app/heroku.py` (set
+  `DJANGO_SETTINGS_MODULE=fantasy_app.heroku`). Target Heroku app is
+  `fantasy-draft-order` (it has the Postgres add-on and the Google OAuth
+  registration); `dunn-right-fantasy` has no dynos or DB and is being retired.
+- Google sign-in needs `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` env vars.
+- No Redis: `collect_yahoo_data` falls back to synchronous collection
+  (by design, to avoid a Redis add-on cost).
 
 ## Known issue
 - `yahoo_collector.py` sets `Projected Result` = actual `Result`, so the Luck
