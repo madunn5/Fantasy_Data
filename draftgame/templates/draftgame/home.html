@@ -11,7 +11,11 @@
         {% endif %}
     {% else %}
         <h1>Fantasy league punishments</h1>
+        {% if active_season.voting_complete %}
+        <p style="color: var(--text-secondary); font-size: 1.05rem;">The grid is set for {{ active_season.year }}. Browse what's in play and how past seasons played out.</p>
+        {% else %}
         <p style="color: var(--text-secondary); font-size: 1.05rem;">Log in to submit and vote, or browse the history and grid.</p>
+        {% endif %}
     {% endif %}
 </div>
 
