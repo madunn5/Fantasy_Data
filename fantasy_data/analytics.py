@@ -15,7 +15,7 @@ from . import predictions
 # Reproducible simulations so the page doesn't flicker between identical loads.
 _SIM_SEED = 1234567
 _DEFAULT_SIMS = 3000
-_DEFAULT_PLAYOFF_SPOTS = 6
+_DEFAULT_PLAYOFF_SPOTS = 8  # league rule: top 8 make the playoffs
 
 
 def week_number(week):
