@@ -251,7 +251,7 @@
         
         function createWheel() {
             // Midnight Broadcast segment cycle: red / near-black / dried-blood / slate
-            const SEGMENT_FILLS = ['#e03f3f', '#1a1d24', '#8a2f2f', '#232730'];
+            const SEGMENT_FILLS = ['#e03f3f', '#242a34', '#8a2f2f', '#2e3440'];
             const segments = availablePunishments.map((punishment, index) => ({
                 'fillStyle': SEGMENT_FILLS[index % SEGMENT_FILLS.length],
                 'text': punishment.length > 30 ? punishment.substring(0, 27) + '...' : punishment,
@@ -277,13 +277,13 @@
                 'textAlignment': 'center',
                 'textMargin': 0,
                 'borderWidth': 3,
-                'borderColor': '#0c0e12',
+                'borderColor': '#171a21',
                 'segments': segments,
                 'pointerAngle': 0,
                 'responsive': true,
                 'pins': {
                     'number': availablePunishments.length,
-                    'fillStyle': '#8b93a1',
+                    'fillStyle': '#99a1af',
                     'outerRadius': 4,
                 },
                 'drawPointer': false,
