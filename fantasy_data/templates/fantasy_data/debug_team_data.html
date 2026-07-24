@@ -5,43 +5,51 @@
 
 {% block extra_css %}
 <style>
-    .missing-data { color: #dc3545; font-style: italic; }
-    .has-data { color: #198754; }
+    .week-nav select, .week-nav ~ * select, select {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        color: var(--text);
+        padding: 4px 8px;
+    }
+    select option { background: var(--surface); color: var(--text); }
+
+    .missing-data { color: var(--danger-text); font-style: italic; }
+    .has-data { color: var(--success); }
     .week-nav { margin-bottom: 2rem; }
-    .edit-mode { background-color: #fff3cd; }
-    .edit-input { border: 1px solid #007bff; }
-    
+    .edit-mode { background-color: rgba(255, 213, 107, 0.15); }
+    .edit-input { border: 1px solid var(--accent); }
+
     /* Frozen team column styles */
     .table-container {
         overflow-x: auto;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--border-strong);
         max-width: 100%;
         width: 100%;
     }
-    
+
     .table {
         width: 2000px;
         margin-bottom: 0;
     }
-    
+
     .table th:first-child,
     .table td:first-child {
         position: sticky;
         left: 0;
-        background-color: white;
+        background-color: var(--surface);
         z-index: 2;
-        border-right: 2px solid #007bff;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        border-right: 2px solid var(--border-strong);
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
     }
-    
+
     .table thead th:first-child {
-        background-color: #212529;
-        color: white;
+        background-color: var(--bg-nav);
         z-index: 3;
     }
-    
+
     .table-striped tbody tr:nth-of-type(odd) td:first-child {
-        background-color: #f8f9fa;
+        background-color: var(--surface);
     }
 </style>
 {% endblock %}

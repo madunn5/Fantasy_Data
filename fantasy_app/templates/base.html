@@ -14,6 +14,7 @@
     <!-- Midnight Broadcast theme: Barlow type + dark skin over Bootstrap -->
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="{% static 'fantasy_data/theme.css' %}" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
     <!-- Plotly JS (loaded once in base template) -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- jQuery (loaded once in base template) -->
