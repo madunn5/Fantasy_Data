@@ -7,6 +7,31 @@
     <h1 class="mb-1">Fantasy Dashboard <small class="text-muted">{{ selected_year }}</small></h1>
     <p class="text-muted">Season at a glance — switch seasons with the <strong>Season</strong> picker up top.</p>
 
+    <!-- Hero strip: Leader / Fraud Watch / Danger Zone -->
+    {% if rankings %}
+    <div class="hero-strip">
+        <div class="stat-card">
+            <span class="eyebrow accent">Leader</span>
+            <div class="value">{{ rankings.0.team }}</div>
+            <div class="caption">{{ rankings.0.rating|floatformat:1 }} pts/wk &middot; {{ rankings.0.wins }}-{{ rankings.0.losses }}</div>
+        </div>
+        {% if luckiest %}
+        <div class="stat-card">
+            <span class="eyebrow">Fraud Watch</span>
+            <div class="value">{{ luckiest.team }}</div>
+            <div class="caption">{{ luckiest.actual_wins }}-{{ luckiest.actual_losses }} on +{{ luckiest.scoring_luck|floatformat:1 }} wins of luck</div>
+        </div>
+        {% endif %}
+        {% if unluckiest %}
+        <div class="stat-card danger">
+            <span class="eyebrow danger">Danger Zone</span>
+            <div class="value">{{ unluckiest.team }}</div>
+            <div class="caption">{{ unluckiest.actual_wins }}-{{ unluckiest.actual_losses }} &middot; {{ unluckiest.scoring_luck|floatformat:1 }} wins vs expected</div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="row">
         <!-- Power Rankings snapshot -->
         <div class="col-lg-6 mb-4">

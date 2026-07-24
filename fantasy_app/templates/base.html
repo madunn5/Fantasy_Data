@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -11,74 +11,21 @@
     <link href="https://cdn.datatables.net/2.1.3/css/dataTables.dataTables.min.css" rel="stylesheet">
     <!-- Font Awesome for icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <!-- Midnight Broadcast theme: Barlow type + dark skin over Bootstrap -->
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="{% static 'fantasy_data/theme.css' %}" rel="stylesheet">
     <!-- Plotly JS (loaded once in base template) -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- jQuery (loaded once in base template) -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-
-    <!-- Custom CSS -->
-    <style>
-        .chart-container {
-            margin-bottom: 2rem;
-            padding: 1rem;
-            border-radius: .25rem;
-            box-shadow: 0 0 1rem rgba(0, 0, 0, 0.1);
-            overflow-x: auto;
-        }
-
-        /* Hide all charts by default */
-        .chart-content {
-            display: none;
-        }
-        
-        /* Year selector in navbar */
-        .year-selector {
-            margin-left: auto;
-            padding-right: 15px;
-        }
-        
-        .year-selector select {
-            border-radius: 4px;
-            padding: 5px;
-        }
-        
-        /* Scrollable chart styles */
-        .scrollable-chart {
-            max-height: 70vh;
-            overflow: auto;
-            width: 100%;
-            padding: 10px;
-        }
-        
-        /* Plotly chart responsiveness */
-        .scrollable-chart .plotly-graph-div {
-            width: 100% !important;
-            height: auto !important;
-            min-height: 400px;
-        }
-        
-        /* Ensure charts don't overflow */
-        .scrollable-chart .js-plotly-plot {
-            width: 100% !important;
-        }
-        
-        /* Chart card styles */
-        .chart-card {
-            margin-bottom: 2rem;
-        }
-        
-        /* Loading indicator */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-    </style>
 </head>
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="{% url 'home' %}">{{ page_title }}</a>
+        <a class="navbar-brand" href="{% url 'home' %}">
+            <span class="mark">D</span>
+            <span>Dunn Right <span class="accent-word">Fantasy</span></span>
+        </a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -86,25 +33,24 @@
             <ul class="navbar-nav">
                 <!-- Home Button -->
                 <li class="nav-item">
-                    <a class="nav-link text-dark" href="{% url 'home' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">
                         <i class="fas fa-home"></i> Home
                     </a>
                 </li>
-                <!-- Switch to the punishments half of the site. Once the admin
-                     flips Season.bucket_open, the button points straight at the
-                     live Bucket of Death instead. -->
+                <!-- Cross-link to the punishments half: outlined pill; goes red
+                     and points at the live bucket once Season.bucket_open. -->
                 <li class="nav-item d-flex align-items-center">
                     {% if active_season.bucket_open %}
-                        <a class="btn btn-danger btn-sm mx-2 text-nowrap" href="{% url 'draftgame:bucket_of_death' %}" title="Bucket of Death is live!">
+                        <a class="pill-link live mx-2" href="{% url 'draftgame:bucket_of_death' %}" title="Bucket of Death is live!">
                             <i class="fas fa-skull"></i> Bucket of Death <span class="badge badge-light">LIVE</span>
                         </a>
                     {% else %}
-                        <a class="btn btn-dark btn-sm mx-2 text-nowrap" href="{% url 'draftgame:home' %}" title="Switch to Punishments &amp; Bucket of Death">
+                        <a class="pill-link mx-2" href="{% url 'draftgame:home' %}" title="Switch to Punishments &amp; Bucket of Death">
                             <i class="fas fa-skull"></i> Punishments
                         </a>
                     {% endif %}
                 </li>
-                
+
                 <!-- Team Charts Dropdown -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle text-primary" href="#" id="teamChartsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -215,6 +161,24 @@
         {% block content %}
         {% endblock %}
     </div>
+
+    <!-- Mobile bottom tab bar (hidden >= 768px) -->
+    <nav class="tab-bar" aria-label="Primary">
+        <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+            <i class="fas fa-home"></i> Home
+        </a>
+        <a href="{% url 'stats_charts' %}" class="{% if request.resolver_match.url_name == 'stats_charts' %}active{% endif %}">
+            <i class="fas fa-table"></i> Stats
+        </a>
+        <a href="{% url 'power_rankings' %}" class="{% if request.resolver_match.url_name == 'power_rankings' %}active{% endif %}">
+            <i class="fas fa-chart-line"></i> Matchups
+        </a>
+        {% if active_season.bucket_open %}
+        <a href="{% url 'draftgame:bucket_of_death' %}"><i class="fas fa-skull"></i> Bucket</a>
+        {% else %}
+        <a href="{% url 'draftgame:home' %}"><i class="fas fa-skull"></i> Punish</a>
+        {% endif %}
+    </nav>
 
     <!-- Common JS libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>

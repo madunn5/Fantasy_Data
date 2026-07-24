@@ -1,0 +1,435 @@
+/* ==========================================================================
+   Midnight Broadcast — data-site skin (design handoff July 2026)
+   Tokens + Bootstrap 4 overrides. Bootstrap stays for grid/behavior;
+   this file only re-skins it. Volt accent belongs to the data side;
+   red appears here only for danger-zone content.
+   ========================================================================== */
+
+:root {
+    --bg-page: #0c0e12;
+    --bg-nav: #101318;
+    --surface: #14171d;
+    --border: rgba(255, 255, 255, 0.07);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text: #eef1f5;
+    --text-2: #b6bcc8;
+    --text-muted: #8b93a1;
+    --accent: #e8ff47;      /* volt — data side */
+    --accent-ink: #111111;
+    --danger: #e03f3f;
+    --danger-text: #ff8d82;
+    --success: #5fe39b;
+    --warning: #ffd56b;
+    --radius-card: 10px;
+    --radius-btn: 8px;
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-body: 'Barlow', sans-serif;
+    --owner-1: #2f6fed; --owner-2: #b0592f; --owner-3: #3f9e57;
+    --owner-4: #8a52c9; --owner-5: #c9527e; --owner-6: #6b4a2f;
+    --owner-7: #2f5b6b; --owner-8: #56662f; --owner-9: #3f8f9e;
+    --owner-10: #a08a2f;
+}
+
+/* --- Base ----------------------------------------------------------------- */
+
+body {
+    background: var(--bg-page);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+}
+
+h1, h2, h3, h4, h5, h6, .display-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text);
+}
+
+h1 { font-size: 30px; }
+
+a { color: var(--text-2); }
+a:hover { color: var(--text); text-decoration: none; }
+
+.text-muted, small, .small { color: var(--text-muted) !important; }
+.text-dark { color: var(--text) !important; }
+.text-primary { color: var(--text-2) !important; }
+
+.eyebrow {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    color: var(--text-muted);
+}
+.eyebrow.accent { color: var(--accent); }
+.eyebrow.danger { color: var(--danger-text); }
+
+/* --- Navbar ---------------------------------------------------------------- */
+
+.navbar.bg-light {
+    background: var(--bg-nav) !important;
+    border-bottom: 1px solid var(--border);
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text) !important;
+    font-size: 17px;
+    white-space: nowrap;
+}
+.navbar-brand .mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.navbar-brand .accent-word { color: var(--accent); }
+
+.navbar-light .navbar-nav .nav-link {
+    color: var(--text-2) !important;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+}
+.navbar-light .navbar-nav .nav-link:hover { color: var(--text) !important; }
+.navbar-light .navbar-nav .nav-link.active {
+    color: var(--text) !important;
+    border-bottom-color: var(--accent);
+}
+.navbar-light .navbar-toggler {
+    border-color: var(--border-strong);
+    color: var(--text-2);
+}
+.navbar-light .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(238,241,245,0.8)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+}
+
+/* Cross-link to the punishment site: outlined pill, never wraps. */
+.pill-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    color: var(--text-2) !important;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.pill-link:hover { border-color: var(--text-muted); color: var(--text) !important; }
+.pill-link.live {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: #fff !important;
+}
+
+/* --- Dropdowns ------------------------------------------------------------- */
+
+.dropdown-menu {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-btn);
+}
+.dropdown-item { color: var(--text-2); }
+.dropdown-item:hover, .dropdown-item:focus {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+}
+.dropdown-divider { border-top-color: var(--border); }
+
+/* --- Cards ----------------------------------------------------------------- */
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    color: var(--text);
+}
+.card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 14px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.card-header a { color: var(--accent); font-size: 12px; letter-spacing: 0.06em; }
+.card-header.bg-primary, .card-header.bg-info, .card-header.bg-dark,
+.card-header.bg-success, .card-header.bg-secondary {
+    background: transparent !important;
+    color: var(--text) !important;
+}
+.card.danger {
+    background: linear-gradient(135deg, #1c1115, #14171d);
+    border-color: rgba(224, 63, 63, 0.4);
+}
+
+.list-group-item {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text);
+}
+
+/* --- Stat cards / hero strip ----------------------------------------------- */
+
+.hero-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 1.25rem;
+}
+.stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 14px 16px;
+}
+.stat-card .value {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 27px;
+    line-height: 1.15;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+.stat-card .caption { font-size: 12.5px; color: var(--text-muted); }
+.stat-card.danger {
+    background: linear-gradient(135deg, #1c1115, #14171d);
+    border-color: rgba(224, 63, 63, 0.4);
+}
+
+/* --- Buttons ---------------------------------------------------------------- */
+
+.btn { border-radius: var(--radius-btn); font-weight: 600; }
+.btn-primary, .btn-info, .btn-success.btn-accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+}
+.btn-primary:hover, .btn-primary:focus, .btn-info:hover, .btn-info:focus {
+    background: #d9ef3f;
+    border-color: #d9ef3f;
+    color: var(--accent-ink);
+}
+.btn-secondary, .btn-outline-secondary, .btn-light, .btn-dark {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-2);
+}
+.btn-secondary:hover, .btn-outline-secondary:hover, .btn-light:hover, .btn-dark:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--text-muted);
+    color: var(--text);
+}
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+@media (max-width: 767px) {
+    .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-sm { min-height: 44px; }
+}
+
+/* --- Tables (Bootstrap + DataTables) ---------------------------------------- */
+
+.table { color: var(--text); }
+.table thead th {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    border-top: none;
+    border-bottom: 1px solid var(--border-strong);
+}
+.table td, .table th {
+    border-top: 1px solid var(--border);
+    padding-top: 9px;
+    padding-bottom: 9px;
+    vertical-align: middle;
+}
+.table-striped tbody tr:nth-of-type(odd) { background: transparent; }
+.table-hover tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+.table .num, .table td.dt-type-numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.trend-up { color: var(--success); }
+.trend-down { color: var(--danger-text); }
+.rank-col { color: var(--text-muted); }
+
+table.dataTable { color: var(--text); }
+table.dataTable thead th { color: var(--text-muted); }
+table.dataTable tbody tr { background: transparent; }
+table.dataTable.stripe tbody tr.odd, table.dataTable.display tbody tr.odd { background: transparent; }
+table.dataTable.hover tbody tr:hover, table.dataTable.display tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+.dt-container .dt-paging .dt-paging-button,
+.dt-container .dt-info,
+.dt-container .dt-length,
+.dt-container .dt-search { color: var(--text-2) !important; }
+.dt-container .dt-paging .dt-paging-button.current,
+.dt-container .dt-paging .dt-paging-button:hover {
+    background: var(--surface) !important;
+    border-color: var(--border-strong) !important;
+    color: var(--text) !important;
+}
+
+/* --- Owner avatars ---------------------------------------------------------- */
+
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 23px;
+    height: 23px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+/* --- Status pills ------------------------------------------------------------ */
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.status-pill.locked {
+    background: rgba(95, 227, 155, 0.15);
+    border: 1px solid rgba(95, 227, 155, 0.45);
+    color: var(--success);
+}
+.status-pill.pending {
+    background: rgba(255, 213, 107, 0.15);
+    border: 1px solid rgba(255, 213, 107, 0.45);
+    color: var(--warning);
+}
+.status-pill.eliminated {
+    background: rgba(139, 147, 161, 0.15);
+    border: 1px solid rgba(139, 147, 161, 0.45);
+    color: var(--text-muted);
+}
+tr.eliminated { opacity: 0.45; }
+
+/* --- Forms ------------------------------------------------------------------- */
+
+.form-control, .custom-select {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 11px;
+    height: auto;
+    color: var(--text);
+}
+.form-control:focus, .custom-select:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(232, 255, 71, 0.25);
+    color: var(--text);
+}
+.form-control-sm { padding: 6px 10px; }
+.form-control option, .custom-select option { background: var(--surface); color: var(--text); }
+label { color: var(--text-2); }
+
+.alert-danger {
+    background: linear-gradient(135deg, #1c1115, #14171d);
+    border: 1px solid rgba(224, 63, 63, 0.4);
+    color: var(--danger-text);
+}
+.alert-success {
+    background: rgba(95, 227, 155, 0.1);
+    border: 1px solid rgba(95, 227, 155, 0.4);
+    color: var(--success);
+}
+.alert-info, .alert-warning {
+    background: rgba(255, 213, 107, 0.1);
+    border: 1px solid rgba(255, 213, 107, 0.4);
+    color: var(--warning);
+}
+
+.badge-light { background: rgba(255, 255, 255, 0.9); color: #111; }
+
+/* --- Charts ------------------------------------------------------------------ */
+
+.chart-container {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow-x: auto;
+}
+.chart-content { display: none; }
+.chart-card { margin-bottom: 2rem; }
+.scrollable-chart { max-height: 70vh; overflow: auto; width: 100%; padding: 10px; }
+.scrollable-chart .plotly-graph-div { width: 100% !important; height: auto !important; min-height: 400px; }
+.scrollable-chart .js-plotly-plot { width: 100% !important; }
+.loading { display: none; text-align: center; padding: 20px; color: var(--text-muted); }
+
+/* --- Year selector / misc ----------------------------------------------------- */
+
+.year-selector { margin-left: auto; padding-right: 15px; }
+.year-selector label { color: var(--text-2) !important; }
+.year-selector select { border-radius: 8px; padding: 5px 10px; }
+
+/* --- Mobile bottom tab bar ----------------------------------------------------- */
+
+.tab-bar { display: none; }
+@media (max-width: 767px) {
+    body { padding-bottom: 64px; }
+    .tab-bar {
+        display: flex;
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        z-index: 1030;
+        background: var(--bg-nav);
+        border-top: 1px solid var(--border);
+        padding: 4px 0 calc(4px + env(safe-area-inset-bottom));
+    }
+    .tab-bar a {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        min-height: 44px;
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+    .tab-bar a i { font-size: 16px; }
+    .tab-bar a.active { color: var(--accent); }
+}
