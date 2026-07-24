@@ -11,9 +11,9 @@
     --surface: #20242e;
     --border: rgba(255, 255, 255, 0.09);
     --border-strong: rgba(255, 255, 255, 0.20);
-    --text: #eef1f5;
-    --text-2: #c2c8d3;
-    --text-muted: #99a1af;
+    --text: #f5f7fa;
+    --text-2: #ced4de;
+    --text-muted: #a7aebb;
     --accent: #e8ff47;      /* volt — data side */
     --accent-ink: #111111;
     --danger: #e03f3f;
@@ -118,7 +118,7 @@ a:hover { color: var(--text); text-decoration: none; }
     color: var(--text-2);
 }
 .navbar-light .navbar-toggler-icon {
-    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(238,241,245,0.8)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(245,247,250,0.85)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
 }
 
 /* Cross-link to the punishment site: outlined pill, never wraps. */

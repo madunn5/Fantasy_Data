@@ -14,9 +14,9 @@ OWNER_COLORS = ["#2f6fed", "#b0592f", "#3f9e57", "#8a52c9", "#c9527e",
 
 pio.templates["dunn"] = go.layout.Template(layout=dict(
     paper_bgcolor="#20242e", plot_bgcolor="#20242e",
-    font=dict(family="Barlow, sans-serif", size=13, color="#c2c8d3"),
+    font=dict(family="Barlow, sans-serif", size=13, color="#ced4de"),
     title=dict(font=dict(family="Barlow Condensed, sans-serif",
-                         size=20, color="#eef1f5")),
+                         size=20, color="#f5f7fa")),
     colorway=OWNER_COLORS,
     xaxis=dict(gridcolor="rgba(255,255,255,0.09)",
                zerolinecolor="rgba(255,255,255,0.12)", linecolor="rgba(255,255,255,0.12)"),
