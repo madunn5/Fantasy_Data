@@ -4,10 +4,10 @@
 <div class="card">
     <h1>📊 Bucket of Death - Leaderboard</h1>
     {% if test_mode %}
-        <span style="background: #f39c12; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold;">TEST MODE</span>
+        <span style="background: var(--bg-warning); border: 1px solid rgba(255,213,107,0.45); color: var(--text-warning); padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold;">TEST MODE</span>
     {% endif %}
     
-    <div style="color: #ff6b6b; font-size: 1.2em; margin: 1rem 0;">
+    <div style="color: var(--text-danger); font-size: 1.2em; margin: 1rem 0;">
         <strong>{{ session.punishment }}</strong>
     </div>
     
@@ -37,13 +37,13 @@
         </table>
     </div>
     {% else %}
-    <div class="card" style="background: rgba(231, 76, 60, 0.2); text-align: center; margin: 2rem 0;">
+    <div class="card" style="background: linear-gradient(135deg, #1c1115, #14171d); border-color: rgba(224,63,63,0.4); text-align: center; margin: 2rem 0;">
         <p>No player data available yet.</p>
     </div>
     {% endif %}
     
     {% if team_tallies %}
-    <div class="card" style="background: rgba(155, 89, 182, 0.2); margin: 2rem 0;">
+    <div class="card" style="background: var(--surface-2); margin: 2rem 0;">
         <h3>🪣 Team Selection Tallies</h3>
         <div class="table-responsive">
             <table>

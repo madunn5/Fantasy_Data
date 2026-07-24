@@ -4,22 +4,23 @@
 <div class="card">
     <h1>🪣 Bucket of Death - Week {{ session.week_number }}</h1>
     {% if session.is_test_mode %}
-        <span style="background: #f39c12; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold;">TEST MODE</span>
+        <span style="background: var(--bg-warning); border: 1px solid rgba(255,213,107,0.45); color: var(--text-warning); padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold;">TEST MODE</span>
     {% endif %}
     
-    <div style="color: #ff6b6b; font-size: 1.2em; margin: 1rem 0;">
+    <div style="color: var(--text-danger); font-size: 1.2em; margin: 1rem 0;">
         <strong>{{ session.punishment }}</strong>
     </div>
     
-    <div class="card" style="background: rgba(155, 89, 182, 0.2); text-align: center; margin: 2rem 0;">
+    <div class="card" style="background: var(--surface-2); text-align: center; margin: 2rem 0;">
         <h2>{{ session.current_player }} is rummaging again...</h2>
         <div id="rummaging" style="font-size: 2em; margin: 2rem 0;">
             🪣 <span id="dots">.</span>
         </div>
         <div id="must-keep" style="display: none;">
-            <div style="background: rgba(231, 76, 60, 0.3); padding: 2rem; border-radius: 15px; margin: 1rem 0;">
-                <h2 style="color: #e74c3c; font-size: 2em; margin-bottom: 1rem;">⚠️ MUST KEEP!</h2>
-                <div style="font-size: 1.5em; font-weight: bold; color: #3498db; margin: 1rem 0;">
+            <!-- Must-keep pass: red-bordered reveal card, no put-back -->
+            <div style="background: linear-gradient(135deg, #1c1115, #14171d); border: 2px solid var(--accent); padding: 2rem; border-radius: var(--radius-card); margin: 1rem 0;">
+                <span class="eyebrow" style="color: var(--text-danger);">No put-backs left. This one is yours.</span>
+                <div style="font-family: var(--font-display); font-size: 2.2em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-primary); margin: 0.75rem 0 0.25rem;">
                     {{ selected_team }}
                 </div>
             </div>
@@ -27,7 +28,7 @@
                 <form method="post" action="{% url 'draftgame:bucket_decision' %}" style="display: inline-block; margin-right: 1rem;">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="keep">
-                    <button type="submit" class="btn" style="background: linear-gradient(45deg, #e74c3c 0%, #c0392b 100%); font-size: 1.2em; padding: 1rem 2rem;">
+                    <button type="submit" class="btn" style="background: var(--accent); border-color: var(--accent); font-size: 1.2em; padding: 1rem 2rem;">
                         ✅ Keep Team
                     </button>
                 </form>

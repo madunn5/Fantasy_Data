@@ -9,9 +9,9 @@
         {% csrf_token %}
         
         {% for week_data in weeks_data %}
-        <div class="card" style="background: rgba(52, 152, 219, 0.2); margin: 2rem 0;">
+        <div class="card" style="background: var(--surface-2); margin: 2rem 0;">
             <h3>Week {{ week_data.week_result.week_number }}</h3>
-            <p style="color: #ff6b6b; margin-bottom: 1rem;"><strong>{{ week_data.week_result.punishment }}</strong></p>
+            <p style="color: var(--text-danger); margin-bottom: 1rem;"><strong>{{ week_data.week_result.punishment }}</strong></p>
             
             {% if week_data.team_results %}
             <div class="table-responsive">
@@ -45,7 +45,7 @@
             {% endif %}
         </div>
         {% empty %}
-        <div class="card" style="background: rgba(231, 76, 60, 0.2); text-align: center;">
+        <div class="card" style="background: linear-gradient(135deg, #1c1115, #14171d); border-color: rgba(224,63,63,0.4); text-align: center;">
             <p>No completed weeks found.</p>
         </div>
         {% endfor %}

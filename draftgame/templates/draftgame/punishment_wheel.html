@@ -7,7 +7,7 @@
 </div>
 
 {% if show_confirmation %}
-<div id="confirmationBanner" style="background: linear-gradient(45deg, #2ecc71, #27ae60); color: white; padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; text-align: center; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3); transition: opacity 0.5s ease;">
+<div id="confirmationBanner" style="background: var(--bg-success); border: 1px solid var(--border-success); color: var(--text-success); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; text-align: center;  transition: opacity 0.5s ease;">
     <h3 style="margin-bottom: 0.5rem;">Punishment Saved!</h3>
     <p style="margin: 0; font-size: 1.1rem;"><strong>{{ saved_name }}</strong> has been assigned:</p>
     <p style="margin: 0.5rem 0 0 0; font-style: italic; opacity: 0.9;">{{ saved_punishment }}...</p>
@@ -53,7 +53,7 @@
             
             <div style="margin-bottom: 1.5rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Player Name:</label>
-                <input type="text" name="name" required style="width: 100%; padding: 0.75rem; border: 1px solid rgba(255,255,255,0.3); border-radius: 10px; background: rgba(255,255,255,0.1); color: #fff; font-size: 1rem;">
+                <input type="text" name="name" required style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-strong); border-radius: 10px; background: rgba(255,255,255,0.06); color: #fff; font-size: 1rem;">
             </div>
             
             <div style="margin-bottom: 1.5rem;">
@@ -73,28 +73,29 @@
     <div style="max-width: 800px; margin: 0 auto; text-align: center;">
         <h3 style="margin-bottom: 2rem;">Spinning for {{ player_name }}</h3>
         
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <canvas id="wheelCanvas" width="600" height="600" style="box-shadow: 0 0 50px rgba(0,0,0,0.4); border-radius: 50%;"></canvas>
+        <!-- Ceremony glow: the one red ambient allowed behind the wheel -->
+        <div style="text-align: center; margin-bottom: 2rem; padding: 1rem 0; background: radial-gradient(circle at 50% 30%, rgba(224,63,63,0.14), transparent 70%);">
+            <canvas id="wheelCanvas" width="600" height="600" style="box-shadow: 0 0 80px rgba(224,63,63,0.25); border-radius: 50%;"></canvas>
         </div>
-        
+
         <div id="spinControls">
             <button id="spinBtn" class="btn" style="margin-bottom: 1rem;">Spin!</button>
-            <p id="spinStatus">Ready for first spin</p>
+            <p><span id="spinStatus" class="status-pill pending">Ready for first spin</span></p>
         </div>
-        
+
         <div id="results" style="display: none;">
-            <h4>Final Results:</h4>
+            <h3>Choose your fate</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 2rem 0;">
-                <div id="option1" style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 10px; border: 2px solid #667eea;">
-                    <h4 style="color: #667eea; margin-bottom: 1rem;">Option 1</h4>
-                    <p id="result1" style="line-height: 1.5;"></p>
+                <div id="option1" class="card danger" style="margin-bottom: 0; text-align: left;">
+                    <span class="eyebrow" style="color: var(--text-danger);">Fate one</span>
+                    <p id="result1" style="line-height: 1.5; margin-top: 0.6rem;"></p>
                 </div>
-                <div id="option2" style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 10px; border: 2px solid #764ba2;">
-                    <h4 style="color: #764ba2; margin-bottom: 1rem;">Option 2</h4>
-                    <p id="result2" style="line-height: 1.5;"></p>
+                <div id="option2" class="card danger" style="margin-bottom: 0; text-align: left;">
+                    <span class="eyebrow" style="color: var(--text-danger);">Fate two</span>
+                    <p id="result2" style="line-height: 1.5; margin-top: 0.6rem;"></p>
                 </div>
             </div>
-            
+
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="player_name" value="{{ player_name }}">
@@ -164,9 +165,9 @@
             // Save current context state
             ctx.save();
             
-            // Draw triangle pointer
-            ctx.fillStyle = '#ff4444';
-            ctx.strokeStyle = '#cc0000';
+            // Draw triangle pointer — volt, the only volt on the punishment side
+            ctx.fillStyle = '#e8ff47';
+            ctx.strokeStyle = '#b9cc2e';
             ctx.lineWidth = 2;
             ctx.shadowColor = 'rgba(0,0,0,0.4)';
             ctx.shadowBlur = 4;
@@ -249,12 +250,15 @@
         }
         
         function createWheel() {
+            // Midnight Broadcast segment cycle: red / near-black / dried-blood / slate
+            const SEGMENT_FILLS = ['#e03f3f', '#1a1d24', '#8a2f2f', '#232730'];
             const segments = availablePunishments.map((punishment, index) => ({
-                'fillStyle': `hsl(${(index * 360 / availablePunishments.length) % 360}, 70%, 60%)`,
+                'fillStyle': SEGMENT_FILLS[index % SEGMENT_FILLS.length],
                 'text': punishment.length > 30 ? punishment.substring(0, 27) + '...' : punishment,
                 'textFontSize': 14,
-                'textFontWeight': 'bold',
-                'textFillStyle': '#fff',
+                'textFontFamily': 'Barlow Condensed',
+                'textFontWeight': 600,
+                'textFillStyle': '#eef1f5',
                 'textOrientation': 'horizontal',
                 'textAlignment': 'center',
                 'textDirection': 'normal'
@@ -266,19 +270,20 @@
                 'outerRadius': 280,
                 'innerRadius': 30,
                 'textFontSize': 14,
-                'textFontWeight': 'bold',
-                'textFillStyle': '#fff',
+                'textFontFamily': 'Barlow Condensed',
+                'textFontWeight': 600,
+                'textFillStyle': '#eef1f5',
                 'textOrientation': 'horizontal',
                 'textAlignment': 'center',
                 'textMargin': 0,
                 'borderWidth': 3,
-                'borderColor': '#fff',
+                'borderColor': '#0c0e12',
                 'segments': segments,
                 'pointerAngle': 0,
                 'responsive': true,
                 'pins': {
                     'number': availablePunishments.length,
-                    'fillStyle': 'silver',
+                    'fillStyle': '#8b93a1',
                     'outerRadius': 4,
                 },
                 'drawPointer': false,
