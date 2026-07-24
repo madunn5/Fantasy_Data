@@ -38,6 +38,20 @@ merged in from the old fantasy_project repo July 2026).
 - Dev-server note: Django caches templates even with DEBUG on — restart
   `runserver` after editing templates if changes don't show.
 
+## Design ("Midnight Broadcast", July 2026)
+- One dark shell for both halves; volt (#e8ff47) accents the data side, red
+  (#e03f3f) the punishments side. Volt never appears on punishment pages
+  (exception: the wheel pointer); no gradients on buttons.
+- Tokens live in three places (keep in sync): `fantasy_data/static/fantasy_data/theme.css`
+  (:root, also the Bootstrap/DataTables overrides), `draftgame/templates/draftgame/base.html`
+  (:root), `fantasy_app/templates/landing.html` (:root). Charts:
+  `fantasy_data/plotly_theme.py` registers the "dunn" default template + fixed
+  per-owner colorway.
+- Type: Barlow Condensed 600 for display/headings (uppercase), Barlow for body.
+- After editing theme.css run `manage.py collectstatic` (manifest storage;
+  tests fail on a stale manifest).
+- No em dashes in punishment-side user-facing copy (league preference).
+
 ## Data
 - `TeamPerformance` (team-week stats; full 2023–2025), `Player` / `PlayerRoster` /
   `PlayerPerformance` (2025 only), `TeamOwnerMapping`. `team_name` is the person's name.
