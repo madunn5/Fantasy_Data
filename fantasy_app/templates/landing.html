@@ -5,24 +5,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dunn Right Fantasy</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* Midnight Broadcast tokens (shared with both halves of the site) */
+        :root {
+            --bg-page: #0c0e12;
+            --surface: #14171d;
+            --border: rgba(255, 255, 255, 0.07);
+            --border-strong: rgba(255, 255, 255, 0.16);
+            --text: #eef1f5;
+            --text-2: #b6bcc8;
+            --text-muted: #8b93a1;
+            --accent: #e8ff47;
+            --danger: #e03f3f;
+            --danger-text: #ff8d82;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Barlow', sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(160deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
-            color: #e2e8f0;
+            background: var(--bg-page);
+            color: var(--text);
             padding: 2rem 1rem;
         }
-        h1 { font-size: 2.2rem; margin-bottom: 0.5rem; text-align: center; }
-        p.tagline { color: #94a3b8; margin-bottom: 2.5rem; text-align: center; }
+        .wordmark {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0.4rem;
+        }
+        .wordmark .mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #111;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+        }
+        h1 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 600;
+            font-size: 2.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: center;
+        }
+        h1 .accent-word { color: var(--accent); }
+        p.tagline { color: var(--text-muted); margin-bottom: 2.5rem; text-align: center; }
         .paths {
             display: flex;
-            gap: 1.5rem;
+            gap: 1.25rem;
             flex-wrap: wrap;
             justify-content: center;
             width: 100%;
@@ -31,24 +72,43 @@
         a.path-card {
             flex: 1 1 300px;
             max-width: 400px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 16px;
-            padding: 2.25rem 1.75rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 2rem 1.6rem;
             text-decoration: none;
             color: inherit;
             text-align: center;
-            transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+            transition: transform 0.15s ease, border-color 0.15s ease;
         }
-        a.path-card:hover {
-            transform: translateY(-4px);
-            border-color: rgba(255, 255, 255, 0.35);
-            background: rgba(255, 255, 255, 0.09);
+        a.path-card:hover { transform: translateY(-4px); }
+        a.path-card.data:hover { border-color: rgba(232, 255, 71, 0.5); }
+        a.path-card.punish { background: linear-gradient(135deg, #1c1115, #14171d); border-color: rgba(224, 63, 63, 0.4); }
+        a.path-card.punish:hover { border-color: rgba(224, 63, 63, 0.7); }
+        .path-card .emoji { font-size: 2.6rem; display: block; margin-bottom: 0.75rem; }
+        .path-card .eyebrow {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.10em;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
         }
-        .path-card .emoji { font-size: 3rem; display: block; margin-bottom: 0.75rem; }
+        .path-card.data .eyebrow { color: var(--accent); }
+        .path-card.punish .eyebrow { color: var(--danger-text); }
+        .path-card h2 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 600;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        .path-card p { color: var(--text-2); font-size: 0.95rem; line-height: 1.45; }
         .live-badge {
             display: inline-block;
-            background: #dc2626;
+            background: var(--danger);
             color: #fff;
             font-size: 0.7rem;
             font-weight: 700;
@@ -60,32 +120,34 @@
             animation: live-pulse 1.6s ease-in-out infinite;
         }
         @keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
-        .path-card h2 { font-size: 1.35rem; margin-bottom: 0.5rem; }
-        .path-card p { color: #94a3b8; font-size: 0.95rem; line-height: 1.45; }
-        footer { margin-top: 3rem; color: #64748b; font-size: 0.85rem; text-align: center; }
-        footer a { color: #94a3b8; }
+        footer { margin-top: 3rem; color: var(--text-muted); font-size: 0.85rem; text-align: center; }
+        footer a { color: var(--text-2); }
     </style>
 </head>
 <body>
-    <h1>Dunn Right Fantasy</h1>
+    <div class="wordmark"><span class="mark">D</span></div>
+    <h1>Dunn Right <span class="accent-word">Fantasy</span></h1>
     <p class="tagline">Pick your poison.</p>
 
     <div class="paths">
-        <a class="path-card" href="{% url 'home' %}">
+        <a class="path-card data" href="{% url 'home' %}">
             <span class="emoji">📊</span>
-            <h2>League Data</h2>
+            <span class="eyebrow">League Data</span>
+            <h2>Stats &amp; Analytics</h2>
             <p>Standings, power rankings, playoff odds, luck &amp; bench reports, player stats, and every chart you could want.</p>
         </a>
         {% if active_season.bucket_open %}
-        <a class="path-card" href="{% url 'draftgame:bucket_of_death' %}">
+        <a class="path-card punish" href="{% url 'draftgame:bucket_of_death' %}">
             <span class="emoji">💀</span>
+            <span class="eyebrow">Punishments</span>
             <h2>Bucket of Death<span class="live-badge">LIVE</span></h2>
             <p>The bucket is open. See this week's picks, the leaderboard, and who's flirting with disaster.</p>
         </a>
         {% else %}
-        <a class="path-card" href="{% url 'draftgame:home' %}">
+        <a class="path-card punish" href="{% url 'draftgame:home' %}">
             <span class="emoji">💀</span>
-            <h2>Punishments &amp; Bucket of Death</h2>
+            <span class="eyebrow">Punishments</span>
+            <h2>Bucket of Death</h2>
             <p>Submit and vote on punishments, spin the wheel, run the draft lottery, and face the Bucket of Death.</p>
         </a>
         {% endif %}

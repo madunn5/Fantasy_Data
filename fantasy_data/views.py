@@ -21,6 +21,7 @@ from django.core.cache import cache
 from django.contrib.admin.views.decorators import staff_member_required
 
 from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, TeamOwnerMapping
+from . import plotly_theme  # noqa: F401 — registers the "dunn" default template
 from .year_nav import get_selected_year
 from .predictions import win_probability, power_ratings, team_stats
 from . import analytics
@@ -594,43 +595,43 @@ def team_chart(request):
     
     fig = px.bar(df_sorted, x='team_name', y='total_points', color='week', title='Total Points by Team Each Week')
     add_total_annotations(fig, df_totals, 'total_points')
-    fig.update_layout(width=1200, height=600)
+    fig.update_layout(height=600, autosize=True)
     chart = fig.to_html(full_html=False)
 
     fig_wr_points = px.bar(df_sorted, x='team_name', y='wr_points_total', color='week', title='Total WR Points by Team Each Week')
     add_total_annotations(fig_wr_points, df_totals, 'wr_points_total')
-    fig_wr_points.update_layout(width=1200, height=600)
+    fig_wr_points.update_layout(height=600, autosize=True)
     chart_wr_points = fig_wr_points.to_html(full_html=False)
 
     fig_qb_points = px.bar(df_sorted, x='team_name', y='qb_points', color='week', title='Total QB Points by Team Each Week')
     add_total_annotations(fig_qb_points, df_totals, 'qb_points')
-    fig_qb_points.update_layout(width=1200, height=600)
+    fig_qb_points.update_layout(height=600, autosize=True)
     chart_qb_points = fig_qb_points.to_html(full_html=False)
 
     fig_rb_points = px.bar(df_sorted, x='team_name', y='rb_points_total', color='week', title='Total RB Points by Team Each Week')
     add_total_annotations(fig_rb_points, df_totals, 'rb_points_total')
-    fig_rb_points.update_layout(width=1200, height=600)
+    fig_rb_points.update_layout(height=600, autosize=True)
     chart_rb_points = fig_rb_points.to_html(full_html=False)
 
     fig_te_points = px.bar(df_sorted, x='team_name', y='te_points_total', color='week', title='Total TE Points by Team Each Week')
     add_total_annotations(fig_te_points, df_totals, 'te_points_total')
-    fig_te_points.update_layout(width=1200, height=600)
+    fig_te_points.update_layout(height=600, autosize=True)
     chart_te_points = fig_te_points.to_html(full_html=False)
 
     fig_k_points = px.bar(df_sorted, x='team_name', y='k_points', color='week', title='Total K Points by Team Each Week')
     add_total_annotations(fig_k_points, df_totals, 'k_points')
-    fig_k_points.update_layout(width=1200, height=600)
+    fig_k_points.update_layout(height=600, autosize=True)
     chart_k_points = fig_k_points.to_html(full_html=False)
 
     fig_def_points = px.bar(df_sorted, x='team_name', y='def_points', color='week', title='Total DEF Points by Team Each Week')
     add_total_annotations(fig_def_points, df_totals, 'def_points')
-    fig_def_points.update_layout(width=1200, height=600)
+    fig_def_points.update_layout(height=600, autosize=True)
     chart_def_points = fig_def_points.to_html(full_html=False)
     
     # Create points against charts
     fig_against = px.bar(df_sorted, x='team_name', y='points_against', color='week', title='Points Against by Team Each Week')
     add_total_annotations(fig_against, df_totals, 'points_against')
-    fig_against.update_layout(width=1200, height=600)
+    fig_against.update_layout(height=600, autosize=True)
     chart_against = fig_against.to_html(full_html=False)
     
     # Create position-specific against charts using opponent lookup
@@ -667,7 +668,7 @@ def team_chart(request):
                     showarrow=False,
                     yshift=10
                 )
-            fig.update_layout(width=1200, height=600)
+            fig.update_layout(height=600, autosize=True)
             return fig.to_html(full_html=False)
         return '<div class="alert alert-warning">No opponent data available</div>'
     
