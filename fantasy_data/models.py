@@ -145,3 +145,27 @@ class TeamOwnerMapping(models.Model):
             return mapping.owner_name
         except cls.DoesNotExist:
             return team_name  # Fallback to original team name
+
+
+class ScheduledMatchup(models.Model):
+    """One league matchup from the Yahoo schedule, including future weeks.
+
+    TeamPerformance only ever holds played weeks, so this is what lets the
+    playoff simulator know who plays whom for the rest of the season.
+    Team names are stored as Yahoo reports them (team_a < team_b alphabetically
+    so re-collection can't duplicate a matchup); readers normalise them to
+    owner names via TeamOwnerMapping.
+    """
+    year = models.IntegerField(db_index=True)
+    week = models.PositiveIntegerField()
+    team_a = models.CharField(max_length=100)
+    team_b = models.CharField(max_length=100)
+
+    class Meta:
+        unique_together = ('year', 'week', 'team_a', 'team_b')
+        indexes = [
+            models.Index(fields=['year', 'week']),
+        ]
+
+    def __str__(self):
+        return f"{self.year} Week {self.week}: {self.team_a} vs {self.team_b}"

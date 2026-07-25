@@ -7,21 +7,15 @@
 - simulate_season(): Monte Carlo playoff odds using each team's scoring distribution
 """
 import random
-import re
 
-from .models import TeamPerformance, PlayerPerformance
+from .models import TeamPerformance, PlayerPerformance, ScheduledMatchup, TeamOwnerMapping
 from . import predictions
+from .predictions import week_number  # views use analytics.week_number
 
 # Reproducible simulations so the page doesn't flicker between identical loads.
 _SIM_SEED = 1234567
 _DEFAULT_SIMS = 3000
 _DEFAULT_PLAYOFF_SPOTS = 8  # league rule: top 8 make the playoffs
-
-
-def week_number(week):
-    """'Week 12' -> 12. Returns 0 if it can't be parsed."""
-    m = re.search(r"(\d+)", week or "")
-    return int(m.group(1)) if m else 0
 
 
 def standings(year, through_week=None):
@@ -136,19 +130,33 @@ def bench_report(year):
 
 
 def season_schedule(year):
-    """{week_num: [(team_a, team_b), ...]} of unique matchups from the schedule."""
-    rows = TeamPerformance.objects.filter(year=year).values("team_name", "week", "opponent")
+    """{week_num: [(team_a, team_b), ...]} of unique matchups.
+
+    Played weeks come from TeamPerformance's opponent column; future weeks come
+    from the stored Yahoo schedule (ScheduledMatchup), with team names
+    normalised to owner names via TeamOwnerMapping so both sources join up.
+    """
     sched, seen = {}, set()
-    for r in rows:
-        a, b = r["team_name"], r["opponent"]
-        if not b:
-            continue
-        wn = week_number(r["week"])
+
+    def add(wn, a, b):
+        if wn <= 0 or not a or not b:
+            return
         key = (wn, frozenset((a, b)))
         if key in seen:
-            continue
+            return
         seen.add(key)
         sched.setdefault(wn, []).append((a, b))
+
+    for r in TeamPerformance.objects.filter(year=year).values("team_name", "week", "opponent"):
+        add(week_number(r["week"]), r["team_name"], r["opponent"])
+
+    owner = {
+        m["team_name"]: m["owner_name"]
+        for m in TeamOwnerMapping.objects.filter(year=year, is_active=True).values(
+            "team_name", "owner_name")
+    }
+    for m in ScheduledMatchup.objects.filter(year=year).values("week", "team_a", "team_b"):
+        add(m["week"], owner.get(m["team_a"], m["team_a"]), owner.get(m["team_b"], m["team_b"]))
     return sched
 
 
@@ -156,21 +164,35 @@ def simulate_season(year, through_week=None, n_sims=_DEFAULT_SIMS,
                     playoff_spots=_DEFAULT_PLAYOFF_SPOTS):
     """Monte Carlo playoff odds.
 
-    Records are taken as-is through ``through_week``; every later matchup on the
-    schedule is simulated by drawing each team's score from its Normal(mean, std)
-    distribution. The top ``playoff_spots`` teams by (wins, points-for) make the
-    playoffs. Returns ``None`` if there's no data.
+    Records are taken as-is through ``through_week``. Each simulated season
+    first draws every team's *true* scoring rate from Normal(mu, mu_sigma) —
+    we only have an estimate of how good each team is, and that uncertainty
+    is wide early in the season and narrow late, which is what keeps week-2
+    odds middle-of-the-road instead of calling the season decided. Every later
+    matchup is then simulated by drawing weekly scores around that rate.
+    ``mu``/``std`` come from games up to ``through_week`` only (no lookahead —
+    the odds "as of week N" only know what week N knew). The top
+    ``playoff_spots`` teams by (wins, points-for) make the playoffs.
+    Returns ``None`` if there's no data.
     """
-    stats = predictions.team_stats(year)
     sched = season_schedule(year)
-    if not stats or not sched:
+    if not sched:
         return None
 
     weeks = sorted(sched)
     max_week = max(weeks)
+    played = [
+        week_number(w) for w in
+        TeamPerformance.objects.filter(year=year).values_list("week", flat=True).distinct()
+    ]
+    latest_played = max(played) if played else 0
     if through_week is None:
-        through_week = max_week
+        through_week = latest_played
     through_week = max(0, min(through_week, max_week))
+
+    stats = predictions.team_stats(year, through_week=through_week)
+    if not stats:
+        return None
 
     base = {s["team"]: s for s in standings(year, through_week)}
     teams = list(stats.keys())
@@ -178,15 +200,18 @@ def simulate_season(year, through_week=None, n_sims=_DEFAULT_SIMS,
 
     rng = random.Random(_SIM_SEED)
     playoff_counts = {t: 0 for t in teams}
+    rate_sigma = {t: predictions.mu_sigma(stats[t]) for t in teams}
 
     for _ in range(n_sims):
         wins = {t: base.get(t, {}).get("wins", 0) for t in teams}
         pf = {t: base.get(t, {}).get("pf", 0.0) for t in teams}
+        # One draw of each team's true scoring rate for this simulated season.
+        rate = {t: rng.gauss(stats[t]["mu"], rate_sigma[t]) for t in teams}
         for a, b in remaining:
             if a not in stats or b not in stats:
                 continue
-            sa = rng.gauss(stats[a]["mean"], stats[a]["std"] or 1.0)
-            sb = rng.gauss(stats[b]["mean"], stats[b]["std"] or 1.0)
+            sa = rng.gauss(rate[a], stats[a]["std"] or 1.0)
+            sb = rng.gauss(rate[b], stats[b]["std"] or 1.0)
             pf[a] += sa
             pf[b] += sb
             if sa >= sb:
@@ -199,17 +224,28 @@ def simulate_season(year, through_week=None, n_sims=_DEFAULT_SIMS,
     results = []
     for t in teams:
         s = base.get(t, {})
+        pct = 100.0 * playoff_counts[t] / n_sims
+        # A simulation can't prove 100% or 0% while games remain, so don't
+        # display it: a spot isn't clinched until the schedule says so.
+        if remaining and pct > 99.5:
+            pct_label = ">99"
+        elif remaining and pct < 0.5:
+            pct_label = "<1"
+        else:
+            pct_label = f"{pct:.1f}"
         results.append({
             "team": t,
             "wins": s.get("wins", 0),
             "losses": s.get("losses", 0),
             "pf": s.get("pf", 0.0),
-            "playoff_pct": 100.0 * playoff_counts[t] / n_sims,
+            "playoff_pct": pct,
+            "pct_label": pct_label,
         })
     results.sort(key=lambda x: (x["playoff_pct"], x["wins"], x["pf"]), reverse=True)
     return {
         "through_week": through_week,
         "max_week": max_week,
+        "latest_played": latest_played,
         "weeks": weeks,
         "n_sims": n_sims,
         "playoff_spots": playoff_spots,

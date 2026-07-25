@@ -12,7 +12,9 @@
             <label for="throughWeek" class="mb-0"><strong>Simulate from after:</strong></label>
             <select id="throughWeek" class="form-control d-inline-block ml-2" style="width:auto;" onchange="updateThrough()">
                 {% for w in sim.weeks %}
+                {% if w <= sim.latest_played %}
                 <option value="{{ w }}" {% if w == sim.through_week %}selected{% endif %}>Week {{ w }}</option>
+                {% endif %}
                 {% endfor %}
             </select>
         </div>
@@ -44,7 +46,7 @@
                     <td class="text-center">{{ r.wins }}-{{ r.losses }}</td>
                     <td>
                         <div class="d-flex align-items-center">
-                            <span class="mr-2" style="width:52px;">{{ r.playoff_pct|floatformat:1 }}%</span>
+                            <span class="mr-2" style="width:52px;">{{ r.pct_label }}%</span>
                             <div class="progress flex-grow-1" style="height:16px; background:#eee;">
                                 <div class="progress-bar {% if r.playoff_pct >= 50 %}bg-success{% else %}bg-warning{% endif %}"
                                      role="progressbar" style="width: {{ r.playoff_pct|floatformat:0 }}%;"></div>
@@ -57,9 +59,13 @@
         </table>
     </div>
     <p class="text-muted small mt-3">
-        Each remaining matchup is simulated by drawing both teams' scores from their season scoring
-        distribution (the same model behind <a href="{% url 'power_rankings' %}">Power Rankings</a>),
-        repeated {{ sim.n_sims }} times. Top {{ sim.playoff_spots }} teams by record (points-for breaks ties) make the playoffs.
+        Every remaining game gets simulated {{ sim.n_sims }} times. Each team's simulated score is
+        based on how they've actually scored this season, with recent weeks counting more, and only
+        games played through the week picked above are used. It's the same model behind the
+        <a href="{% url 'power_rankings' %}">Power Rankings</a>. The top {{ sim.playoff_spots }} teams
+        by record make the playoffs, and total points scored breaks ties.
+        Early in the season the model isn't sure how good anyone is yet, so the odds stay
+        closer to the middle and firm up as the games pile up.
     </p>
     {% else %}
     <div class="alert alert-info text-center">No schedule data available for {{ selected_year }} yet.</div>

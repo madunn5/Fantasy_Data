@@ -6,9 +6,9 @@
 <div class="container mt-4">
     <h1 class="my-4 text-center">Power Rankings <small class="text-muted">{{ selected_year }}</small></h1>
     <p class="text-center text-muted">
-        Teams ranked by average points scored per week — in fantasy you don't pick your opponent,
-        so scoring output is the cleanest measure of strength. League average:
-        <strong>{{ league_avg|floatformat:1 }}</strong> pts/wk.
+        Teams ranked by how they've been scoring lately. Recent weeks count more than older ones,
+        so trades, injuries, and hot streaks show up in the rating pretty quickly.
+        League average: <strong>{{ league_avg|floatformat:1 }}</strong> pts/wk.
     </p>
 
     {% if rankings %}
@@ -55,11 +55,16 @@
         </table>
     </div>
     <p class="text-muted small mt-3">
-        <strong>Net</strong> = points scored minus points allowed (positive = won the scoring battle on the season).
-        <strong>Consistency</strong> is the week-to-week standard deviation — a smaller number means a more predictable team.
-        These are the same per-team numbers that drive the
+        <strong>Power Rating</strong> is points per week with extra weight on recent games.
+        Teams that have only played a few games get pulled toward the league average until
+        there's more to go on. That's why the rating won't always match <strong>Avg For</strong>:
+        a team playing better than its season average rates higher, and a team trending down rates lower.
+        <strong>Net</strong> is points scored minus points allowed for the season.
+        <strong>Consistency</strong> shows how much a team's score swings from week to week.
+        A lower number means a steadier team.
+        These are the same numbers behind the
         <a href="{% url 'versus' %}">Team Comparison</a> and
-        <a href="{% url 'win_probability_heatmap' %}">Win Probability</a> predictions.
+        <a href="{% url 'win_probability_heatmap' %}">Win Probability</a> pages.
     </p>
     {% else %}
     <div class="alert alert-info text-center">No data available for {{ selected_year }} yet.</div>

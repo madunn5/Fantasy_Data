@@ -1828,16 +1828,17 @@ def versus(request):
         p1, p2, margin = prob['p_a'], prob['p_b'], prob['expected_margin']
         if abs(p1 - 0.5) < 0.02:
             prediction = (
-                f"It's a coin flip — {team1} {p1:.1%} vs {team2} {p2:.1%}. "
-                f"They average about {prob['mean_a']:.1f} and {prob['mean_b']:.1f} points per week."
+                f"This one is basically a coin flip: {team1} {p1:.1%}, {team2} {p2:.1%}. "
+                f"Lately {team1} is scoring about {prob['mu_a']:.1f} a week and "
+                f"{team2} about {prob['mu_b']:.1f}."
             )
         else:
             fav, fav_p = (team1, p1) if p1 >= p2 else (team2, p2)
             prediction = (
-                f"{fav} is favored with a {fav_p:.1%} chance to win "
-                f"(projected margin {abs(margin):.1f} pts). "
-                f"Weekly scoring: {team1} {prob['mean_a']:.1f}±{prob['std_a']:.1f}, "
-                f"{team2} {prob['mean_b']:.1f}±{prob['std_b']:.1f}."
+                f"{fav} is the favorite with a {fav_p:.1%} chance to win, projected to win "
+                f"by about {abs(margin):.1f} points. Recent games count more in that projection. "
+                f"Season scoring: {team1} averages {prob['mean_a']:.1f} (±{prob['std_a']:.1f}), "
+                f"{team2} averages {prob['mean_b']:.1f} (±{prob['std_b']:.1f})."
             )
 
     # Create comparison charts
@@ -2242,7 +2243,7 @@ def win_probability_heatmap(request):
 
 
 def power_rankings(request):
-    """Season power-ranking leaderboard (teams ranked by avg points scored)."""
+    """Season power-ranking leaderboard (ranked by recency-weighted scoring form)."""
     selected_year, years = get_selected_year(request)
     rankings = power_ratings(selected_year)
 

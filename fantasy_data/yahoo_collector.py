@@ -8,6 +8,16 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Lineup slots that do NOT count as active starters: bench, injured reserve
+# variants, and inactive. An IR stash must not inflate position counts (it
+# would wrongly trigger flex normalization) or count as a start.
+NON_STARTER_SLOTS = {'BN', 'IR', 'IR-R', 'NA', 'IL', 'IL+'}
+
+
+def is_starter_slot(selected_position):
+    """True if a Yahoo lineup slot is an active starting spot."""
+    return (selected_position or 'BN') not in NON_STARTER_SLOTS
+
 
 class YahooFantasyCollector:
     def __init__(self):
@@ -260,6 +270,48 @@ class YahooFantasyCollector:
             logger.error(f"Error type: {type(e).__name__}")
             raise
 
+    def collect_season_schedule(self, year, start_week=1, end_week=None):
+        """Store the league schedule (including future weeks) in ScheduledMatchup.
+
+        TeamPerformance only ever has played weeks, so this is what lets the
+        playoff simulator project the rest of the season mid-year. Names are
+        stored as Yahoo reports them; season_schedule() maps them to owner
+        names via TeamOwnerMapping when reading.
+        """
+        from .models import ScheduledMatchup
+
+        league = self._league()
+        if end_week is None:
+            try:
+                end_week = int(league.settings().get('playoff_start_week', 15)) - 1
+            except Exception as e:
+                logger.warning(f"Could not read playoff_start_week, assuming 14 weeks: {e}")
+                end_week = 14
+
+        teams = league.teams()
+        saved = 0
+        for week in range(start_week, end_week + 1):
+            try:
+                matchups = league.matchups(week)
+            except Exception as e:
+                logger.warning(f"Could not get schedule matchups for week {week}: {e}")
+                continue
+            for matchup in matchups:
+                teams_in_matchup = matchup.get('teams') if isinstance(matchup, dict) else None
+                if not teams_in_matchup or len(teams_in_matchup) != 2:
+                    continue
+                t1, t2 = teams_in_matchup
+                name1 = teams.get(t1.get('team_key'), {}).get('name') or t1.get('name')
+                name2 = teams.get(t2.get('team_key'), {}).get('name') or t2.get('name')
+                if not name1 or not name2:
+                    continue
+                a, b = sorted((name1, name2))
+                ScheduledMatchup.objects.update_or_create(year=year, week=week, team_a=a, team_b=b)
+                saved += 1
+
+        logger.info(f"Stored {saved} scheduled matchups for {year} (weeks {start_week}-{end_week})")
+        return saved
+
     def collect_team_performance_data(self, week, year):
         """Collect team performance data to replicate CSV upload functionality"""
         try:
@@ -350,7 +402,7 @@ class YahooFantasyCollector:
                 else:
                     total_points = 0
                     for p in roster_with_stats:
-                        if p.get('selected_position') != 'BN':  # Only starters
+                        if is_starter_slot(p.get('selected_position')):
                             player_pts = p.get('player_points', {})
                             if isinstance(player_pts, dict):
                                 pts = float(player_pts.get('total', 0))
@@ -361,7 +413,7 @@ class YahooFantasyCollector:
                 # Calculate projected points separately (from preserved projections)
                 projected_points = 0
                 for p in roster_with_stats:
-                    if p.get('selected_position') != 'BN':  # Only starters
+                    if is_starter_slot(p.get('selected_position')):
                         proj_pts = p.get('player_projected_points', {})
                         if isinstance(proj_pts, dict):
                             pts = float(proj_pts.get('total', 0))
@@ -426,9 +478,10 @@ class YahooFantasyCollector:
             logger.error(f"Full traceback: {traceback.format_exc()}")
             raise
 
-    def calculate_position_points(self, roster):
+    @staticmethod
+    def calculate_position_points(roster):
         """Calculate position points with FLEX normalization logic"""
-        starters = [p for p in roster if p.get('selected_position') != 'BN']
+        starters = [p for p in roster if is_starter_slot(p.get('selected_position'))]
 
         # Group by actual position (not selected_position)
         position_totals = {'QB': 0, 'WR': 0, 'RB': 0, 'TE': 0, 'K': 0, 'DEF': 0}
@@ -444,7 +497,7 @@ class YahooFantasyCollector:
                 position = 'DEF'
 
             # Debug: Log available player data keys
-            logger.info(f"Player {player.get('name', 'Unknown')} data keys: {list(player.keys())}")
+            logger.debug(f"Player {player.get('name', 'Unknown')} data keys: {list(player.keys())}")
 
             # Try actual points first, then projected points
             player_points = player.get('player_points', {})
@@ -564,7 +617,7 @@ class YahooFantasyCollector:
                         players_updated += 1
 
                 # Upsert PlayerRoster
-                status = 'STARTER' if p.get('selected_position') != 'BN' else 'BENCH'
+                status = 'STARTER' if is_starter_slot(p.get('selected_position')) else 'BENCH'
                 _, pr_created = PlayerRoster.objects.update_or_create(
                     player=player,
                     fantasy_team=team_name,
@@ -607,6 +660,16 @@ class YahooFantasyCollector:
         except Exception as e:
             logger.warning(f"collect_team_performance_data failed: {e}")
             team_data = []
+
+        # Keep the stored season schedule fresh so the playoff simulator knows
+        # the remaining matchups: full pull the first time, only the current
+        # week onward after that (future matchups can still change).
+        try:
+            from .models import ScheduledMatchup
+            start = 1 if not ScheduledMatchup.objects.filter(year=year).exists() else week
+            self.collect_season_schedule(year, start_week=start)
+        except Exception as e:
+            logger.warning(f"collect_season_schedule failed: {e}")
 
         # Count PlayerPerformance records
         perf_count = PlayerPerformance.objects.filter(week=f"Week {week}", year=year).count()
@@ -669,5 +732,5 @@ class YahooFantasyCollector:
         for team_name, roster in rosters.items():
             for player in roster:
                 if player['player_id'] == player_id:
-                    return player.get('selected_position') != 'BN'
+                    return is_starter_slot(player.get('selected_position'))
         return False
