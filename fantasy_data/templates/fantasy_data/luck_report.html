@@ -6,10 +6,10 @@
 <div class="container mt-4">
     <h1 class="my-4 text-center">Luck Report <small class="text-muted">{{ selected_year }}</small></h1>
     <p class="text-center text-muted">
-        Two ways to see luck. <strong>Scoring luck</strong> (the headline) compares your real record to your
-        <em>all-play expected wins</em> — how many games you'd average given your weekly scores against the whole
-        league — so it captures schedule luck. <strong>vs Projection</strong> compares your record to the weeks
-        Yahoo projected you to win.
+        Two ways to look at luck. <strong>Scoring luck</strong> compares your actual record to your
+        all-play record, meaning how you'd have done if you played every team every week. If you kept
+        putting up good scores but ran into the week's hottest team anyway, it shows up here.
+        <strong>vs Projection</strong> compares your record to the weeks Yahoo projected you to win.
     </p>
 
     {% if report %}
@@ -43,7 +43,7 @@
             </tbody>
         </table>
     </div>
-    <p class="text-muted small mt-3">🍀 Positive scoring luck = won more than your scores deserved; 💀 negative = unlucky, scored enough but kept losing, and a candidate to bounce back. Where the two columns disagree, Yahoo simply mis-projected that team.</p>
+    <p class="text-muted small mt-3">🍀 Positive scoring luck means you won more games than your scores earned. 💀 Negative means you scored enough but kept losing anyway, so you're due for a bounce back. If the two columns disagree, Yahoo just had that team projected wrong.</p>
     {% else %}
     <div class="alert alert-info text-center">No data available for {{ selected_year }} yet.</div>
     {% endif %}

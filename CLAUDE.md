@@ -50,7 +50,10 @@ merged in from the old fantasy_project repo July 2026).
 - Type: Barlow Condensed 600 for display/headings (uppercase), Barlow for body.
 - After editing theme.css run `manage.py collectstatic` (manifest storage;
   tests fail on a stale manifest).
-- No em dashes in punishment-side user-facing copy (league preference).
+- User-facing copy anywhere on the site: no em dashes, and keep it plain and
+  conversational — short sentences, no "Higher = X" shorthand, nothing that
+  reads like AI wrote it. Explainers should just say what the table shows and
+  how to read it.
 
 ## Data
 - `TeamPerformance` (team-week stats; full 2023–2025), `Player` / `PlayerRoster` /
