@@ -32,4 +32,4 @@ Thumbs.db
 # Logs
 *.log
 
-Scrapper.py
+Scrapper.pyoauth2_prod.json.bak*

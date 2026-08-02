@@ -25,6 +25,7 @@ from . import plotly_theme  # noqa: F401 — registers the "dunn" default templa
 from .year_nav import get_selected_year
 from .predictions import win_probability, power_ratings, team_stats
 from . import analytics
+from . import player_impact
 from .yahoo_collector import YahooFantasyCollector
 
 
@@ -2282,6 +2283,29 @@ def bench_report(request):
         'years': years,
         'selected_year': selected_year,
         'page_title': f'Bench Report ({selected_year})',
+    })
+
+
+def player_impact_report(request):
+    """Who swung games: league edge, costly benchings, and roster moves."""
+    selected_year, years = get_selected_year(request)
+    edge = player_impact.league_edge(selected_year)
+    benchings = player_impact.costly_benchings(selected_year)
+    moves = player_impact.roster_moves(selected_year)
+    edge_top = edge[:25]
+    # Worst regulars: below a typical starter over at least 6 starts.
+    shown = {id(p) for p in edge_top}
+    edge_bottom = [p for p in reversed(edge)
+                   if p['starts'] >= 6 and p['edge_total'] < 0 and id(p) not in shown][:8]
+    return render(request, 'fantasy_data/player_impact.html', {
+        'edge': edge_top,
+        'edge_bottom': edge_bottom,
+        'benchings': benchings,
+        'moves': moves,
+        'has_data': bool(edge),
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Player Impact ({selected_year})',
     })
 
 

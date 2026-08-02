@@ -19,6 +19,66 @@ def is_starter_slot(selected_position):
     return (selected_position or 'BN') not in NON_STARTER_SLOTS
 
 
+# Yahoo transaction_data types -> PlayerTransaction.transaction_type
+_TXN_TYPE_MAP = {'trade': 'TRADE', 'add': 'PICKUP', 'drop': 'DROP'}
+
+
+def parse_transactions(txns):
+    """Flatten Yahoo transaction payloads into one dict per player movement.
+
+    Takes the list returned by ``league.transactions()`` and yields
+    ``{player_id, player_name, position, transaction_type, from_team,
+    to_team, timestamp}``. Kept separate from the API call so it can be
+    unit-tested against a canned payload.
+    """
+    out = []
+    for txn in txns:
+        try:
+            ts = int(txn.get('timestamp') or 0)
+        except (TypeError, ValueError):
+            ts = 0
+        players = txn.get('players') or {}
+        for key, entry in players.items():
+            if key == 'count' or not isinstance(entry, dict):
+                continue
+            plist = entry.get('player')
+            if not isinstance(plist, list) or len(plist) < 2:
+                continue
+            # plist[0] is a list of single-key metadata dicts; plist[1] holds
+            # the transaction_data (sometimes wrapped in a one-item list).
+            meta = {}
+            for item in plist[0]:
+                if isinstance(item, dict):
+                    meta.update(item)
+            tdata = plist[1].get('transaction_data') if isinstance(plist[1], dict) else None
+            if isinstance(tdata, list):
+                tdata = tdata[0] if tdata else None
+            if not isinstance(tdata, dict):
+                continue
+            ttype = _TXN_TYPE_MAP.get((tdata.get('type') or '').lower())
+            if ttype is None:
+                continue
+            name = meta.get('name')
+            if isinstance(name, dict):
+                name = name.get('full')
+            source = tdata.get('source_team_name')
+            if not source and tdata.get('source_type') in ('waivers', 'freeagents'):
+                source = 'Waivers'
+            dest = tdata.get('destination_team_name')
+            if not dest and tdata.get('destination_type') in ('waivers', 'freeagents'):
+                dest = 'Waivers'
+            out.append({
+                'player_id': meta.get('player_id'),
+                'player_name': name or f"Player_{meta.get('player_id')}",
+                'position': meta.get('display_position') or meta.get('position_type') or '',
+                'transaction_type': ttype,
+                'from_team': source,
+                'to_team': dest,
+                'timestamp': ts,
+            })
+    return out
+
+
 class YahooFantasyCollector:
     def __init__(self):
         try:
@@ -310,6 +370,41 @@ class YahooFantasyCollector:
                 saved += 1
 
         logger.info(f"Stored {saved} scheduled matchups for {year} (weeks {start_week}-{end_week})")
+        return saved
+
+    def collect_transactions(self, year, count=100):
+        """Pull the league's transaction log into PlayerTransaction rows.
+
+        Records adds, drops, and trades with Yahoo's own type and timestamp,
+        so the Player Impact page can label trades exactly instead of
+        guessing from roster changes. Safe to re-run: rows are upserted.
+        Pass ``count=None`` to fetch the full season log (for backfill).
+        """
+        from datetime import datetime, timezone as dt_tz
+        from .models import Player, PlayerTransaction
+
+        league = self._league()
+        txns = league.transactions('add,drop,trade', str(count) if count else '')
+        saved = 0
+        for rec in parse_transactions(txns):
+            if not rec['player_id']:
+                continue
+            player, _ = Player.objects.get_or_create(
+                yahoo_player_id=str(rec['player_id']),
+                defaults={'name': rec['player_name'],
+                          'position': rec['position'] or 'Unknown',
+                          'nfl_team': 'N/A'},
+            )
+            when = datetime.fromtimestamp(rec['timestamp'], tz=dt_tz.utc)
+            PlayerTransaction.objects.update_or_create(
+                player=player,
+                transaction_type=rec['transaction_type'],
+                transaction_date=when,
+                year=year,
+                defaults={'from_team': rec['from_team'], 'to_team': rec['to_team']},
+            )
+            saved += 1
+        logger.info(f"Stored {saved} transaction rows for {year}")
         return saved
 
     def collect_team_performance_data(self, week, year):
@@ -670,6 +765,12 @@ class YahooFantasyCollector:
             self.collect_season_schedule(year, start_week=start)
         except Exception as e:
             logger.warning(f"collect_season_schedule failed: {e}")
+
+        # Keep the transaction log fresh so trades are labelled exactly.
+        try:
+            self.collect_transactions(year)
+        except Exception as e:
+            logger.warning(f"collect_transactions failed: {e}")
 
         # Count PlayerPerformance records
         perf_count = PlayerPerformance.objects.filter(week=f"Week {week}", year=year).count()

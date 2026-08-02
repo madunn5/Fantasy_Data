@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class TeamPerformance(models.Model):
@@ -91,9 +92,11 @@ class PlayerTransaction(models.Model):
         ('DROP', 'Drop to Waiver'),
         ('DRAFT', 'Draft')
     ])
-    week = models.CharField(max_length=100)
+    week = models.CharField(max_length=100, blank=True)
     year = models.IntegerField()
-    transaction_date = models.DateTimeField(auto_now_add=True)
+    # Yahoo's own timestamp for the transaction, so backfilled history keeps
+    # its real dates (auto_now_add would stamp collection time instead).
+    transaction_date = models.DateTimeField(default=timezone.now)
 
 
 class ProjectedPoint(models.Model):

@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">Player Impact <small class="text-muted">{{ selected_year }}</small></h1>
+    <p class="text-center text-muted">
+        Who actually swung games this season. Every started player is compared to a typical
+        starter at his position that week, so a star only gets credit when an ordinary player
+        in his spot would have lost you the game.
+    </p>
+
+    {% if has_data %}
+
+    <h3 class="mt-4">League Edge</h3>
+    <p class="text-muted">
+        Total points above (or below) a typical starter at the position, added up across every
+        start. Wins swung counts the games that flip to losses with an ordinary player in that spot.
+    </p>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Player</th>
+                    <th class="text-center">Pos</th>
+                    <th>Team</th>
+                    <th class="text-center">Starts</th>
+                    <th class="text-right">Edge</th>
+                    <th class="text-right">Per Start</th>
+                    <th class="text-center">Wins Swung</th>
+                    <th>Weeks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in edge %}
+                <tr>
+                    <td><strong>{{ p.name }}</strong></td>
+                    <td class="text-center text-muted">{{ p.pos }}</td>
+                    <td>{{ p.team_label }}</td>
+                    <td class="text-center text-muted">{{ p.starts }}</td>
+                    <td class="text-right {% if p.edge_total > 0 %}text-success{% elif p.edge_total < 0 %}text-danger{% endif %}">
+                        <strong>{{ p.edge_total|floatformat:1 }}</strong>
+                    </td>
+                    <td class="text-right text-muted">{{ p.edge_per_start|floatformat:1 }}</td>
+                    <td class="text-center">{% if p.wins_swung %}<strong>{{ p.wins_swung }}</strong>{% else %}<span class="text-muted">0</span>{% endif %}</td>
+                    <td class="text-muted small">{% for w in p.swing_weeks %}Wk {{ w }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="text-muted small">Top 25 by total edge. Minimum 3 starts.</p>
+
+    {% if edge_bottom %}
+    <h4 class="mt-4">Started Below a Typical Starter</h4>
+    <p class="text-muted">
+        The other end of the table: players who got regular starts (6 or more) while scoring
+        less than an ordinary starter at the position.
+    </p>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Player</th>
+                    <th class="text-center">Pos</th>
+                    <th>Team</th>
+                    <th class="text-center">Starts</th>
+                    <th class="text-right">Edge</th>
+                    <th class="text-right">Per Start</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in edge_bottom %}
+                <tr>
+                    <td><strong>{{ p.name }}</strong></td>
+                    <td class="text-center text-muted">{{ p.pos }}</td>
+                    <td>{{ p.team_label }}</td>
+                    <td class="text-center text-muted">{{ p.starts }}</td>
+                    <td class="text-right text-danger"><strong>{{ p.edge_total|floatformat:1 }}</strong></td>
+                    <td class="text-right text-muted">{{ p.edge_per_start|floatformat:1 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <h3 class="mt-5">Benchings That Cost Games</h3>
+    <p class="text-muted">
+        Losses where starting a benched player over the weakest starter he could replace
+        would have won the game. When a game lists more than one player, any one of them
+        would have done it.
+    </p>
+    {% if benchings.games %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Team</th>
+                    <th class="text-center">Week</th>
+                    <th class="text-right">Lost By</th>
+                    <th>Should Have Started</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in benchings.games %}
+                <tr>
+                    <td><strong>{{ g.team }}</strong></td>
+                    <td class="text-center text-muted">{{ g.week }}</td>
+                    <td class="text-right text-danger">{{ g.lost_by|floatformat:1 }}</td>
+                    <td>
+                        {% for o in g.options %}
+                        {{ o.name }} <span class="text-muted">({{ o.pos }}, {{ o.pts|floatformat:1 }} pts, wins by {{ o.would_win_by|floatformat:1 }})</span>{% if not forloop.last %}<br>{% endif %}
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="text-muted small">
+        Season totals:
+        {% for t in benchings.team_counts %}{{ t.team }} {{ t.games }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        winnable {% if benchings.team_counts.0.games == 1 %}game{% else %}games{% endif %} lost on the bench.
+    </p>
+    {% else %}
+    <p class="text-muted">No losses this season came down to a benching. Clean start/sit sheet all around.</p>
+    {% endif %}
+
+    <h3 class="mt-5">Trades</h3>
+    <p class="text-muted">
+        Both sides of every trade, scored by what each player produced for his new team from
+        the trade on, measured against a typical starter. The side with the higher number is
+        winning the trade so far.
+    </p>
+    {% if moves.trades %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th class="text-center">Week</th>
+                    <th>Team</th>
+                    <th>Got</th>
+                    <th class="text-right">Edge Since</th>
+                    <th>Team</th>
+                    <th>Got</th>
+                    <th class="text-right">Edge Since</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in moves.trades %}
+                <tr>
+                    <td class="text-center text-muted">{{ t.week }}</td>
+                    <td><strong>{{ t.team_a }}</strong></td>
+                    <td>{% for m in t.got_a %}{{ m.name }} <span class="text-muted">({{ m.pos }})</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+                    <td class="text-right {% if t.edge_a > t.edge_b %}text-success{% endif %}">{{ t.edge_a|floatformat:1 }}</td>
+                    <td><strong>{{ t.team_b }}</strong></td>
+                    <td>{% for m in t.got_b %}{{ m.name }} <span class="text-muted">({{ m.pos }})</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+                    <td class="text-right {% if t.edge_b > t.edge_a %}text-success{% endif %}">{{ t.edge_b|floatformat:1 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No trades detected this season.</p>
+    {% endif %}
+
+    <h3 class="mt-5">Best and Worst Pickups</h3>
+    <p class="text-muted">
+        Waiver adds and other one-way moves, scored the same way: what the player produced
+        for his new team after arriving.
+    </p>
+    {% if moves.pickups %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Player</th>
+                    <th class="text-center">Pos</th>
+                    <th class="text-center">Week</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th class="text-center">Starts After</th>
+                    <th class="text-right">Points After</th>
+                    <th class="text-right">Edge After</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in moves.pickups|slice:":10" %}
+                <tr>
+                    <td><strong>{{ m.name }}</strong></td>
+                    <td class="text-center text-muted">{{ m.pos }}</td>
+                    <td class="text-center text-muted">{{ m.week }}</td>
+                    <td class="text-muted">{{ m.from_team }}</td>
+                    <td>{{ m.to_team }}</td>
+                    <td class="text-center text-muted">{{ m.starts_after }}</td>
+                    <td class="text-right text-muted">{{ m.pts_after|floatformat:1 }}</td>
+                    <td class="text-right text-success"><strong>{{ m.edge_after|floatformat:1 }}</strong></td>
+                </tr>
+                {% endfor %}
+                {% if moves.pickups|length > 15 %}
+                {% for m in moves.pickups|slice:"-5:" %}
+                <tr>
+                    <td><strong>{{ m.name }}</strong></td>
+                    <td class="text-center text-muted">{{ m.pos }}</td>
+                    <td class="text-center text-muted">{{ m.week }}</td>
+                    <td class="text-muted">{{ m.from_team }}</td>
+                    <td>{{ m.to_team }}</td>
+                    <td class="text-center text-muted">{{ m.starts_after }}</td>
+                    <td class="text-right text-muted">{{ m.pts_after|floatformat:1 }}</td>
+                    <td class="text-right text-danger"><strong>{{ m.edge_after|floatformat:1 }}</strong></td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    <p class="text-muted small">Top 10 pickups and the 5 that panned out worst.</p>
+    {% else %}
+    <p class="text-muted">No pickups detected this season.</p>
+    {% endif %}
+
+    <p class="text-muted small mt-4">
+        A typical starter means the league median among started players at that position that
+        week.
+        {% if moves.exact %}
+        Trades are labelled from Yahoo's transaction log, so what you see here is what
+        actually happened.
+        {% else %}
+        Yahoo's transaction log hasn't been collected for this season, so a trade is a best
+        guess: players swapping between the same two teams in the same week. Two teams
+        churning waivers at the same position in the same week can occasionally look like
+        a trade.
+        {% endif %}
+        Player-level data is collected from Yahoo and only available for tracked seasons.
+    </p>
+
+    {% else %}
+    <div class="alert alert-info text-center">
+        No player-level roster data for {{ selected_year }}. This report needs per-player
+        start/sit data, which is only collected for tracked seasons (currently 2025).
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -12,6 +12,8 @@ class Command(BaseCommand):
         parser.add_argument('--year', type=int, required=True, help='Season year')
         parser.add_argument('--schedule-only', action='store_true',
                             help='Only refresh the stored season schedule (for playoff odds)')
+        parser.add_argument('--transactions-only', action='store_true',
+                            help='Only pull the transaction log (full season, for backfill)')
 
     def handle(self, *args, **options):
         week = options['week']
@@ -23,6 +25,12 @@ class Command(BaseCommand):
                 saved = collector.collect_season_schedule(year)
                 self.stdout.write(
                     self.style.SUCCESS(f'Stored {saved} scheduled matchups for {year}')
+                )
+                return
+            if options['transactions_only']:
+                saved = collector.collect_transactions(year, count=None)
+                self.stdout.write(
+                    self.style.SUCCESS(f'Stored {saved} transaction rows for {year}')
                 )
                 return
             if week is None:
