@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Week 1 Fantasy Podcast - We Are Back!</title>
+
+  {# Link previews (Discord, iMessage, Slack) read these and never run the script below. #}
+  <meta property="og:site_name" content="Dunn Right Fantasy">
+  <meta property="og:type" content="video.other">
+  <meta property="og:title" content="Week 1 Fantasy Podcast - We Are Back!">
+  <meta property="og:description" content="The boys are back for another season. Week 1 preview, bold takes, and who is already cooked.">
+  <meta property="og:image" content="https://i.ytimg.com/vi/IV52wTMZV3M/hqdefault.jpg">
+  <meta property="og:url" content="{{ request.build_absolute_uri }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0c0d10">
+
+  <style>
+    :root { --bg: #0c0d10; --ink: #f2f2f0; --muted: #8a8d93; --volt: #e8ff47; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+      font-family: "Barlow", system-ui, sans-serif; }
+    main { min-height: 100%; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; text-align: center; padding: 24px; }
+    h1 { margin: 0; font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+      font-weight: 600; text-transform: uppercase; font-size: 28px; letter-spacing: .02em; }
+    p { margin: 0; color: var(--muted); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--volt);
+      animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .25; } }
+    a { color: var(--volt); }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="dot"></span>
+    <h1>Loading Week 1 episode</h1>
+    <p>Hang tight, sending you to the video.</p>
+    <noscript><p><a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">Tap here if it doesn't open.</a></p></noscript>
+  </main>
+  <script>
+    setTimeout(function () {
+      window.location.replace("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    }, 700);
+  </script>
+</body>
+</html>

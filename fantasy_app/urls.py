@@ -18,6 +18,9 @@ from draftgame.views import logout_view, register
 
 urlpatterns = [
     path('', TemplateView.as_view(template_name='landing.html'), name='landing'),
+    # Fake "the podcast is back" page: link previews see a real-looking episode
+    # card, humans get sent to Rick Astley. No podcast this year.
+    path('podcast/week-1/', TemplateView.as_view(template_name='podcast.html'), name='podcast_week1'),
     path('admin/', admin.site.urls),
     path('django-rq/', include('django_rq.urls')),
     path('accounts/login/', CustomLoginView.as_view(), name='login'),
