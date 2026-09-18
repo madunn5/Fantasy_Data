@@ -164,6 +164,16 @@
         {% endblock %}
     </div>
 
+    <!-- Yahoo attribution: required by the API Access and Use Agreement on
+         every page that shows Yahoo Fantasy data -->
+    <footer class="container" style="padding: 1.5rem 0 5rem 0; text-align: center;">
+        <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted, #888);">
+            Fantasy data provided by
+            <a href="https://football.fantasysports.yahoo.com/" target="_blank" rel="noopener"
+               style="color: var(--text-muted, #888); text-decoration: underline;">Yahoo Fantasy</a>
+        </p>
+    </footer>
+
     <!-- Mobile bottom tab bar (hidden >= 768px) -->
     <nav class="tab-bar" aria-label="Primary">
         <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">
