@@ -66,6 +66,10 @@
           v.replaceWith(img);
         };
         v.addEventListener("error", fallback);
+        // Browsers pause background video. Resume when the tab comes back.
+        document.addEventListener("visibilitychange", function () {
+          if (!document.hidden && v.paused) { v.play().catch(function () {}); }
+        });
         var p = v.play();
         if (p && p.catch) { p.catch(fallback); }
       }
