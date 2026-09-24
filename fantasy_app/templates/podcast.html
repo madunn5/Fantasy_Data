@@ -89,6 +89,11 @@
       if (clip && !clip.paused) { clip.currentTime = 0; }
       if (v) {
         v.currentTime = 0;
+        // The first frame can lag the audio while the mp4 buffers, so
+        // snap the clip back to 0 the moment the video actually starts.
+        v.addEventListener("playing", function () {
+          if (clip && !clip.paused) { clip.currentTime = 0; }
+        }, { once: true });
         var p = v.play();
         if (p && p.catch) { p.catch(fallback); }
       }
