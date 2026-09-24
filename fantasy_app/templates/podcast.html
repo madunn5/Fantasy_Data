@@ -32,6 +32,13 @@
     #payoff video, #payoff img { width: 100%; height: 100%; object-fit: contain; }
     body.reveal #loading { display: none; }
     body.reveal #payoff { display: block; }
+    .play { display: none; align-items: center; gap: 10px; margin-top: 8px; padding: 14px 28px;
+      border: 0; border-radius: 6px; background: var(--volt); color: #0c0d10; cursor: pointer;
+      font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif; font-weight: 600;
+      font-size: 22px; text-transform: uppercase; letter-spacing: .03em; }
+    .play svg { width: 18px; height: 18px; fill: currentColor; }
+    #loading.ready .dot, #loading.ready .sub { display: none; }
+    #loading.ready .play { display: inline-flex; }
   </style>
 </head>
 <body>
@@ -39,6 +46,9 @@
     <span class="dot"></span>
     <h1>{{ ep.title }}</h1>
     <p class="sub">Hang tight, sending you to the video.</p>
+    <button class="play" type="button" id="play">
+      <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play episode
+    </button>
     {% if ep.redirect %}
     <noscript><p><a href="{{ ep.redirect }}">Tap here if it doesn't open.</a></p></noscript>
     {% endif %}
@@ -60,7 +70,7 @@
     {% if ep.redirect %}
     setTimeout(function () {
       window.location.replace("{{ ep.redirect|escapejs }}");
-    }, 700);
+    }, 3000);
     {% else %}
     var v = document.querySelector("#payoff video");
     var clip = document.getElementById("clip");
@@ -97,25 +107,18 @@
       }
     });
 
-    // Sound needs a user gesture in most browsers. Show the gif regardless,
-    // and if the audio was refused, the first tap anywhere starts it and
-    // restarts the gif so they stay lined up.
-    function armTapToUnmute() {
-      var arm = function () {
-        document.removeEventListener("pointerdown", arm);
-        document.removeEventListener("keydown", arm);
-        if (clip) { clip.currentTime = 0; clip.play().catch(function () {}); }
-        startShow();
-      };
-      document.addEventListener("pointerdown", arm);
-      document.addEventListener("keydown", arm);
-    }
+    document.getElementById("play").addEventListener("click", function () {
+      if (clip) { clip.currentTime = 0; clip.play().catch(function () {}); }
+      startShow();
+    });
 
     setTimeout(function () {
       if (!clip) { startShow(); return; }
+      // Sound needs a user gesture in most browsers. Try, and if blocked,
+      // turn the loading screen into a fake player so they tap Play.
       var p = clip.play();
       if (!p || !p.then) { startShow(); return; }
-      p.then(startShow, function () { startShow(); armTapToUnmute(); });
+      p.then(startShow, function () { loading.classList.add("ready"); });
     }, 3000);
     {% endif %}
   </script>
