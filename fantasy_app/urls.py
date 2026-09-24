@@ -14,13 +14,13 @@ from django.urls import path, include
 from django.views.generic import TemplateView
 
 from draftgame.auth_views import CustomLoginView
+from fantasy_app import podcast
 from draftgame.views import logout_view, register
 
 urlpatterns = [
     path('', TemplateView.as_view(template_name='landing.html'), name='landing'),
-    # Fake "the podcast is back" page: link previews see a real-looking episode
-    # card, humans get sent to Rick Astley. No podcast this year.
-    path('podcast/week-1/', TemplateView.as_view(template_name='podcast.html'), name='podcast_week1'),
+    # Fake "the podcast is back" pages (see fantasy_app/podcast.py).
+    path('podcast/<slug:slug>/', podcast.episode, name='podcast_episode'),
     path('admin/', admin.site.urls),
     path('django-rq/', include('django_rq.urls')),
     path('accounts/login/', CustomLoginView.as_view(), name='login'),
