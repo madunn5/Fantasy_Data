@@ -55,7 +55,7 @@
   </main>
 
   {% if ep.audio %}
-  <audio id="clip" preload="auto" src="{% static ep.audio %}"></audio>
+  <audio id="clip" preload="auto" loop src="{% static ep.audio %}"></audio>
   {% endif %}
 
   {% if ep.gif_mp4 %}
@@ -82,8 +82,11 @@
       v.replaceWith(img);
       v = null;
     }
+    // The clip is padded to the gif's length, so both loop on the same
+    // period. Start them together so they stay lined up.
     function startShow() {
       document.body.classList.add("reveal");
+      if (clip && !clip.paused) { clip.currentTime = 0; }
       if (v) {
         v.currentTime = 0;
         var p = v.play();
@@ -93,8 +96,9 @@
     if (v) { v.addEventListener("error", fallback); }
     // Browsers pause background video. Resume when the tab comes back.
     document.addEventListener("visibilitychange", function () {
-      if (!document.hidden && v && v.paused && document.body.classList.contains("reveal")) {
-        v.play().catch(function () {});
+      if (!document.hidden && document.body.classList.contains("reveal")) {
+        if (clip && !clip.paused) { clip.currentTime = 0; }
+        if (v) { v.currentTime = 0; v.play().catch(function () {}); }
       }
     });
 
