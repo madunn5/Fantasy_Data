@@ -10,7 +10,7 @@
   <meta property="og:type" content="video.other">
   <meta property="og:title" content="{{ ep.title }}">
   <meta property="og:description" content="{{ ep.description }}">
-  <meta property="og:image" content="https://i.ytimg.com/vi/{{ ep.youtube_id }}/hqdefault.jpg">
+  <meta property="og:image" content="{% if ep.image %}{{ ep.image }}{% else %}https://i.ytimg.com/vi/{{ ep.youtube_id }}/hqdefault.jpg{% endif %}">
   <meta property="og:url" content="{{ request.build_absolute_uri }}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#0c0d10">

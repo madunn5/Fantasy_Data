@@ -24,6 +24,8 @@ EPISODES = {
         'description': 'Week 2 is here. Who broke out, who is washed, and the '
                        'waiver adds you need before Sunday.',
         'youtube_id': 'B8JIQZz5jqs',
+        # Discord caches the card image by URL. Bump ?v= to make it refetch.
+        'image': 'https://i.ytimg.com/vi/B8JIQZz5jqs/maxresdefault.jpg?v=2',
         # South Park cable company guy. Shown full screen on our page.
         'gif_mp4': 'https://media.giphy.com/media/gaZ51cn7sUY4U/giphy.mp4',
         'gif': 'https://media.giphy.com/media/gaZ51cn7sUY4U/giphy.gif',
