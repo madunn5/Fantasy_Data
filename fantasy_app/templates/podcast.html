@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -32,17 +32,31 @@
     #payoff video, #payoff img { width: 100%; height: 100%; object-fit: contain; }
     body.reveal #loading { display: none; }
     body.reveal #payoff { display: block; }
+    .play { display: none; align-items: center; gap: 10px; margin-top: 8px; padding: 14px 28px;
+      border: 0; border-radius: 6px; background: var(--volt); color: #0c0d10; cursor: pointer;
+      font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif; font-weight: 600;
+      font-size: 22px; text-transform: uppercase; letter-spacing: .03em; }
+    .play svg { width: 18px; height: 18px; fill: currentColor; }
+    #loading.ready .dot, #loading.ready .sub { display: none; }
+    #loading.ready .play { display: inline-flex; }
   </style>
 </head>
 <body>
   <main id="loading">
     <span class="dot"></span>
-    <h1>Loading {{ week }} episode</h1>
-    <p>Hang tight, sending you to the video.</p>
+    <h1>{{ ep.title }}</h1>
+    <p class="sub">Hang tight, sending you to the video.</p>
+    <button class="play" type="button" id="play">
+      <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play episode
+    </button>
     {% if ep.redirect %}
     <noscript><p><a href="{{ ep.redirect }}">Tap here if it doesn't open.</a></p></noscript>
     {% endif %}
   </main>
+
+  {% if ep.audio %}
+  <audio id="clip" preload="auto" src="{% static ep.audio %}"></audio>
+  {% endif %}
 
   {% if ep.gif_mp4 %}
   <div id="payoff">
@@ -53,28 +67,51 @@
   {% endif %}
 
   <script>
+    {% if ep.redirect %}
     setTimeout(function () {
-      {% if ep.redirect %}
       window.location.replace("{{ ep.redirect|escapejs }}");
-      {% else %}
+    }, 700);
+    {% else %}
+    var v = document.querySelector("#payoff video");
+    var clip = document.getElementById("clip");
+    var loading = document.getElementById("loading");
+
+    function fallback() {
+      var img = document.createElement("img");
+      img.src = "{{ ep.gif|escapejs }}";
+      v.replaceWith(img);
+      v = null;
+    }
+    function startShow() {
       document.body.classList.add("reveal");
-      var v = document.querySelector("#payoff video");
       if (v) {
-        var fallback = function () {
-          var img = document.createElement("img");
-          img.src = "{{ ep.gif|escapejs }}";
-          v.replaceWith(img);
-        };
-        v.addEventListener("error", fallback);
-        // Browsers pause background video. Resume when the tab comes back.
-        document.addEventListener("visibilitychange", function () {
-          if (!document.hidden && v.paused) { v.play().catch(function () {}); }
-        });
+        v.currentTime = 0;
         var p = v.play();
         if (p && p.catch) { p.catch(fallback); }
       }
-      {% endif %}
+    }
+    if (v) { v.addEventListener("error", fallback); }
+    // Browsers pause background video. Resume when the tab comes back.
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden && v && v.paused && document.body.classList.contains("reveal")) {
+        v.play().catch(function () {});
+      }
+    });
+
+    document.getElementById("play").addEventListener("click", function () {
+      if (clip) { clip.currentTime = 0; clip.play().catch(function () {}); }
+      startShow();
+    });
+
+    setTimeout(function () {
+      if (!clip) { startShow(); return; }
+      // Sound needs a user gesture in most browsers. Try, and if blocked,
+      // turn the loading screen into a fake player so they tap Play.
+      var p = clip.play();
+      if (!p || !p.then) { startShow(); return; }
+      p.then(startShow, function () { loading.classList.add("ready"); });
     }, 700);
+    {% endif %}
   </script>
 </body>
 </html>

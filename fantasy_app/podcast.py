@@ -4,7 +4,10 @@ Fake "the podcast is back" pages.
 There is no podcast this year. Each episode below is a bait-and-switch: link
 previews (Discord, iMessage, Slack) read the Open Graph tags and show a
 real-looking episode card using last year's YouTube thumbnail. A person who
-clicks gets the payoff instead, either a redirect or a full-screen gif.
+clicks gets the payoff instead, either a redirect or a full-screen gif,
+optionally with an audio clip. Browsers only allow sound after a tap, so a
+gif with audio falls back to a fake "Play episode" button when autoplay is
+blocked.
 
 To add a week, add an entry here. The URL is /podcast/<slug>/.
 """
@@ -29,6 +32,8 @@ EPISODES = {
         # "Geez, that's terrible" (Tenor). Shown full screen on our page.
         'gif_mp4': 'https://media.tenor.com/vGKwFYLntFoAAAPo/geez-thats.mp4',
         'gif': 'https://media1.tenor.com/m/vGKwFYLntFoAAAAC/geez-thats.gif',
+        # The line itself, cut to line up with the gif. Static path.
+        'audio': 'fantasy_data/audio/geez-thats-terrible.mp3',
     },
 }
 
