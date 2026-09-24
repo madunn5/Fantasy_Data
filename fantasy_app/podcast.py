@@ -26,9 +26,9 @@ EPISODES = {
         'youtube_id': 'B8JIQZz5jqs',
         # Discord caches the card image by URL. Bump ?v= to make it refetch.
         'image': 'https://i.ytimg.com/vi/B8JIQZz5jqs/maxresdefault.jpg?v=2',
-        # South Park cable company guy. Shown full screen on our page.
-        'gif_mp4': 'https://media.giphy.com/media/gaZ51cn7sUY4U/giphy.mp4',
-        'gif': 'https://media.giphy.com/media/gaZ51cn7sUY4U/giphy.gif',
+        # "Geez, that's terrible" (Tenor). Shown full screen on our page.
+        'gif_mp4': 'https://media.tenor.com/vGKwFYLntFoAAAPo/geez-thats.mp4',
+        'gif': 'https://media1.tenor.com/m/vGKwFYLntFoAAAAC/geez-thats.gif',
     },
 }
 
