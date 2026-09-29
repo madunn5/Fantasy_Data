@@ -423,8 +423,8 @@ def parse_team_entry(entry):
     """
     parts = entry.rsplit(' - ', 1)
     if len(parts) == 2:
-        return parts[0], parts[1]
-    return entry, ''
+        return parts[0].strip(), parts[1].strip()
+    return entry.strip(), ''
 
 
 def compute_bucket_standings(season, session=None):
@@ -523,7 +523,7 @@ def bucket_of_death(request):
         action = request.POST.get('action')
         
         if action == 'start_player':
-            player_name = request.POST.get('player_name')
+            player_name = (request.POST.get('player_name') or '').strip()
             week = int(request.POST.get('week', current_week))
             request.session['bucket_week'] = week
             session.current_player = player_name
