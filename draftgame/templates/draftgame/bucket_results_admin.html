@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card">
     <h1>🏆 Bucket Results Admin</h1>
-    <p>Mark each team selection as a Win or Loss to calculate accurate leaderboard statistics.</p>
+    <p>Mark each team selection as a Win, Loss, or Tie to calculate accurate leaderboard statistics. A tie counts as a push: it doesn't help or hurt anyone's record.</p>
     
     <form method="post">
         {% csrf_token %}
@@ -30,9 +30,10 @@
                             <td>{{ team_result.team_name }}</td>
                             <td>
                                 <select name="result_{{ team_result.id }}" class="form-select" style="width: 120px;">
-                                    <option value="" {% if team_result.is_win is None %}selected{% endif %}>Pending</option>
+                                    <option value="" {% if team_result.is_win is None and not team_result.is_tie %}selected{% endif %}>Pending</option>
                                     <option value="win" {% if team_result.is_win %}selected{% endif %}>Win</option>
                                     <option value="loss" {% if team_result.is_win == False %}selected{% endif %}>Loss</option>
+                                    <option value="tie" {% if team_result.is_tie %}selected{% endif %}>Tie</option>
                                 </select>
                             </td>
                         </tr>

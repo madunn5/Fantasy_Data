@@ -71,6 +71,13 @@
                                 L
                             </button>
                         </form>
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="mark_session_{{ team_obj.index }}_tie">
+                            <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8em; {% if team_obj.is_tie %}background: #a07c1f;{% else %}background: rgba(255,255,255,0.08);{% endif %}">
+                                T
+                            </button>
+                        </form>
                     </div>
                 {% endif %}
             </li>
@@ -125,12 +132,21 @@
                                 L
                             </button>
                         </form>
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="mark_{{ team.id }}_tie">
+                            <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8em; {% if team.is_tie %}background: #a07c1f;{% else %}background: rgba(255,255,255,0.08);{% endif %}">
+                                T
+                            </button>
+                        </form>
                     </div>
                 {% else %}
                     {% if team.is_win %}
                         <span style="color: var(--text-success); font-weight: bold;">WIN</span>
                     {% elif team.is_win == False %}
                         <span style="color: var(--text-danger); font-weight: bold;">LOSS</span>
+                    {% elif team.is_tie %}
+                        <span style="color: var(--text-warning); font-weight: bold;">TIE</span>
                     {% else %}
                         <span style="color: var(--text-warning); font-weight: bold;">PENDING</span>
                     {% endif %}

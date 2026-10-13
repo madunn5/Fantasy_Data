@@ -20,6 +20,7 @@
                     <th>Name</th>
                     <th>W</th>
                     <th>L</th>
+                    <th>T</th>
                     <th>Win %</th>
                 </tr>
             </thead>
@@ -30,6 +31,7 @@
                     <td><strong>{{ player.name }}</strong></td>
                     <td>{{ player.wins }}</td>
                     <td>{{ player.losses }}</td>
+                    <td>{{ player.ties }}</td>
                     <td>{{ player.win_pct|floatformat:3 }}</td>
                 </tr>
                 {% endfor %}
@@ -52,6 +54,7 @@
                         <th>Team</th>
                         <th>W</th>
                         <th>L</th>
+                        <th>T</th>
                         <th>Total</th>
                         <th>Win %</th>
                     </tr>
@@ -62,6 +65,7 @@
                         <td>{{ team_data.team }}</td>
                         <td>{{ team_data.wins }}</td>
                         <td>{{ team_data.losses }}</td>
+                        <td>{{ team_data.ties }}</td>
                         <td>{{ team_data.total }}</td>
                         <td>{{ team_data.win_pct|floatformat:3 }}</td>
                     </tr>

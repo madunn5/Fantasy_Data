@@ -427,10 +427,26 @@ def parse_team_entry(entry):
     return entry.strip(), ''
 
 
+def mark_status_to_result(status):
+    """Map a stored result mark to an ``(is_win, is_tie)`` pair.
+
+    Accepts 'win'/'loss'/'tie' strings plus the legacy booleans older
+    sessions stored before ties existed. Anything else means pending.
+    """
+    if status in (True, 'win'):
+        return True, False
+    if status in (False, 'loss'):
+        return False, False
+    if status == 'tie':
+        return None, True
+    return None, False
+
+
 def compute_bucket_standings(season, session=None):
     """Build (player leaderboard, team tallies) for a season's Bucket of Death.
 
-    Both are sorted by wins, then win %, then fewer losses. An in-progress
+    Both are sorted by wins, then win %, then fewer losses. A tie is a push:
+    it shows in its own column and is left out of the win %. An in-progress
     ``session``'s kept teams are folded into the leaderboard as wins (matching
     the historical behavior), but not into the team tallies.
     """
@@ -440,8 +456,8 @@ def compute_bucket_standings(season, session=None):
         # Group special-team variants (e.g. "Thank You For Your Service (Navy)")
         # under their base team name in the tallies.
         team_key = get_base_team_name(tr.team_name)
-        ps = player_stats.setdefault(tr.player_name, {'wins': 0, 'losses': 0})
-        ts = team_tallies.setdefault(team_key, {'wins': 0, 'losses': 0, 'total': 0})
+        ps = player_stats.setdefault(tr.player_name, {'wins': 0, 'losses': 0, 'ties': 0})
+        ts = team_tallies.setdefault(team_key, {'wins': 0, 'losses': 0, 'ties': 0, 'total': 0})
         ts['total'] += 1
         if tr.is_win is True:
             ps['wins'] += 1
@@ -449,26 +465,31 @@ def compute_bucket_standings(season, session=None):
         elif tr.is_win is False:
             ps['losses'] += 1
             ts['losses'] += 1
+        elif tr.is_tie:
+            ps['ties'] += 1
+            ts['ties'] += 1
 
     if session:
         for entry in session.kept_teams:
             person = parse_team_entry(entry)[1] or entry
-            player_stats.setdefault(person, {'wins': 0, 'losses': 0})['wins'] += 1
+            player_stats.setdefault(person, {'wins': 0, 'losses': 0, 'ties': 0})['wins'] += 1
 
     leaderboard = []
     for name, st in player_stats.items():
-        games = st['wins'] + st['losses']
+        games = st['wins'] + st['losses']  # ties are a push, not counted
         leaderboard.append({
-            'name': name, 'wins': st['wins'], 'losses': st['losses'],
+            'name': name, 'wins': st['wins'], 'losses': st['losses'], 'ties': st['ties'],
             'win_pct': st['wins'] / games if games else 0,
         })
     leaderboard.sort(key=lambda x: (x['wins'], x['win_pct'], -x['losses']), reverse=True)
 
     tallies = []
     for name, st in team_tallies.items():
+        decided = st['wins'] + st['losses']
         tallies.append({
-            'team': name, 'wins': st['wins'], 'losses': st['losses'], 'total': st['total'],
-            'win_pct': st['wins'] / st['total'] if st['total'] else 0,
+            'team': name, 'wins': st['wins'], 'losses': st['losses'], 'ties': st['ties'],
+            'total': st['total'],
+            'win_pct': st['wins'] / decided if decided else 0,
         })
     tallies.sort(key=lambda x: (x['wins'], x['win_pct'], -x['losses']), reverse=True)
     return leaderboard, tallies
@@ -540,21 +561,21 @@ def bucket_of_death(request):
             return redirect(f'/punishments/bucket-of-death/?week={current_week}')
         elif action.startswith('mark_') and request.user.is_staff:
             parts = action.split('_')
-            if len(parts) == 4:  # mark_session_team_win/loss format
+            if len(parts) == 4:  # mark_session_team_win/loss/tie format
                 team_index = int(parts[2])
-                result_type = parts[3]  # 'win' or 'loss'
-                # Store W/L in session for current teams
+                result_type = parts[3]  # 'win', 'loss', or 'tie'
+                # Store the mark in the session for current teams
                 if 'team_wl_status' not in request.session:
                     request.session['team_wl_status'] = {}
-                request.session['team_wl_status'][str(team_index)] = result_type == 'win'
+                request.session['team_wl_status'][str(team_index)] = result_type
                 request.session.modified = True
                 messages.success(request, f'Marked as {result_type}!')
             else:  # existing format for completed weeks
                 team_result_id = parts[1]
-                result_type = parts[2]  # 'win' or 'loss'
+                result_type = parts[2]  # 'win', 'loss', or 'tie'
                 try:
                     team_result = BucketTeamResult.objects.get(id=team_result_id)
-                    team_result.is_win = result_type == 'win'
+                    team_result.is_win, team_result.is_tie = mark_status_to_result(result_type)
                     team_result.save()
                     messages.success(request, f'Marked as {result_type}!')
                 except BucketTeamResult.DoesNotExist:
@@ -605,18 +626,19 @@ def bucket_of_death(request):
             team_wl_status = request.session.get('team_wl_status', {})
             for i, team_entry in enumerate(session.kept_teams):
                 team_name, player_name = parse_team_entry(team_entry)
-                is_win = team_wl_status.get(str(i))
-                
+                is_win, is_tie = mark_status_to_result(team_wl_status.get(str(i)))
+
                 if team_name == "Golden Helmet of Life":
-                    is_win = True
+                    is_win, is_tie = True, False
                 elif team_name == "Instant Death":
-                    is_win = False
-                
+                    is_win, is_tie = False, False
+
                 BucketTeamResult.objects.create(
                     week_result=week_result,
                     team_name=team_name,
                     player_name=player_name,
-                    is_win=is_win
+                    is_win=is_win,
+                    is_tie=is_tie
                 )
             
             if 'team_wl_status' in request.session:
@@ -731,20 +753,22 @@ def bucket_of_death(request):
             completed_week_teams.append({
                 'name': f"{team_result.team_name} - {team_result.player_name}",
                 'is_win': team_result.is_win,
+                'is_tie': team_result.is_tie,
                 'id': team_result.id
             })
     except BucketWeekResult.DoesNotExist:
         pass
-    
-    # Create team objects with W/L status for current teams
+
+    # Create team objects with W/L/T status for current teams
     team_wl_status = request.session.get('team_wl_status', {})
     current_teams_with_status = []
     for i, team in enumerate(current_kept_teams):
-        wl_status = team_wl_status.get(str(i))
+        is_win, is_tie = mark_status_to_result(team_wl_status.get(str(i)))
         current_teams_with_status.append({
             'name': team,
             'index': i,
-            'is_win': wl_status if wl_status is not None else None
+            'is_win': is_win,
+            'is_tie': is_tie
         })
     
     # Calculate total teams kept for this week (completed + current session)
@@ -943,7 +967,9 @@ def bucket_results_admin(request):
                 team_result_id = key.split('_')[1]
                 try:
                     team_result = BucketTeamResult.objects.get(id=team_result_id)
-                    team_result.is_win = value == 'win'
+                    # Empty value means Pending; before this mapping an empty
+                    # value was silently saved as a loss.
+                    team_result.is_win, team_result.is_tie = mark_status_to_result(value)
                     team_result.save()
                 except BucketTeamResult.DoesNotExist:
                     pass

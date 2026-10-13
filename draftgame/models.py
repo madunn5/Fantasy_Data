@@ -135,4 +135,7 @@ class BucketTeamResult(models.Model):
     team_name = models.CharField(max_length=100)
     player_name = models.CharField(max_length=100)
     is_win = models.BooleanField(null=True, blank=True)  # None=pending, True=win, False=loss
+    # A tied game is a push (league rule, Oct 2026): no win, no loss, excluded
+    # from win %. Tie rows keep is_win=None with is_tie=True.
+    is_tie = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

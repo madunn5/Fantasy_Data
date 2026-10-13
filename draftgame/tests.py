@@ -461,6 +461,30 @@ class BucketStandingsTests(TestCase):
         self.assertEqual(len(underdog), 1)
         self.assertEqual(underdog[0]['total'], 2)
 
+    def test_tie_is_a_push(self):
+        # A tie shows in its own column and leaves wins, losses, and win % alone.
+        wk = BucketWeekResult.objects.get(season=self.season, week_number=1)
+        BucketTeamResult.objects.create(week_result=wk, team_name='Lions',
+                                        player_name='Tiny', is_win=None, is_tie=True)
+        lb, tallies = compute_bucket_standings(self.season)
+        tiny = next(r for r in lb if r['name'] == 'Tiny')
+        self.assertEqual((tiny['wins'], tiny['losses'], tiny['ties']), (1, 0, 1))
+        self.assertEqual(tiny['win_pct'], 1.0)   # the tie doesn't dilute 1-0
+        lions = next(t for t in tallies if t['team'] == 'Lions')
+        self.assertEqual((lions['wins'], lions['losses'], lions['ties'], lions['total']),
+                         (0, 0, 1, 1))
+
+    def test_pending_rows_stay_pending_through_admin_save(self):
+        # Saving the results form must not turn untouched Pending rows into losses.
+        from .views import mark_status_to_result
+        self.assertEqual(mark_status_to_result(''), (None, False))
+        self.assertEqual(mark_status_to_result('tie'), (None, True))
+        self.assertEqual(mark_status_to_result('win'), (True, False))
+        self.assertEqual(mark_status_to_result('loss'), (False, False))
+        # Legacy session values stored as booleans still map correctly.
+        self.assertEqual(mark_status_to_result(True), (True, False))
+        self.assertEqual(mark_status_to_result(False), (False, False))
+
 
 class HistoryVisibilityTests(TestCase):
     def setUp(self):
