@@ -74,7 +74,18 @@ merged in from the old fantasy_project repo July 2026).
 - No Redis: `collect_yahoo_data` falls back to synchronous collection
   (by design, to avoid a Redis add-on cost).
 
-## Known issue
-- `yahoo_collector.py` sets `Projected Result` = actual `Result`, so the Luck
-  Report's "vs Projection" column would read 0 for live-collected data. The
-  primary "scoring luck" metric (all-play) is unaffected.
+## Yahoo collection (2026 season)
+- League: SNAKES NOT ALIVE, key `470.l.773198` (Yahoo issues a new key each
+  season; override with the `YAHOO_LEAGUE_KEY` env var next year).
+- API app: the original "Fantasy Stats Dashboard PROD" (App ID VEl6zhwg), access
+  re-granted Oct 2026 after Yahoo's gated access program. Token lives in
+  `oauth2_prod.json` locally and `YAHOO_OAUTH_JSON` on Heroku; refresh tokens
+  don't rotate, so both can share one.
+- Weekly, after Monday night: `heroku run -a dunn-right-fantasy -- python
+  manage.py collect_yahoo_data --week N --year 2026`. Only final weeks save
+  team rows.
+- Owners resolve at collection time via `TeamOwnerMapping`, keyed by Yahoo team
+  key (`470.l.773198.t.N`), so team renames don't split anyone's data.
+- Projected Result now comes from Yahoo's pre-game team projection. 2023-2025
+  rows still have Projected Result = Result, so their luck "vs Projection"
+  column reads 0.
