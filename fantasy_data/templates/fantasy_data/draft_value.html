@@ -23,7 +23,7 @@
     <h3 class="mt-4">Draft Grades</h3>
     <p class="text-muted">
         Draft value adds up every pick's points per week above or below the usual for its slot.
-        A +10 draft gave that team about 10 more points a week than a typical draft would have.
+        A +10 draft gave that team about 10 more points a week than a typical draft would have. Click a team to see every pick.
     </p>
     <div class="table-responsive">
         <table class="table table-hover align-middle">
@@ -38,12 +38,42 @@
             </thead>
             <tbody>
                 {% for g in report.grades %}
-                <tr>
+                <tr class="drill-toggle" data-toggle="collapse" data-target="#draft-{{ forloop.counter }}" aria-expanded="false">
                     <td class="text-center text-muted">{{ forloop.counter }}</td>
                     <td><strong>{{ g.team }}</strong></td>
                     <td class="text-right {% if g.value > 0 %}text-success{% elif g.value < 0 %}text-danger{% endif %}"><strong>{{ g.value|floatformat:1 }}</strong></td>
                     <td>{{ g.best.name }} <span class="text-muted small">(round {{ g.best.round }}, {{ g.best.value|floatformat:1 }})</span></td>
                     <td>{{ g.worst.name }} <span class="text-muted small">(round {{ g.worst.round }}, {{ g.worst.value|floatformat:1 }})</span></td>
+                </tr>
+                <tr class="collapse drill-detail" id="draft-{{ forloop.counter }}">
+                    <td colspan="5">
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">Pick</th>
+                                        <th>Player</th>
+                                        <th class="text-center">Taken</th>
+                                        <th class="text-right">Pts/Wk</th>
+                                        <th class="text-right">Usual for Slot</th>
+                                        <th class="text-right">vs Usual</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in g.picks %}
+                                    <tr>
+                                        <td class="text-center text-muted">{{ p.pick }}</td>
+                                        <td>{{ p.name }}</td>
+                                        <td class="text-center text-muted small">Rd {{ p.round }}, {{ p.pos }}{{ p.pos_rank }}</td>
+                                        <td class="text-right">{{ p.ppw|floatformat:1 }}</td>
+                                        <td class="text-right text-muted">{{ p.expected|floatformat:1 }}</td>
+                                        <td class="text-right {% if p.value > 0 %}text-success{% elif p.value < 0 %}text-danger{% endif %}">{{ p.value|floatformat:1 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

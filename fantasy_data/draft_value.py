@@ -61,7 +61,8 @@ def draft_report(year):
     for team, g in grades.items():
         best = max(g["picks"], key=lambda p: p["value"])
         worst = min(g["picks"], key=lambda p: p["value"])
-        graded.append({"team": team, "value": g["value"], "best": best, "worst": worst})
+        graded.append({"team": team, "value": g["value"], "best": best, "worst": worst,
+                       "picks": sorted(g["picks"], key=lambda p: p["pick"])})
     graded.sort(key=lambda g: -g["value"])
 
     all_time = defaultdict(lambda: {"value": 0.0, "drafts": set()})

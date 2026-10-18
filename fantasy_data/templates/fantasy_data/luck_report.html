@@ -27,7 +27,7 @@
             </thead>
             <tbody>
                 {% for r in report %}
-                <tr>
+                <tr class="drill-toggle" data-toggle="collapse" data-target="#luck-{{ forloop.counter }}" aria-expanded="false">
                     <td><strong>{{ r.team }}</strong></td>
                     <td class="text-center">{{ r.actual_wins }}-{{ r.actual_losses }}</td>
                     <td class="text-center text-muted">{{ r.allplay_expected_wins|floatformat:1 }}</td>
@@ -39,11 +39,41 @@
                     <td class="text-center text-muted">{{ r.yahoo_expected_wins }}-{{ r.yahoo_expected_losses }}</td>
                     <td class="text-center text-muted">{{ r.projection_luck|stringformat:"+d" }}</td>
                 </tr>
+                <tr class="collapse drill-detail" id="luck-{{ forloop.counter }}">
+                    <td colspan="6">
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">Week</th>
+                                        <th class="text-right">Score</th>
+                                        <th class="text-center">Result</th>
+                                        <th class="text-center">Teams Outscored</th>
+                                        <th class="text-center">Expected Wins</th>
+                                        <th class="text-center">Yahoo Projected</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for w in r.weeks %}
+                                    <tr>
+                                        <td class="text-center text-muted">{{ w.week }}</td>
+                                        <td class="text-right">{{ w.score|floatformat:1 }}</td>
+                                        <td class="text-center {% if w.result == 'W' %}text-success{% elif w.result == 'L' %}text-danger{% endif %}">{{ w.result|default:"-" }}</td>
+                                        <td class="text-center">{{ w.beat }} of {{ w.field }}</td>
+                                        <td class="text-center text-muted">{{ w.expected|floatformat:2 }}</td>
+                                        <td class="text-center text-muted">{{ w.projected|default:"-" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    <p class="text-muted small mt-3">🍀 Positive scoring luck means you won more games than your scores earned. 💀 Negative means you scored enough but kept losing anyway, so you're due for a bounce back. If the two columns disagree, Yahoo just had that team projected wrong.</p>
+    <p class="text-muted small mt-3">Click a team to see every week: how many teams it outscored, which is where expected wins come from. 🍀 Positive scoring luck means you won more games than your scores earned. 💀 Negative means you scored enough but kept losing anyway, so you're due for a bounce back. If the two columns disagree, Yahoo just had that team projected wrong.</p>
     {% else %}
     <div class="alert alert-info text-center">No data available for {{ selected_year }} yet.</div>
     {% endif %}

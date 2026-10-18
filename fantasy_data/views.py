@@ -2295,7 +2295,11 @@ def bench_report(request):
     lost_on_bench = {t['team']: t['games'] for t in benchings['team_counts']}
     both_blew_it = {t['team']: t['games'] for t in benchings['both_counts']}
     decisions = player_impact.lineup_decisions(selected_year)
+    games_by_team = {}
+    for g in benchings['games']:
+        games_by_team.setdefault(g['team'], []).append(g)
     for r in report:
+        r['bench_games'] = games_by_team.get(r['team'], [])
         r['games_lost'] = lost_on_bench.get(r['team'], 0)
         r['both_blew_it'] = both_blew_it.get(r['team'], 0)
         d = decisions.get(r['team'])
@@ -2355,9 +2359,6 @@ def matchups(request):
         g['record_b'] = records.get(g['team_b'], '')
 
     last_week_games = [g for g in graded if g['week'] == last_played]
-    for g in last_week_games:
-        p = g['forecast_p_a']
-        g['pick_pct'] = round(100 * g['conf']) if g['conf'] else None
 
     all_graded = []
     for y in years:

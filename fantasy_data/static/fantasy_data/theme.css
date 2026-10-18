@@ -435,3 +435,18 @@ label { color: var(--text-2); }
     .tab-bar a i { font-size: 16px; }
     .tab-bar a.active { color: var(--accent); }
 }
+
+/* Drill-down rows: a summary row that opens the detail behind it.
+   Markup: <tr class="drill-toggle" data-toggle="collapse" data-target="#id"
+   aria-expanded="false"> ... </tr><tr class="collapse drill-detail" id="id">. */
+tr.drill-toggle { cursor: pointer; }
+tr.drill-toggle td:first-child::before {
+    content: "\25B8";
+    display: inline-block;
+    width: 1em;
+    color: var(--text-muted);
+    transition: transform 0.15s ease;
+}
+tr.drill-toggle[aria-expanded="true"] td:first-child::before { transform: rotate(90deg); }
+tr.drill-detail > td { background: rgba(255, 255, 255, 0.025); padding: 0.5rem 1rem 1rem 2rem; }
+tr.drill-detail table { margin-bottom: 0; font-size: 0.9em; }

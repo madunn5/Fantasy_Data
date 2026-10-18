@@ -65,16 +65,21 @@ def luck_report(year):
     by_week = {}  # week_num -> [(team, score), ...]
     for r in rows:
         team = r["team_name"]
-        d = agg.setdefault(team, {"games": 0, "actual": 0, "yahoo": 0, "allplay": 0.0})
+        d = agg.setdefault(team, {"games": 0, "actual": 0, "yahoo": 0, "allplay": 0.0,
+                                  "weeks": []})
         d["games"] += 1
         if (r["result"] or "").upper() == "W":
             d["actual"] += 1
         if (r["projected_wins"] or "").upper() == "W":
             d["yahoo"] += 1
         by_week.setdefault(week_number(r["week"]), []).append((team, float(r["total_points"] or 0)))
+        d["weeks"].append({"week": week_number(r["week"]), "result": (r["result"] or "").upper(),
+                           "projected": (r["projected_wins"] or "").upper(),
+                           "score": float(r["total_points"] or 0)})
 
     # All-play expected wins: fraction of the field each team outscored, per week.
-    for entries in by_week.values():
+    allplay_weeks = {}
+    for week, entries in by_week.items():
         n = len(entries)
         if n < 2:
             continue
@@ -82,9 +87,14 @@ def luck_report(year):
             beat = sum(1 for t, s in entries if t != team and score > s)
             tied = sum(1 for t, s in entries if t != team and score == s)
             agg[team]["allplay"] += (beat + 0.5 * tied) / (n - 1)
+            allplay_weeks[(team, week)] = (beat, n - 1, (beat + 0.5 * tied) / (n - 1))
 
     out = []
     for team, d in agg.items():
+        weeks = []
+        for w in sorted(d["weeks"], key=lambda w: w["week"]):
+            beat, field, expected = allplay_weeks.get((team, w["week"]), (0, 0, 0.0))
+            weeks.append(dict(w, beat=beat, field=field, expected=expected))
         out.append({
             "team": team,
             "games": d["games"],
@@ -97,6 +107,7 @@ def luck_report(year):
             "yahoo_expected_wins": d["yahoo"],
             "yahoo_expected_losses": d["games"] - d["yahoo"],
             "projection_luck": d["actual"] - d["yahoo"],
+            "weeks": weeks,
         })
     out.sort(key=lambda x: x["scoring_luck"], reverse=True)
     return out

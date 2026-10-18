@@ -1,0 +1,29 @@
+{# Game-by-game predictions. Expects `games`: rows from matchup_predictions.graded_predictions. #}
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                {% if show_week %}<th class="text-center">Week</th>{% endif %}
+                <th>Game</th>
+                <th class="text-center">Projected</th>
+                <th>Picked</th>
+                <th class="text-center">Chance</th>
+                <th>Winner</th>
+                <th class="text-center">Right?</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in games %}
+            <tr>
+                {% if show_week %}<td class="text-center text-muted">{{ g.week }}</td>{% endif %}
+                <td>{{ g.team_a }} vs {{ g.team_b }}</td>
+                <td class="text-center text-muted">{% if g.proj_a and g.proj_b %}{{ g.proj_a|floatformat:1 }} to {{ g.proj_b|floatformat:1 }}{% else %}-{% endif %}</td>
+                <td>{{ g.pick|default:"-" }}</td>
+                <td class="text-center text-muted">{% if g.pick_pct %}{{ g.pick_pct }}%{% else %}-{% endif %}</td>
+                <td>{{ g.winner|default:"-" }}</td>
+                <td class="text-center">{% if g.right is True %}<span class="text-success">Yes</span>{% elif g.right is False %}<span class="text-danger">No</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

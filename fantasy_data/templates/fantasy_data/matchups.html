@@ -55,30 +55,7 @@
 
     {% if last_week_games %}
     <h3 class="mt-5">How Week {{ last_played }} Went</h3>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="thead-dark">
-                <tr>
-                    <th>Game</th>
-                    <th>Picked</th>
-                    <th class="text-center">Chance</th>
-                    <th>Winner</th>
-                    <th class="text-center">Right?</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for g in last_week_games %}
-                <tr>
-                    <td>{{ g.team_a }} vs {{ g.team_b }}</td>
-                    <td>{{ g.pick|default:"-" }}</td>
-                    <td class="text-center text-muted">{% if g.pick_pct %}{{ g.pick_pct }}%{% else %}-{% endif %}</td>
-                    <td>{{ g.winner|default:"-" }}</td>
-                    <td class="text-center">{% if g.right is True %}<span class="text-success">Yes</span>{% elif g.right is False %}<span class="text-danger">No</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    {% include "fantasy_data/_prediction_games.html" with games=last_week_games %}
     {% endif %}
 
     <h3 class="mt-5">Prediction Record</h3>
@@ -96,7 +73,7 @@
     <h5 class="mt-4">Were the chances honest?</h5>
     <p class="text-muted">
         When the forecast gives a team a certain chance, that team should win about that often.
-        This groups every game by how confident the pick was and shows how often the favorite won.
+        This groups every game by how confident the pick was and shows how often the favorite won. Click a row to see the games.
     </p>
     <div class="table-responsive">
         <table class="table table-hover align-middle">
@@ -110,11 +87,14 @@
             </thead>
             <tbody>
                 {% for c in summary.calibration %}
-                <tr>
+                <tr class="drill-toggle" data-toggle="collapse" data-target="#bucket-{{ forloop.counter }}" aria-expanded="false">
                     <td>{{ c.label }}</td>
                     <td class="text-center text-muted">{{ c.games }}</td>
                     <td class="text-center">{{ c.avg_conf|floatformat:0 }}%</td>
                     <td class="text-center"><strong>{{ c.won|floatformat:0 }}%</strong></td>
+                </tr>
+                <tr class="collapse drill-detail" id="bucket-{{ forloop.counter }}">
+                    <td colspan="4">{% include "fantasy_data/_prediction_games.html" with games=c.detail show_week=True %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -123,6 +103,7 @@
     {% endif %}
 
     <h5 class="mt-4">Week by Week</h5>
+    <p class="text-muted">Click a week to see every pick and how it turned out.</p>
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead class="thead-dark">
@@ -136,11 +117,14 @@
             <tbody>
                 {% for w in summary.by_week %}
                 {% if w.forecast.total %}
-                <tr>
+                <tr class="drill-toggle" data-toggle="collapse" data-target="#week-{{ w.week }}" aria-expanded="false">
                     <td>Week {{ w.week }}</td>
                     <td class="text-center">{{ w.forecast.right }}</td>
                     <td class="text-center text-muted">{{ w.forecast.total }}</td>
                     <td class="text-center">{{ w.forecast.pct|floatformat:0 }}%</td>
+                </tr>
+                <tr class="collapse drill-detail" id="week-{{ w.week }}">
+                    <td colspan="4">{% include "fantasy_data/_prediction_games.html" with games=w.detail %}</td>
                 </tr>
                 {% endif %}
                 {% endfor %}

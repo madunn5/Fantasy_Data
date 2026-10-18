@@ -142,6 +142,7 @@ def graded_predictions(year):
             "forecast_p_a": forecast_p, "pick": f_pick, "conf": f_conf,
             "model_p_a": p.model_p_a, "model_pick": m_pick, "model_conf": m_conf,
             "winner": winner,
+            "pick_pct": round(100 * f_conf) if f_conf else None,
             "right": (f_pick == winner) if winner and f_pick else None,
             "model_right": (m_pick == winner) if winner and m_pick else None,
         })
@@ -165,11 +166,13 @@ def accuracy_summary(graded):
                 "games": len(bucket),
                 "avg_conf": 100.0 * sum(g["conf"] for g in bucket) / len(bucket),
                 "won": 100.0 * sum(g["right"] for g in bucket) / len(bucket),
+                "detail": sorted(bucket, key=lambda g: (g["week"], g["team_a"])),
             })
     weeks = defaultdict(list)
     for g in graded:
-        weeks[g["week"]].append(g["right"])
-    by_week = [{"week": w, "forecast": rate(v)} for w, v in sorted(weeks.items())]
+        weeks[g["week"]].append(g)
+    by_week = [{"week": w, "forecast": rate([g["right"] for g in games]), "detail": games}
+               for w, games in sorted(weeks.items())]
     return {
         "forecast": rate([g["right"] for g in graded]),
         "model": rate([g["model_right"] for g in graded]),

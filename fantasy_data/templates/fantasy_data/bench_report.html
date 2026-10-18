@@ -34,7 +34,7 @@
             </thead>
             <tbody>
                 {% for r in report %}
-                <tr>
+                <tr {% if r.bench_games %}class="drill-toggle" data-toggle="collapse" data-target="#bench-{{ forloop.counter }}" aria-expanded="false"{% endif %}>
                     <td><strong>{{ r.team }}</strong></td>
                     <td class="text-right"><strong>{{ r.bench_points|floatformat:1 }}</strong></td>
                     <td class="text-center">{% if r.games_lost %}<strong class="text-danger">{{ r.games_lost }}</strong>{% else %}<span class="text-muted">0</span>{% endif %}</td>
@@ -50,11 +50,43 @@
                         {% else %}-{% endif %}
                     </td>
                 </tr>
+                {% if r.bench_games %}
+                <tr class="collapse drill-detail" id="bench-{{ forloop.counter }}">
+                    <td colspan="8">
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">Week</th>
+                                        <th>Lost To</th>
+                                        <th class="text-right">Lost By</th>
+                                        <th>Verdict</th>
+                                        <th>Best Bench Option</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for g in r.bench_games %}
+                                    {% with o=g.options.0 %}
+                                    <tr>
+                                        <td class="text-center text-muted">{{ g.week }}</td>
+                                        <td>{{ g.opponent|default:"-" }}</td>
+                                        <td class="text-right text-danger">{{ g.lost_by|floatformat:1 }}</td>
+                                        <td>{% if g.verdict == "bench" %}<span class="text-danger">Lost on the bench</span>{% else %}<span class="text-muted">Both blew it ({{ g.your_best|floatformat:1 }} vs {{ g.their_best|floatformat:1 }})</span>{% endif %}</td>
+                                        <td>{{ o.name }} over {{ o.replaced }} <span class="text-muted small">({{ o.pts|floatformat:1 }} vs {{ o.replaced_pts|floatformat:1 }}{% if o.call %}, {{ o.call }} call{% endif %})</span></td>
+                                    </tr>
+                                    {% endwith %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    <p class="text-muted small mt-3">See <a href="{% url 'player_impact' %}">Player Impact</a> for the exact games and which benched players would have won them. Based on weekly start/sit decisions. Player-level data is collected from Yahoo, so it's only available for seasons that were tracked at the roster level.</p>
+    <p class="text-muted small mt-3">Click a team with bench losses to see the games. See <a href="{% url 'player_impact' %}">Player Impact</a> for the exact games and which benched players would have won them. Based on weekly start/sit decisions. Player-level data is collected from Yahoo, so it's only available for seasons that were tracked at the roster level.</p>
     {% else %}
     <div class="alert alert-info text-center">
         No player-level roster data for {{ selected_year }}. The bench report needs per-player
