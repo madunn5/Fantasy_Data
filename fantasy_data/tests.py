@@ -545,3 +545,25 @@ class MatchupParsingTests(TestCase):
         self.assertEqual(resolve("470.l.1.t.8", "All You Need Is Love (6-0)"), "Jeff")
         self.assertEqual(resolve("470.l.1.t.5", "Wetbandit"), "Danny")
         self.assertEqual(resolve("470.l.1.t.99", "Unmapped Team"), "Unmapped Team")
+
+
+class PlotlyAssetTests(TestCase):
+    """One shared plotly.js per page, matching the Python package's version."""
+
+    def test_base_template_pins_the_bundled_plotly_version(self):
+        from pathlib import Path
+        from django.conf import settings
+        from plotly.offline import get_plotlyjs_version
+        base = (Path(settings.BASE_DIR) / "fantasy_app" / "templates" / "base.html").read_text()
+        self.assertIn(f"cdn.plot.ly/plotly-{get_plotlyjs_version()}.min.js", base)
+        self.assertNotIn("plotly-latest", base)
+
+    def test_chart_pages_do_not_inline_plotly(self):
+        for wk, (a, b) in enumerate([(118, 92), (122, 88)], start=1):
+            _make_week("A", wk, a, "B", b)
+            _make_week("B", wk, b, "A", a)
+        for url in (reverse("team_chart"), reverse("versus") + "?team1=A&team2=B"):
+            with self.subTest(url=url):
+                resp = self.client.get(url)
+                self.assertEqual(resp.status_code, 200)
+                self.assertNotContains(resp, "plotly.js v2")  # banner of an inlined bundle

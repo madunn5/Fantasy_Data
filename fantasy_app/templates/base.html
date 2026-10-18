@@ -16,7 +16,9 @@
     <link href="{% static 'fantasy_data/theme.css' %}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
     <!-- Plotly JS (loaded once in base template) -->
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Must match the plotly.js version bundled with the Python plotly package
+         (plotly.offline.get_plotlyjs_version()); a test checks this. -->
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
     <!-- jQuery (loaded once in base template) -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 </head>

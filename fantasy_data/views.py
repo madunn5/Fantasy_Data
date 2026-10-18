@@ -122,7 +122,7 @@ def generate_cached_box_plots(df_json, selected_team, chart_type):
             height=400,
             width=None
         )
-        return fig.to_html(full_html=False, config={'responsive': True, 'displayModeBar': False})
+        return fig.to_html(full_html=False, include_plotlyjs=False, config={'responsive': True, 'displayModeBar': False})
     
     return None
 
@@ -597,43 +597,43 @@ def team_chart(request):
     fig = px.bar(df_sorted, x='team_name', y='total_points', color='week', title='Total Points by Team Each Week')
     add_total_annotations(fig, df_totals, 'total_points')
     fig.update_layout(height=600, autosize=True)
-    chart = fig.to_html(full_html=False)
+    chart = fig.to_html(full_html=False, include_plotlyjs=False)
 
     fig_wr_points = px.bar(df_sorted, x='team_name', y='wr_points_total', color='week', title='Total WR Points by Team Each Week')
     add_total_annotations(fig_wr_points, df_totals, 'wr_points_total')
     fig_wr_points.update_layout(height=600, autosize=True)
-    chart_wr_points = fig_wr_points.to_html(full_html=False)
+    chart_wr_points = fig_wr_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_qb_points = px.bar(df_sorted, x='team_name', y='qb_points', color='week', title='Total QB Points by Team Each Week')
     add_total_annotations(fig_qb_points, df_totals, 'qb_points')
     fig_qb_points.update_layout(height=600, autosize=True)
-    chart_qb_points = fig_qb_points.to_html(full_html=False)
+    chart_qb_points = fig_qb_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_rb_points = px.bar(df_sorted, x='team_name', y='rb_points_total', color='week', title='Total RB Points by Team Each Week')
     add_total_annotations(fig_rb_points, df_totals, 'rb_points_total')
     fig_rb_points.update_layout(height=600, autosize=True)
-    chart_rb_points = fig_rb_points.to_html(full_html=False)
+    chart_rb_points = fig_rb_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_te_points = px.bar(df_sorted, x='team_name', y='te_points_total', color='week', title='Total TE Points by Team Each Week')
     add_total_annotations(fig_te_points, df_totals, 'te_points_total')
     fig_te_points.update_layout(height=600, autosize=True)
-    chart_te_points = fig_te_points.to_html(full_html=False)
+    chart_te_points = fig_te_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_k_points = px.bar(df_sorted, x='team_name', y='k_points', color='week', title='Total K Points by Team Each Week')
     add_total_annotations(fig_k_points, df_totals, 'k_points')
     fig_k_points.update_layout(height=600, autosize=True)
-    chart_k_points = fig_k_points.to_html(full_html=False)
+    chart_k_points = fig_k_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_def_points = px.bar(df_sorted, x='team_name', y='def_points', color='week', title='Total DEF Points by Team Each Week')
     add_total_annotations(fig_def_points, df_totals, 'def_points')
     fig_def_points.update_layout(height=600, autosize=True)
-    chart_def_points = fig_def_points.to_html(full_html=False)
+    chart_def_points = fig_def_points.to_html(full_html=False, include_plotlyjs=False)
     
     # Create points against charts
     fig_against = px.bar(df_sorted, x='team_name', y='points_against', color='week', title='Points Against by Team Each Week')
     add_total_annotations(fig_against, df_totals, 'points_against')
     fig_against.update_layout(height=600, autosize=True)
-    chart_against = fig_against.to_html(full_html=False)
+    chart_against = fig_against.to_html(full_html=False, include_plotlyjs=False)
     
     # Create position-specific against charts using opponent lookup
     all_team_data = pd.DataFrame(list(team_performance.values(*needed_fields)))
@@ -670,7 +670,7 @@ def team_chart(request):
                     yshift=10
                 )
             fig.update_layout(height=600, autosize=True)
-            return fig.to_html(full_html=False)
+            return fig.to_html(full_html=False, include_plotlyjs=False)
         return '<div class="alert alert-warning">No opponent data available</div>'
     
     chart_qb_against = create_opponent_chart('qb_points', 'QB Points Against by Team Each Week')
@@ -728,7 +728,7 @@ def box_plots_filter(request):
         yaxis_title='Total Points'
     )
 
-    chart = fig.to_html(full_html=False)
+    chart = fig.to_html(full_html=False, include_plotlyjs=False)
 
     # Create the box plot for QB points
     fig_qb_points = go.Figure()
@@ -747,7 +747,7 @@ def box_plots_filter(request):
         yaxis_title='QB Points'
     )
 
-    chart_qb = fig_qb_points.to_html(full_html=False)
+    chart_qb = fig_qb_points.to_html(full_html=False, include_plotlyjs=False)
 
     # Create the box plot for RB points
     fig_rb_points = go.Figure()
@@ -766,7 +766,7 @@ def box_plots_filter(request):
         yaxis_title='RB Points'
     )
 
-    chart_rb = fig_rb_points.to_html(full_html=False)
+    chart_rb = fig_rb_points.to_html(full_html=False, include_plotlyjs=False)
 
     # Create the box plot for WR points
     fig_wr_points = go.Figure()
@@ -785,7 +785,7 @@ def box_plots_filter(request):
         yaxis_title='WR Points'
     )
 
-    chart_wr = fig_wr_points.to_html(full_html=False)
+    chart_wr = fig_wr_points.to_html(full_html=False, include_plotlyjs=False)
 
     # Create the box plot for TE points
     fig_te_points = go.Figure()
@@ -804,7 +804,7 @@ def box_plots_filter(request):
         yaxis_title='TE Points'
     )
 
-    chart_te = fig_te_points.to_html(full_html=False)
+    chart_te = fig_te_points.to_html(full_html=False, include_plotlyjs=False)
 
     # Create the box plot for K points
     fig_k_points = go.Figure()
@@ -823,7 +823,7 @@ def box_plots_filter(request):
         yaxis_title='K Points'
     )
 
-    chart_k = fig_k_points.to_html(full_html=False)
+    chart_k = fig_k_points.to_html(full_html=False, include_plotlyjs=False)
 
     # Create the box plot for DEF points
     fig_def_points = go.Figure()
@@ -842,7 +842,7 @@ def box_plots_filter(request):
         yaxis_title='DEF Points'
     )
 
-    chart_def = fig_def_points.to_html(full_html=False)
+    chart_def = fig_def_points.to_html(full_html=False, include_plotlyjs=False)
 
     context = {
         'chart': chart,
@@ -1847,43 +1847,43 @@ def versus(request):
         df, x='team_name', y='total_points', color='team_name',
         title=f'Total Points Comparison: {team1} vs {team2}'
     )
-    chart_total_points = fig_total_points.to_html(full_html=False)
+    chart_total_points = fig_total_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_wr_points = px.box(
         df, x='team_name', y='wr_points_total', color='team_name',
         title=f'WR Points Comparison: {team1} vs {team2}'
     )
-    chart_wr_points = fig_wr_points.to_html(full_html=False)
+    chart_wr_points = fig_wr_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_qb_points = px.box(
         df, x='team_name', y='qb_points', color='team_name',
         title=f'QB Points Comparison: {team1} vs {team2}'
     )
-    chart_qb_points = fig_qb_points.to_html(full_html=False)
+    chart_qb_points = fig_qb_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_rb_points = px.box(
         df, x='team_name', y='rb_points_total', color='team_name',
         title=f'RB Points Comparison: {team1} vs {team2}'
     )
-    chart_rb_points = fig_rb_points.to_html(full_html=False)
+    chart_rb_points = fig_rb_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_te_points = px.box(
         df, x='team_name', y='te_points_total', color='team_name',
         title=f'TE Points Comparison: {team1} vs {team2}'
     )
-    chart_te_points = fig_te_points.to_html(full_html=False)
+    chart_te_points = fig_te_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_k_points = px.box(
         df, x='team_name', y='k_points', color='team_name',
         title=f'K Points Comparison: {team1} vs {team2}'
     )
-    chart_k_points = fig_k_points.to_html(full_html=False)
+    chart_k_points = fig_k_points.to_html(full_html=False, include_plotlyjs=False)
 
     fig_def_points = px.box(
         df, x='team_name', y='def_points', color='team_name',
         title=f'DEF Points Comparison: {team1} vs {team2}'
     )
-    chart_def_points = fig_def_points.to_html(full_html=False)
+    chart_def_points = fig_def_points.to_html(full_html=False, include_plotlyjs=False)
 
     context = {
         'teams': teams,
@@ -2083,7 +2083,7 @@ def position_contribution_chart(request):
                 title=f"Position Contribution for {selected_team} ({selected_year})"
             )
             
-            chart = fig.to_html(full_html=False)
+            chart = fig.to_html(full_html=False, include_plotlyjs=False)
             
             # Create bar chart for comparison
             league_avg = league_df[position_cols].mean()
@@ -2100,7 +2100,7 @@ def position_contribution_chart(request):
                 title=f"Position Contribution Comparison ({selected_year})"
             )
             
-            comparison_chart = fig_bar.to_html(full_html=False)
+            comparison_chart = fig_bar.to_html(full_html=False, include_plotlyjs=False)
             percentages = percentages.to_dict()
     
     context = {
@@ -2170,7 +2170,7 @@ def performance_trend(request):
         legend_title="Teams"
     )
     
-    chart = fig.to_html(full_html=False)
+    chart = fig.to_html(full_html=False, include_plotlyjs=False)
     
     context = {
         'teams': teams,
@@ -2208,21 +2208,26 @@ def win_probability_heatmap(request):
         row = []
         for team2 in teams_list:
             if team1 == team2:
-                row.append(0.5)
+                row.append(None)  # blank cell: a team doesn't play itself
                 continue
             prob = win_probability(team1, team2, selected_year, stats=stats)
             row.append(prob['p_a'] if prob else 0.5)
         probability_matrix.append(row)
-    
-    # Create heatmap
+
+    # Create heatmap. RdBu runs red (low) to blue (high), matching the page note.
     fig = go.Figure(data=go.Heatmap(
         z=probability_matrix,
         x=teams_list,
         y=teams_list,
-        colorscale='RdBu_r',
+        colorscale='RdBu',
         zmin=0,
         zmax=1,
-        colorbar=dict(title='Win Probability')
+        colorbar=dict(title='Win Probability', tickformat='.0%'),
+        hovertemplate='<b>%{y}</b> vs %{x}<br>%{z:.0%} chance to win<extra></extra>',
+        # Heatmaps have no single trace color, so Plotly falls back to a black
+        # tooltip; use the site's slate surface instead.
+        hoverlabel=dict(bgcolor='#2e3440', bordercolor='rgba(255,255,255,0.25)',
+                        font=dict(color='#f5f7fa')),
     ))
     
     fig.update_layout(
@@ -2231,7 +2236,7 @@ def win_probability_heatmap(request):
         yaxis_title='Team'
     )
     
-    chart = fig.to_html(full_html=False)
+    chart = fig.to_html(full_html=False, include_plotlyjs=False)
     
     context = {
         'years': years,
