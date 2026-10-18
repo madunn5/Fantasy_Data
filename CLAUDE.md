@@ -56,8 +56,18 @@ merged in from the old fantasy_project repo July 2026).
   how to read it.
 
 ## Data
-- `TeamPerformance` (team-week stats; full 2023–2025), `Player` / `PlayerRoster` /
-  `PlayerPerformance` (2025 only), `TeamOwnerMapping`. `team_name` is the person's name.
+- `TeamPerformance` (team-week stats) and `Player` / `PlayerRoster` /
+  `PlayerPerformance` (player-weeks) cover 2023 onward; 2023-2025 were backfilled
+  from Yahoo in Oct 2026. `TeamOwnerMapping` maps Yahoo team keys (team numbers
+  t1-t12 are the same owners every season) and names to owners; `team_name` is
+  the person's name.
+- Also stored: `PlayerTransaction` (Yahoo log), `ProjectedPoint` (Sleeper player
+  projections), `ScheduledMatchup`, `MatchupPrediction` (weekly forecasts, live or
+  backtest), `DraftPick` (draft results + season points).
+- League keys by season: 2023 `423.l.625430`, 2024 `449.l.639154`, 2025
+  `461.l.605174`, 2026 `470.l.773198`. For past seasons, run collection commands
+  with `YAHOO_LEAGUE_KEY` set (e.g. `heroku run --env YAHOO_LEAGUE_KEY=... -- python
+  manage.py collect_draft --year 2024`).
 - Re-seed local DB from the Heroku snapshot:
   `manage.py import_heroku_backup ~/Documents/Fantasy_Website/heroku_backups/dunn-right-fantasy.dump`
 
@@ -83,7 +93,11 @@ merged in from the old fantasy_project repo July 2026).
   don't rotate, so both can share one.
 - Weekly, after Monday night: `heroku run -a dunn-right-fantasy -- python
   manage.py collect_yahoo_data --week N --year 2026`. Only final weeks save
-  team rows.
+  team rows. One run also pulls the transaction log, Sleeper projections, the
+  current season's draft points, fills missing prediction weeks, and saves
+  next week's live predictions.
+- Matchup forecasts come from Yahoo's projected scores (backtest: 60% of 281
+  games vs 49% for the season-scoring model); see `matchup_predictions.py`.
 - Owners resolve at collection time via `TeamOwnerMapping`, keyed by Yahoo team
   key (`470.l.773198.t.N`), so team renames don't split anyone's data.
 - Projected Result comes from Yahoo's pre-game team projection. 2023-2025 rows

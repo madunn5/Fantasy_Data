@@ -960,8 +960,11 @@ class YahooFantasyCollector:
             except Exception as e:
                 logger.warning(f"collect_draft failed: {e}")
 
-        # Next week's predictions, saved before its games are played.
+        # Fill any finished week that never got a live prediction (as a
+        # backtest), then save next week's before its games are played.
         try:
+            from .matchup_predictions import backtest_season
+            backtest_season(year)
             self.save_upcoming_predictions(year, week + 1)
         except Exception as e:
             logger.warning(f"save_upcoming_predictions failed: {e}")
