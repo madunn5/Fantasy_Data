@@ -222,6 +222,26 @@
             }
         }
         
+        // Plotly sizes a chart when it first draws; one drawn inside a hidden
+        // tab, dropdown-switched panel, or collapse falls back to 700px and
+        // stays small once shown. After anything that can reveal a chart,
+        // refit every visible chart whose drawn width doesn't match its box.
+        function fitVisibleCharts() {
+            if (!window.Plotly) return;
+            document.querySelectorAll('.js-plotly-plot').forEach(function(gd) {
+                var width = gd.offsetWidth;
+                if (width > 0 && gd._fullLayout && Math.abs(gd._fullLayout.width - width) > 1) {
+                    // Straight to autosize: Plots.resize adds a 100ms delay.
+                    Plotly.relayout(gd, {autosize: true});
+                }
+            });
+        }
+        $(document).on('shown.bs.tab shown.bs.collapse shown.bs.modal', fitVisibleCharts);
+        ['change', 'click'].forEach(function(type) {
+            // Run after the page's own handler has shown or hidden things.
+            document.addEventListener(type, function() { setTimeout(fitVisibleCharts, 50); });
+        });
+
         // Helper function for scrollable charts
         document.addEventListener('DOMContentLoaded', function() {
             var chartContainers = document.querySelectorAll('.scrollable-chart');
