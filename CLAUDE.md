@@ -86,6 +86,9 @@ merged in from the old fantasy_project repo July 2026).
   team rows.
 - Owners resolve at collection time via `TeamOwnerMapping`, keyed by Yahoo team
   key (`470.l.773198.t.N`), so team renames don't split anyone's data.
-- Projected Result now comes from Yahoo's pre-game team projection. 2023-2025
-  rows still have Projected Result = Result, so their luck "vs Projection"
-  column reads 0.
+- Projected Result comes from Yahoo's pre-game team projection. 2023-2025 rows
+  came from CSV uploads with real projections, so the luck report's "vs
+  Projection" column works for every season.
+- Player projections (start/sit grades) come from Sleeper, not Yahoo (Yahoo's
+  API has none): `fantasy_data/projections.py`, pulled weekly with the Yahoo
+  collection; backfill with `manage.py collect_projections --year N`.
