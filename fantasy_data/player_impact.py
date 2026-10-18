@@ -43,6 +43,44 @@ def _game_results(year):
     return out
 
 
+def game_swing(game, edge):
+    """Did one player's edge over a typical starter decide this game?
+
+    Returns 'won' when the team won but would have lost with an ordinary
+    starter in his spot, 'lost' when the team lost but an ordinary starter
+    would have won, otherwise None.
+    """
+    if not game:
+        return None
+    margin = game["margin"]
+    if game["result"] == "W" and 0 < margin < edge:
+        return "won"
+    if game["result"] == "L" and edge < margin < 0:
+        return "lost"
+    return None
+
+
+def _record(games, team, first_week=None, last_week=None):
+    """'W-L' (or 'W-L-T') for a team over a range of weeks, or '' if none."""
+    w = l = t = 0
+    for (tm, wk), g in games.items():
+        if tm != team:
+            continue
+        if first_week is not None and wk < first_week:
+            continue
+        if last_week is not None and wk > last_week:
+            continue
+        if g["result"] == "W":
+            w += 1
+        elif g["result"] == "L":
+            l += 1
+        elif g["result"] in ("T", "TIE"):
+            t += 1
+    if not (w or l or t):
+        return ""
+    return f"{w}-{l}" + (f"-{t}" if t else "")
+
+
 def _clean_starters(starters):
     """Strip probable IR pollution from a list of started players.
 
@@ -116,6 +154,7 @@ def league_edge(year, min_starts=3):
                 "name": p["name"], "pos": p["pos"], "teams": [],
                 "starts": 0, "benches": 0, "started_pts": 0.0, "benched_pts": 0.0,
                 "edge_total": 0.0, "wins_swung": 0, "swing_weeks": [],
+                "losses_swung": 0, "loss_weeks": [],
             })
             edge = p["pts"] - medians.get((week, p["pos"]), 0.0)
             d["starts"] += 1
@@ -123,14 +162,19 @@ def league_edge(year, min_starts=3):
             d["edge_total"] += edge
             if team not in d["teams"]:
                 d["teams"].append(team)
-            if game and game["result"] == "W" and edge > game["margin"] > 0:
+            swing = game_swing(game, edge)
+            if swing == "won":
                 d["wins_swung"] += 1
                 d["swing_weeks"].append(week)
+            elif swing == "lost":
+                d["losses_swung"] += 1
+                d["loss_weeks"].append(week)
         for p in g["bench"]:
             d = agg.setdefault(p["id"], {
                 "name": p["name"], "pos": p["pos"], "teams": [],
                 "starts": 0, "benches": 0, "started_pts": 0.0, "benched_pts": 0.0,
                 "edge_total": 0.0, "wins_swung": 0, "swing_weeks": [],
+                "losses_swung": 0, "loss_weeks": [],
             })
             d["benches"] += 1
             d["benched_pts"] += p["pts"]
@@ -147,6 +191,7 @@ def league_edge(year, min_starts=3):
         d["avg_started"] = d["started_pts"] / d["starts"]
         d["avg_benched"] = (d["benched_pts"] / d["benches"]) if d["benches"] else None
         d["swing_weeks"].sort()
+        d["loss_weeks"].sort()
         d["team_label"] = " / ".join(d["teams"])
         out.append(d)
     out.sort(key=lambda d: d["edge_total"], reverse=True)
@@ -235,6 +280,7 @@ def roster_moves(year):
     if not rosters:
         return {"trades": [], "pickups": [], "exact": False}
     medians = _position_medians(rosters)
+    games = _game_results(year)
 
     # Rebuild each player's week-by-week team history from the rosters.
     history = defaultdict(dict)   # player_id -> {week: team}
@@ -270,19 +316,36 @@ def roster_moves(year):
                 from_team = stints[i - 1][1]
             end = stints[i + 1][0] if i + 1 < len(stints) else None
             starts = pts_after = edge_after = 0
+            start_record = {"W": 0, "L": 0, "T": 0}
+            won_weeks, lost_weeks = [], []
             for w in order:
                 if w < arrived or (end is not None and w >= end):
                     continue
                 started, pts, pos = weekly[pid][w]
-                if started:
-                    starts += 1
-                    pts_after += pts
-                    edge_after += pts - medians.get((w, pos), 0.0)
+                if not started:
+                    continue
+                edge = pts - medians.get((w, pos), 0.0)
+                starts += 1
+                pts_after += pts
+                edge_after += edge
+                game = games.get((team, w))
+                if game and game["result"] in start_record:
+                    start_record[game["result"]] += 1
+                swing = game_swing(game, edge)
+                if swing == "won":
+                    won_weeks.append(w)
+                elif swing == "lost":
+                    lost_weeks.append(w)
             moves.append({
                 "player_id": pid, "name": info[pid]["name"], "pos": info[pid]["pos"],
                 "from_team": from_team, "to_team": team, "week": arrived,
                 "starts_after": starts, "pts_after": pts_after,
                 "edge_after": edge_after,
+                "start_record": (f"{start_record['W']}-{start_record['L']}"
+                                 + (f"-{start_record['T']}" if start_record["T"] else ""))
+                                if starts else "",
+                "wins_swung": len(won_weeks), "losses_swung": len(lost_weeks),
+                "won_weeks": won_weeks, "lost_weeks": lost_weeks,
             })
 
     log = _trade_log(year)
@@ -298,18 +361,36 @@ def roster_moves(year):
         team_b = teams[1] if len(teams) > 1 else moves[group[0]]["from_team"]
         got_a = [moves[j] for j in group if moves[j]["to_team"] == team_a]
         got_b = [moves[j] for j in group if moves[j]["to_team"] == team_b]
+        week = min(moves[j]["week"] for j in group)
         trades.append({
-            "week": min(moves[j]["week"] for j in group),
+            "week": week,
             "team_a": team_a, "team_b": team_b,
             "got_a": got_a, "got_b": got_b,
             "edge_a": sum(x["edge_after"] for x in got_a),
             "edge_b": sum(x["edge_after"] for x in got_b),
+            "side_a": _trade_side(games, team_a, week, got_a),
+            "side_b": _trade_side(games, team_b, week, got_b),
         })
     trades.sort(key=lambda t: t["week"])
 
     pickups = [m for i, m in enumerate(moves) if i not in used]
     pickups.sort(key=lambda m: -m["edge_after"])
     return {"trades": trades, "pickups": pickups, "exact": bool(log)}
+
+
+def _trade_side(games, team, week, got):
+    """Results for one side of a trade, from the trade week on.
+
+    Games are counted once even if two acquired players both decided them.
+    """
+    won = sorted({w for m in got for w in m["won_weeks"]})
+    lost = sorted({w for m in got for w in m["lost_weeks"]})
+    return {
+        "record_before": _record(games, team, last_week=week - 1),
+        "record_since": _record(games, team, first_week=week),
+        "starts": sum(m["starts_after"] for m in got),
+        "won_weeks": won, "lost_weeks": lost,
+    }
 
 
 def _group_trades_from_log(moves, log):

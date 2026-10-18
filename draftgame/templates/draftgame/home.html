@@ -40,7 +40,9 @@
     {% endif %}
     <div class="card">
         <h3><i class="ti ti-layout-grid" aria-hidden="true"></i> Grid</h3>
-        {% if active_season.voting_complete %}
+        {% if active_season.grid_finalized %}
+        <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">The wheel has spun. Everyone's punishment for this season is set, so check the grid to see who's on the hook for what.</p>
+        {% elif active_season.voting_complete %}
         <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">The vote is in. This season's {{ active_season.wheel_size }} punishments are locked, and the wheel spins later this year.</p>
         {% else %}
         <p style="margin-bottom: 1.25rem; color: var(--text-secondary);">This season's punishments, plus past winners and history.</p>

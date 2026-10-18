@@ -7,13 +7,13 @@
     <h1 class="mb-1">Fantasy Dashboard <small class="text-muted">{{ selected_year }}</small></h1>
     <p class="text-muted">Season at a glance. Switch seasons with the <strong>Season</strong> picker up top.</p>
 
-    <!-- Hero strip: Leader / Fraud Watch / Danger Zone -->
-    {% if rankings %}
+    <!-- Hero strip: Leader / Fraud Watch / Hard Luck -->
+    {% if leader %}
     <div class="hero-strip">
         <div class="stat-card">
             <span class="eyebrow accent">Leader</span>
-            <div class="value">{{ rankings.0.team }}</div>
-            <div class="caption">{{ rankings.0.rating|floatformat:1 }} pts/wk &middot; {{ rankings.0.wins }}-{{ rankings.0.losses }}</div>
+            <div class="value">{{ leader.team }}</div>
+            <div class="caption">{{ leader.wins }}-{{ leader.losses }}{% if leader.ties %}-{{ leader.ties }}{% endif %} &middot; {{ leader.ppg|floatformat:1 }} pts/wk</div>
         </div>
         {% if luckiest %}
         <div class="stat-card">
@@ -24,7 +24,7 @@
         {% endif %}
         {% if unluckiest %}
         <div class="stat-card danger">
-            <span class="eyebrow danger">Danger Zone</span>
+            <span class="eyebrow danger">Hard Luck</span>
             <div class="value">{{ unluckiest.team }}</div>
             <div class="caption">{{ unluckiest.actual_wins }}-{{ unluckiest.actual_losses }} &middot; {{ unluckiest.scoring_luck|floatformat:1 }} wins vs expected</div>
         </div>
@@ -113,6 +113,8 @@
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="card h-100"><div class="card-body">
                 <h6 class="card-title">Stats &amp; Rankings</h6>
+                <a href="{% url 'power_rankings' %}" class="d-block">Power Rankings</a>
+                <a href="{% url 'luck_report' %}" class="d-block">Luck Report</a>
                 <a href="{% url 'stats_charts' %}" class="d-block">Stats Tables</a>
                 <a href="{% url 'stats_charts_filter' %}" class="d-block">Stats Filter</a>
                 <a href="{% url 'top_tens' %}" class="d-block">Top 10s</a>
@@ -129,6 +131,7 @@
         <div class="col-md-6 col-lg-3 mb-3">
             <div class="card h-100"><div class="card-body">
                 <h6 class="card-title">Players</h6>
+                <a href="{% url 'player_impact' %}" class="d-block">Player Impact</a>
                 <a href="{% url 'bench_report' %}" class="d-block">Bench Report</a>
                 <a href="{% url 'position_contribution' %}" class="d-block">Position Contribution</a>
                 <a href="{% url 'player_list' %}" class="d-block">All Players</a>

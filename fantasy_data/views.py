@@ -19,6 +19,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
 from django.contrib.admin.views.decorators import staff_member_required
+from django.utils.html import escape
 
 from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, TeamOwnerMapping
 from . import plotly_theme  # noqa: F401 — registers the "dunn" default template
@@ -35,6 +36,11 @@ def home(request):
 
     rankings = power_ratings(selected_year)
     luck = analytics.luck_report(selected_year)
+    # The best record, with points scored breaking ties (the playoff rule).
+    standings = analytics.standings(selected_year)
+    leader = standings[0] if standings else None
+    if leader and leader['games']:
+        leader['ppg'] = leader['pf'] / leader['games']
 
     # Latest completed week's scoreboard (one row per matchup).
     scoreboard, latest_week = [], None
@@ -65,6 +71,7 @@ def home(request):
         'years': years,
         'selected_year': selected_year,
         'rankings': rankings[:5],
+        'leader': leader,
         'luckiest': luck[0] if luck else None,
         'unluckiest': luck[-1] if luck and len(luck) > 1 else None,
         'scoreboard': scoreboard,
@@ -2282,6 +2289,10 @@ def bench_report(request):
     """Points left on the bench from start/sit decisions (player-level data)."""
     selected_year, years = get_selected_year(request)
     report = analytics.bench_report(selected_year)
+    lost_on_bench = {t['team']: t['games'] for t in
+                     player_impact.costly_benchings(selected_year)['team_counts']}
+    for r in report:
+        r['games_lost'] = lost_on_bench.get(r['team'], 0)
     return render(request, 'fantasy_data/bench_report.html', {
         'report': report,
         'has_data': bool(report),
@@ -2302,7 +2313,15 @@ def player_impact_report(request):
     shown = {id(p) for p in edge_top}
     edge_bottom = [p for p in reversed(edge)
                    if p['starts'] >= 6 and p['edge_total'] < 0 and id(p) not in shown][:8]
+    # Show every pickup when there are 15 or fewer; otherwise the top 10 and
+    # the bottom 5 with a divider between them.
+    pickups = moves['pickups']
+    pickups_trimmed = len(pickups) > 15
+    pickups_shown = (pickups[:10] + [{'divider': True}] + pickups[-5:]
+                     if pickups_trimmed else pickups)
     return render(request, 'fantasy_data/player_impact.html', {
+        'pickups_shown': pickups_shown,
+        'pickups_trimmed': pickups_trimmed,
         'edge': edge_top,
         'edge_bottom': edge_bottom,
         'benchings': benchings,
@@ -2489,7 +2508,9 @@ def oauth_callback(request):
     """Handle OAuth callback from Yahoo"""
     code = request.GET.get('code')
     if code:
-        return HttpResponse(f"<h3>Authorization Code:</h3><p>{code}</p><p>Copy this code and paste it in your terminal where the data collection is running.</p>")
+        # The code comes straight from the URL, so escape it: unescaped, any
+        # crafted link could run script on this site.
+        return HttpResponse(f"<h3>Authorization Code:</h3><p>{escape(code)}</p><p>Copy this code and paste it in your terminal where the data collection is running.</p>")
     else:
         return HttpResponse("<h3>Error:</h3><p>No authorization code received.</p>")
 

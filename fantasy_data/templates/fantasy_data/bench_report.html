@@ -7,7 +7,8 @@
     <h1 class="my-4 text-center">Bench Report <small class="text-muted">{{ selected_year }}</small></h1>
     <p class="text-center text-muted">
         Points scored by players who were sitting on the bench. The higher the number,
-        the more points that team wasted on start/sit calls this season.
+        the more points that team wasted on start/sit calls this season. Games lost counts
+        the losses where starting one of those benched players would have won the game.
     </p>
 
     {% if has_data %}
@@ -17,6 +18,7 @@
                 <tr>
                     <th>Team</th>
                     <th class="text-right">Points on Bench</th>
+                    <th class="text-center">Games Lost</th>
                     <th class="text-right">Points Started</th>
                     <th class="text-center">Sits</th>
                     <th>Biggest Sit Blunder</th>
@@ -27,6 +29,7 @@
                 <tr>
                     <td><strong>{{ r.team }}</strong></td>
                     <td class="text-right"><strong>{{ r.bench_points|floatformat:1 }}</strong></td>
+                    <td class="text-center">{% if r.games_lost %}<strong class="text-danger">{{ r.games_lost }}</strong>{% else %}<span class="text-muted">0</span>{% endif %}</td>
                     <td class="text-right text-muted">{{ r.started_points|floatformat:1 }}</td>
                     <td class="text-center text-muted">{{ r.bench_count }}</td>
                     <td>
@@ -41,7 +44,7 @@
             </tbody>
         </table>
     </div>
-    <p class="text-muted small mt-3">Based on weekly start/sit decisions. Player-level data is collected from Yahoo, so it's only available for seasons that were tracked at the roster level.</p>
+    <p class="text-muted small mt-3">See <a href="{% url 'player_impact' %}">Player Impact</a> for the exact games and which benched players would have won them. Based on weekly start/sit decisions. Player-level data is collected from Yahoo, so it's only available for seasons that were tracked at the roster level.</p>
     {% else %}
     <div class="alert alert-info text-center">
         No player-level roster data for {{ selected_year }}. The bench report needs per-player

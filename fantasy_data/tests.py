@@ -567,3 +567,41 @@ class PlotlyAssetTests(TestCase):
                 resp = self.client.get(url)
                 self.assertEqual(resp.status_code, 200)
                 self.assertNotContains(resp, "plotly.js v2")  # banner of an inlined bundle
+
+
+class OAuthCallbackEscapingTests(TestCase):
+    def test_code_is_escaped(self):
+        resp = self.client.get(reverse("oauth_callback"), {"code": "<script>alert(1)</script>"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "<script>alert(1)</script>")
+        self.assertContains(resp, "&lt;script&gt;")
+
+
+class GameSwingTests(TestCase):
+    """game_swing: did one player's edge over a typical starter decide a game?"""
+
+    def test_win_that_flips_without_him(self):
+        from .player_impact import game_swing
+        self.assertEqual(game_swing({"result": "W", "margin": 5.0}, 12.0), "won")
+        self.assertIsNone(game_swing({"result": "W", "margin": 20.0}, 12.0))  # comfortable win
+
+    def test_loss_an_ordinary_starter_would_have_won(self):
+        from .player_impact import game_swing
+        # Lost by 3 while scoring 8 below a typical starter: his slot cost the game.
+        self.assertEqual(game_swing({"result": "L", "margin": -3.0}, -8.0), "lost")
+        self.assertIsNone(game_swing({"result": "L", "margin": -30.0}, -8.0))  # blowout
+        self.assertIsNone(game_swing({"result": "L", "margin": -3.0}, 10.0))   # he played well
+
+    def test_missing_game_or_tie(self):
+        from .player_impact import game_swing
+        self.assertIsNone(game_swing(None, 10.0))
+        self.assertIsNone(game_swing({"result": "T", "margin": 0.0}, 10.0))
+
+    def test_record_ranges(self):
+        from .player_impact import _record
+        games = {("T", 1): {"result": "W", "margin": 5}, ("T", 2): {"result": "W", "margin": 5},
+                 ("T", 3): {"result": "L", "margin": -2}, ("T", 4): {"result": "T", "margin": 0},
+                 ("U", 3): {"result": "W", "margin": 2}}
+        self.assertEqual(_record(games, "T", last_week=2), "2-0")
+        self.assertEqual(_record(games, "T", first_week=3), "0-1-1")
+        self.assertEqual(_record(games, "T", first_week=9), "")
