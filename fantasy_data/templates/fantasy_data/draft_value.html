@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">Draft Value <small class="text-muted">{{ selected_year }}</small></h1>
+    <p class="text-center text-muted">
+        Every pick is compared to what that draft slot usually produces: the average points per
+        week of players taken around the same spot at the same position, across every draft on
+        the site. A player's whole season counts, even after he gets dropped, so this grades the
+        drafting itself.
+    </p>
+
+    {% if has_data %}
+    {% if report.in_progress %}
+    <div class="alert alert-secondary">
+        The {{ selected_year }} season is {{ report.weeks }} weeks in, so these grades will move a lot
+        before it's over.
+    </div>
+    {% endif %}
+
+    <h3 class="mt-4">Draft Grades</h3>
+    <p class="text-muted">
+        Draft value adds up every pick's points per week above or below the usual for its slot.
+        A +10 draft gave that team about 10 more points a week than a typical draft would have.
+    </p>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th class="text-center">#</th>
+                    <th>Team</th>
+                    <th class="text-right">Draft Value</th>
+                    <th>Best Pick</th>
+                    <th>Worst Pick</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in report.grades %}
+                <tr>
+                    <td class="text-center text-muted">{{ forloop.counter }}</td>
+                    <td><strong>{{ g.team }}</strong></td>
+                    <td class="text-right {% if g.value > 0 %}text-success{% elif g.value < 0 %}text-danger{% endif %}"><strong>{{ g.value|floatformat:1 }}</strong></td>
+                    <td>{{ g.best.name }} <span class="text-muted small">(round {{ g.best.round }}, {{ g.best.value|floatformat:1 }})</span></td>
+                    <td>{{ g.worst.name }} <span class="text-muted small">(round {{ g.worst.round }}, {{ g.worst.value|floatformat:1 }})</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-lg-6">
+            <h4>Steals</h4>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="thead-dark">
+                        <tr><th>Player</th><th>Team</th><th class="text-center">Taken</th><th class="text-right">Pts/Wk</th><th class="text-right">vs Usual</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for p in report.steals %}
+                        <tr>
+                            <td><strong>{{ p.name }}</strong></td>
+                            <td>{{ p.team }}</td>
+                            <td class="text-center text-muted small">Rd {{ p.round }}, {{ p.pos }}{{ p.pos_rank }}</td>
+                            <td class="text-right text-muted">{{ p.ppw|floatformat:1 }}</td>
+                            <td class="text-right text-success"><strong>+{{ p.value|floatformat:1 }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <h4>Busts</h4>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="thead-dark">
+                        <tr><th>Player</th><th>Team</th><th class="text-center">Taken</th><th class="text-right">Pts/Wk</th><th class="text-right">vs Usual</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for p in report.busts %}
+                        <tr>
+                            <td><strong>{{ p.name }}</strong></td>
+                            <td>{{ p.team }}</td>
+                            <td class="text-center text-muted small">Rd {{ p.round }}, {{ p.pos }}{{ p.pos_rank }}</td>
+                            <td class="text-right text-muted">{{ p.ppw|floatformat:1 }}</td>
+                            <td class="text-right text-danger"><strong>{{ p.value|floatformat:1 }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <p class="text-muted small">
+        Taken shows the round and where the player went at his position, so RB9 means the ninth
+        running back drafted that year.
+    </p>
+
+    <h3 class="mt-5">Best Drafters, All Time</h3>
+    <p class="text-muted">Average draft value per draft, across every season on the site.</p>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th class="text-center">#</th>
+                    <th>Team</th>
+                    <th class="text-center">Drafts</th>
+                    <th class="text-right">Per Draft</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in report.career %}
+                <tr>
+                    <td class="text-center text-muted">{{ forloop.counter }}</td>
+                    <td><strong>{{ c.team }}</strong></td>
+                    <td class="text-center text-muted">{{ c.drafts }}</td>
+                    <td class="text-right {% if c.per_draft > 0 %}text-success{% elif c.per_draft < 0 %}text-danger{% endif %}"><strong>{{ c.per_draft|floatformat:1 }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">No draft data for {{ selected_year }} yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

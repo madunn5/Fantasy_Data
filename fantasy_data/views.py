@@ -28,6 +28,7 @@ from .predictions import win_probability, power_ratings, team_stats
 from . import analytics
 from . import player_impact
 from . import matchup_predictions
+from . import draft_value
 from .yahoo_collector import YahooFantasyCollector
 
 
@@ -2306,6 +2307,19 @@ def bench_report(request):
         'years': years,
         'selected_year': selected_year,
         'page_title': f'Bench Report ({selected_year})',
+    })
+
+
+def draft_value_report(request):
+    """Which picks beat what their draft slot usually produces."""
+    selected_year, years = get_selected_year(request)
+    report = draft_value.draft_report(selected_year)
+    return render(request, 'fantasy_data/draft_value.html', {
+        'report': report,
+        'has_data': bool(report['grades']),
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Draft Value ({selected_year})',
     })
 
 

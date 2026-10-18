@@ -204,3 +204,28 @@ class MatchupPrediction(models.Model):
 
     def __str__(self):
         return f"{self.year} Week {self.week}: {self.team_a} vs {self.team_b} ({self.source})"
+
+
+class DraftPick(models.Model):
+    """One pick from a season's draft, with how the player's season went.
+
+    season_points is the player's season total in league scoring, whoever
+    rostered him; weeks_counted is how many NFL weeks it covers (18 for a
+    finished season, fewer while one is in progress).
+    """
+    year = models.IntegerField(db_index=True)
+    round = models.PositiveIntegerField()
+    pick = models.PositiveIntegerField()
+    team = models.CharField(max_length=100)
+    player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    position = models.CharField(max_length=10)
+    season_points = models.FloatField(null=True, blank=True)
+    weeks_counted = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('year', 'pick')
+        ordering = ['year', 'pick']
+
+    def __str__(self):
+        return f"{self.year} #{self.pick} {self.team}: {self.player.name}"

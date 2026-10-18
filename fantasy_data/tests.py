@@ -822,3 +822,44 @@ class MatchupPredictionTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Prediction Record")
         self.assertContains(resp, "2 of 3")
+
+
+class DraftValueTests(TestCase):
+    """Value = points per week vs players taken around the same spot."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from .models import DraftPick, Player
+        # Two drafts, three RBs each. RB2 in 2025 (Steal) blew past the usual.
+        rows = [(2024, 1, "A", "RB One 24", 180), (2024, 2, "B", "RB Two 24", 144),
+                (2024, 3, "A", "RB Three 24", 108),
+                (2025, 1, "A", "RB One 25", 180), (2025, 2, "B", "Steal", 288),
+                (2025, 3, "A", "RB Three 25", 108)]
+        for year, pick, team, name, pts in rows:
+            pl = Player.objects.create(yahoo_player_id=f"{name}", name=name, position="RB")
+            DraftPick.objects.create(year=year, round=pick, pick=pick, team=team, player=pl,
+                                     position="RB", season_points=pts, weeks_counted=18)
+
+    def test_value_against_peers_leaving_the_pick_out(self):
+        from .draft_value import picks_with_value
+        steal = next(p for p in picks_with_value() if p["name"] == "Steal")
+        self.assertEqual(steal["pos_rank"], 2)
+        self.assertAlmostEqual(steal["ppw"], 16.0)
+        # Peers within 2 ranks, excluding itself: 10, 8, 6 (2024) and 10, 6 (2025) -> 8.0
+        self.assertAlmostEqual(steal["expected"], 8.0)
+        self.assertAlmostEqual(steal["value"], 8.0)
+
+    def test_report_ranks_teams_and_steals(self):
+        from .draft_value import draft_report
+        r = draft_report(2025)
+        self.assertEqual(r["grades"][0]["team"], "B")
+        self.assertEqual(r["steals"][0]["name"], "Steal")
+        self.assertFalse(r["in_progress"])
+
+    def test_page_renders(self):
+        # The season picker only offers seasons that have games.
+        _make_week("A", 1, 100, "B", 90, year=2025)
+        _make_week("B", 1, 90, "A", 100, year=2025)
+        resp = self.client.get(reverse("draft_value"), {"year": 2025})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Steal")

@@ -113,6 +113,7 @@
                         Player Data
                     </a>
                     <div class="dropdown-menu" aria-labelledby="playerDropdown">
+                        <a class="dropdown-item" href="{% url 'draft_value' %}">Draft Value</a>
                         <a class="dropdown-item" href="{% url 'player_list' %}">All Players</a>
                         {% if user.is_staff %}
                         <a class="dropdown-item" href="{% url 'collect_yahoo_data' %}">Collect Yahoo Data</a>

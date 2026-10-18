@@ -493,6 +493,55 @@ class YahooFantasyCollector:
         logger.info(f"Saved {saved} live predictions for {year} week {week}")
         return saved
 
+    def collect_draft(self, year, weeks_counted=18):
+        """Store the season's draft picks with each player's season points.
+
+        Season points are the player's total in league scoring, whoever
+        rostered him, so the pick is judged on the player's whole season.
+        Re-run during a season to refresh points; ``weeks_counted`` is the
+        number of NFL weeks those points cover.
+        """
+        from .models import DraftPick
+
+        league = self._league()
+        resolve = owner_resolver(year)
+        picks = league.draft_results()
+        ids = [int(p['player_id']) for p in picks if p.get('player_id')]
+        stats, details = {}, {}
+        for i in range(0, len(ids), 25):
+            chunk = ids[i:i + 25]
+            for row in league.player_stats(chunk, 'season'):
+                stats[int(row['player_id'])] = row
+            for row in league.player_details(chunk):
+                details[int(row['player_id'])] = row
+        saved = 0
+        for p in picks:
+            pid = p.get('player_id')
+            if not pid:
+                continue
+            pid = int(pid)
+            st, det = stats.get(pid, {}), details.get(pid, {})
+            position = det.get('primary_position') or det.get('display_position') or 'Unknown'
+            if position == 'DEF' or (det.get('position_type') == 'DT'):
+                position = 'DEF'
+            name = st.get('name') or (det.get('name') or {}).get('full') or f"Player_{pid}"
+            player, _ = Player.objects.get_or_create(
+                yahoo_player_id=str(pid),
+                defaults={'name': name, 'position': position, 'nfl_team': 'N/A'})
+            try:
+                points = float(st.get('total_points'))
+            except (TypeError, ValueError):
+                points = None
+            DraftPick.objects.update_or_create(
+                year=year, pick=int(p['pick']),
+                defaults={'round': int(p['round']),
+                          'team': resolve(p['team_key'], p['team_key']),
+                          'player': player, 'position': position,
+                          'season_points': points, 'weeks_counted': weeks_counted})
+            saved += 1
+        logger.info(f"Stored {saved} draft picks for {year}")
+        return saved
+
     def collect_transactions(self, year, count=100):
         """Pull the league's transaction log into PlayerTransaction rows.
 
@@ -901,6 +950,15 @@ class YahooFantasyCollector:
             collect_projections(year, [week], players=rostered)
         except Exception as e:
             logger.warning(f"collect_projections failed: {e}")
+
+        # Refresh the current season's draft points so draft value stays
+        # current. Past seasons are loaded once (collect_draft command) since
+        # their season totals are final.
+        if year == settings.YAHOO_FANTASY_CONFIG.get('SEASON'):
+            try:
+                self.collect_draft(year, weeks_counted=week)
+            except Exception as e:
+                logger.warning(f"collect_draft failed: {e}")
 
         # Next week's predictions, saved before its games are played.
         try:
