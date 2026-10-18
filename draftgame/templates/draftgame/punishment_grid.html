@@ -42,7 +42,7 @@
                 <div style="background: {% if item.is_winner %}#ffd56b; color: #4a3a00{% else %}var(--bg-accent); color: var(--text-accent){% endif %}; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0;">{{ forloop.counter }}</div>
                 <div style="flex: 1;">
                     <p style="margin: 0; line-height: 1.55;">{{ item.punishment }}</p>
-                    {% if is_admin and item.names %}
+                    {% if item.names %}
                         <div style="margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: var(--bg-success); border-radius: var(--radius); color: var(--text-success);">
                             <strong>Assigned to:</strong>
                             {% for name in item.names %}{{ name }}{% if name == item.winner_name %} <i class="ti ti-trophy" aria-hidden="true" title="Ultimate winner"></i>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}

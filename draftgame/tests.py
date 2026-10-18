@@ -367,7 +367,14 @@ class GridTests(TestCase):
         anon = Client()
         body = anon.get('/punishments/punishment-grid/').content.decode()
         self.assertNotIn('Finalize assignments', body)
-        self.assertNotIn('Assigned to', body)
+
+    def test_assignments_visible_to_everyone(self):
+        # The wheel spins in front of the whole league, so who drew what is public.
+        finalist = self.s2025.punishments.filter(is_finalist=True).exclude(is_winner=True).first()
+        WheelResult.objects.create(name='Spinner McGee', punishment=finalist.text, season=self.s2025)
+        body = self._grid(2025, Client())
+        self.assertIn('Assigned to', body)
+        self.assertIn('Spinner McGee', body)
 
 
 class FinalizeVotingTests(TestCase):
