@@ -33,4 +33,4 @@ Thumbs.db
 *.log
 
 Scrapper.py
-oauth2_prod.json.bak*
+oauth2_prod.json.*
