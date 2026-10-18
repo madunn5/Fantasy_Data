@@ -2289,10 +2289,16 @@ def bench_report(request):
     """Points left on the bench from start/sit decisions (player-level data)."""
     selected_year, years = get_selected_year(request)
     report = analytics.bench_report(selected_year)
-    lost_on_bench = {t['team']: t['games'] for t in
-                     player_impact.costly_benchings(selected_year)['team_counts']}
+    benchings = player_impact.costly_benchings(selected_year)
+    lost_on_bench = {t['team']: t['games'] for t in benchings['team_counts']}
+    both_blew_it = {t['team']: t['games'] for t in benchings['both_counts']}
+    decisions = player_impact.lineup_decisions(selected_year)
     for r in report:
         r['games_lost'] = lost_on_bench.get(r['team'], 0)
+        r['both_blew_it'] = both_blew_it.get(r['team'], 0)
+        d = decisions.get(r['team'])
+        r['given_up'] = d['given_up'] if d else None
+        r['graded_weeks'] = d['weeks'] if d else 0
     return render(request, 'fantasy_data/bench_report.html', {
         'report': report,
         'has_data': bool(report),
@@ -2315,11 +2321,15 @@ def player_impact_report(request):
                    if p['starts'] >= 6 and p['edge_total'] < 0 and id(p) not in shown][:8]
     # Show every pickup when there are 15 or fewer; otherwise the top 10 and
     # the bottom 5 with a divider between them.
+    benchings_true = [g for g in benchings['games'] if g['verdict'] == 'bench']
+    benchings_both = [g for g in benchings['games'] if g['verdict'] == 'both']
     pickups = moves['pickups']
     pickups_trimmed = len(pickups) > 15
     pickups_shown = (pickups[:10] + [{'divider': True}] + pickups[-5:]
                      if pickups_trimmed else pickups)
     return render(request, 'fantasy_data/player_impact.html', {
+        'benchings_true': benchings_true,
+        'benchings_both': benchings_both,
         'pickups_shown': pickups_shown,
         'pickups_trimmed': pickups_trimmed,
         'edge': edge_top,

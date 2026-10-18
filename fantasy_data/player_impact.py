@@ -21,8 +21,8 @@ WR/RB/TE can displace any started WR/RB/TE because of the flex slot.
 from collections import defaultdict
 from statistics import median
 
-from .models import (PlayerPerformance, PlayerTransaction, TeamPerformance,
-                     TeamOwnerMapping)
+from .models import (PlayerPerformance, PlayerTransaction, ProjectedPoint,
+                     TeamPerformance, TeamOwnerMapping)
 from .predictions import week_number
 
 FLEX_POSITIONS = {'WR', 'RB', 'TE'}
@@ -35,10 +35,11 @@ def _game_results(year):
     """{(team, week_num): {'result': 'W'/'L', 'margin': float}}"""
     out = {}
     for r in TeamPerformance.objects.filter(year=year).values(
-            "team_name", "week", "result", "margin"):
+            "team_name", "week", "result", "margin", "opponent"):
         out[(r["team_name"], week_number(r["week"]))] = {
             "result": (r["result"] or "").upper(),
             "margin": float(r["margin"] or 0),
+            "opponent": r["opponent"],
         }
     return out
 
@@ -110,15 +111,67 @@ def _rosters(year):
     grouped = defaultdict(lambda: {"start": [], "bench": []})
     rows = PlayerPerformance.objects.filter(year=year).values(
         "fantasy_team", "week", "points_scored", "was_started",
-        "player_id", "player__name", "player__position")
+        "player_id", "player__name", "player__position", "player__yahoo_player_id")
     for r in rows:
         p = {"id": r["player_id"], "name": r["player__name"],
-             "pos": r["player__position"], "pts": float(r["points_scored"] or 0)}
+             "pos": r["player__position"], "pts": float(r["points_scored"] or 0),
+             "yid": r["player__yahoo_player_id"]}
         key = (r["fantasy_team"], week_number(r["week"]))
         grouped[key]["start" if r["was_started"] else "bench"].append(p)
     for g in grouped.values():
         g["start"] = _clean_starters(g["start"])
     return grouped
+
+
+# Starting lineup: QB, 2 RB, 2 WR, TE, one RB/WR/TE flex, K, DEF.
+LINEUP_SLOTS = {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "K": 1, "DEF": 1}
+FLEX_SLOTS = 1
+
+
+def best_lineup_points(players, value):
+    """Most points a legal lineup could score from ``players``.
+
+    ``value(player)`` gives each player's points (actual or projected), or
+    None to leave him out. Filling each position with its best players and
+    then the flex with the best leftover RB/WR/TE is optimal for this format.
+    """
+    by_pos = defaultdict(list)
+    for p in players:
+        v = value(p)
+        if v is not None:
+            by_pos[p["pos"]].append(v)
+    total, leftovers = 0.0, []
+    for pos, n in LINEUP_SLOTS.items():
+        ranked = sorted(by_pos.get(pos, []), reverse=True)
+        total += sum(ranked[:n])
+        if pos in FLEX_POSITIONS:
+            leftovers += ranked[n:]
+    total += sum(sorted(leftovers, reverse=True)[:FLEX_SLOTS])
+    return total
+
+
+def _projections(year):
+    """Return ``lookup(player, week) -> projected points or None``.
+
+    A player Sleeper projected in some week but not this one was on bye or
+    ruled out, so he counts as projected for 0. A player never matched to
+    Sleeper at all is unknown (None).
+    """
+    proj, known = {}, set()
+    for pid, week, pts in ProjectedPoint.objects.filter(
+            league_key=str(year), source="sleeper").values_list(
+            "player_id", "week", "projected_total"):
+        if pts is not None:
+            proj[(str(pid), week)] = float(pts)
+            known.add(str(pid))
+
+    def lookup(player, week):
+        yid = str(player["yid"])
+        if (yid, week) in proj:
+            return proj[(yid, week)]
+        return 0.0 if yid in known else None
+    lookup.available = bool(proj)
+    return lookup
 
 
 def _position_medians(rosters):
@@ -201,13 +254,21 @@ def league_edge(year, min_starts=3):
 def costly_benchings(year):
     """Losses a better start/sit call would have won, one row per game.
 
-    Returns ``{'games': [...], 'team_counts': [...]}``. Each game row is
-    ``{team, week, lost_by, options: [{name, pos, pts, would_win_by}]}`` where
-    every listed bench player would individually have flipped the result by
-    displacing the weakest legal starter.
+    Every listed bench player would on his own have flipped the result by
+    replacing the weakest starter he could legally replace, with the
+    opponent's score as it actually was. Each game also gets a verdict from
+    both teams' best possible lineups (actual points): 'bench' when the team
+    would still win if the opponent had played their best lineup too, 'both'
+    when the opponent's own bench would have won it back. With projections
+    imported, each option is graded as a 'bad' call (the bench player was
+    projected higher than the starter he'd replace) or a 'fair' one.
+
+    Returns ``{'games', 'team_counts', 'both_counts'}``; team_counts counts
+    only the 'bench' verdicts.
     """
     rosters = _rosters(year)
     games = _game_results(year)
+    proj = _projections(year)
     rows = []
     for (team, week), g in rosters.items():
         game = games.get((team, week))
@@ -217,27 +278,74 @@ def costly_benchings(year):
         options = []
         for b in g["bench"]:
             if b["pos"] in FLEX_POSITIONS:
-                legal = [p["pts"] for p in g["start"] if p["pos"] in FLEX_POSITIONS]
+                legal = [p for p in g["start"] if p["pos"] in FLEX_POSITIONS]
             else:
-                legal = [p["pts"] for p in g["start"] if p["pos"] == b["pos"]]
+                legal = [p for p in g["start"] if p["pos"] == b["pos"]]
             if not legal:
                 continue
-            swing = b["pts"] - min(legal)
-            if swing + margin > 0:
-                options.append({"name": b["name"], "pos": b["pos"], "pts": b["pts"],
-                                "would_win_by": swing + margin})
-        if options:
-            options.sort(key=lambda o: -o["would_win_by"])
-            rows.append({"team": team, "week": week, "lost_by": -margin,
-                         "options": options})
+            replaced = min(legal, key=lambda p: p["pts"])
+            swing = b["pts"] - replaced["pts"]
+            if swing + margin <= 0:
+                continue
+            proj_b = proj(b, week)
+            proj_s = proj(replaced, week)
+            call = None
+            if proj_b is not None and proj_s is not None:
+                call = "bad" if proj_b > proj_s else "fair"
+            options.append({"name": b["name"], "pos": b["pos"], "pts": b["pts"],
+                            "would_win_by": swing + margin,
+                            "replaced": replaced["name"], "replaced_pts": replaced["pts"],
+                            "proj": proj_b, "replaced_proj": proj_s, "call": call})
+        if not options:
+            continue
+        options.sort(key=lambda o: -o["would_win_by"])
+        opponent = game.get("opponent")
+        opp = rosters.get((opponent, week))
+        actual = lambda p: p["pts"]
+        your_best = best_lineup_points(g["start"] + g["bench"], actual)
+        their_best = (best_lineup_points(opp["start"] + opp["bench"], actual)
+                      if opp else None)
+        verdict = "bench" if their_best is None or your_best > their_best else "both"
+        rows.append({"team": team, "week": week, "lost_by": -margin, "options": options,
+                     "opponent": opponent, "your_best": your_best, "their_best": their_best,
+                     "verdict": verdict})
     rows.sort(key=lambda r: (r["week"], r["team"]))
 
-    counts = defaultdict(int)
-    for r in rows:
-        counts[r["team"]] += 1
-    team_counts = sorted(({"team": t, "games": n} for t, n in counts.items()),
-                         key=lambda x: -x["games"])
-    return {"games": rows, "team_counts": team_counts}
+    def tally(verdict):
+        counts = defaultdict(int)
+        for r in rows:
+            if r["verdict"] == verdict:
+                counts[r["team"]] += 1
+        return sorted(({"team": t, "games": n} for t, n in counts.items()),
+                      key=lambda x: -x["games"])
+    return {"games": rows, "team_counts": tally("bench"), "both_counts": tally("both")}
+
+
+def lineup_decisions(year):
+    """Start/sit decision quality by projections, per team.
+
+    For each team-week where every starter has a projection: how many
+    projected points the started lineup gave up versus the best lineup the
+    projections suggested from the same roster. This grades the call when it
+    was made, so a smart start that flopped costs nothing here.
+    Returns ``{team: {'weeks', 'given_up', 'clean_weeks'}}``.
+    """
+    proj = _projections(year)
+    if not proj.available:
+        return {}
+    out = defaultdict(lambda: {"weeks": 0, "given_up": 0.0, "clean_weeks": 0})
+    for (team, week), g in _rosters(year).items():
+        started = [proj(p, week) for p in g["start"]]
+        if not started or any(v is None for v in started):
+            continue
+        best = best_lineup_points(g["start"] + g["bench"], lambda p: proj(p, week))
+        gap = max(0.0, best - sum(started))
+        d = out[team]
+        d["weeks"] += 1
+        d["given_up"] += gap
+        if gap < 0.5:
+            d["clean_weeks"] += 1
+    return dict(out)
 
 
 def _trade_log(year):

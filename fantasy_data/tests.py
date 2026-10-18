@@ -653,3 +653,91 @@ class WaiverPickupSourceTests(TestCase):
         moves = player_impact.roster_moves(2025)
         self.assertTrue(moves["exact"])
         self.assertEqual(moves["trades"], [])
+
+
+class BestLineupTests(TestCase):
+    def test_fills_positions_then_flex(self):
+        from .player_impact import best_lineup_points
+        roster = [{"pos": "QB", "pts": 20}, {"pos": "QB", "pts": 30},
+                  {"pos": "RB", "pts": 10}, {"pos": "RB", "pts": 12}, {"pos": "RB", "pts": 25},
+                  {"pos": "WR", "pts": 5}, {"pos": "WR", "pts": 8}, {"pos": "WR", "pts": 9},
+                  {"pos": "TE", "pts": 7}, {"pos": "TE", "pts": 11},
+                  {"pos": "K", "pts": 6}, {"pos": "DEF", "pts": 4}]
+        # QB 30 + RB 25,12 + WR 9,8 + TE 11 + K 6 + DEF 4 + flex best of (RB 10, WR 5, TE 7) = 10
+        self.assertAlmostEqual(best_lineup_points(roster, lambda p: p["pts"]), 115)
+
+    def test_unknown_players_are_left_out(self):
+        from .player_impact import best_lineup_points
+        roster = [{"pos": "QB", "pts": 30}, {"pos": "QB", "pts": 20}]
+        self.assertAlmostEqual(
+            best_lineup_points(roster, lambda p: None if p["pts"] == 30 else p["pts"]), 20)
+
+
+class BenchVerdictTests(TestCase):
+    """'bench' vs 'both' verdicts and projection call grades."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from .models import Player, ProjectedPoint
+        _make_week("Us", 1, 100, "Them", 110)
+        _make_week("Them", 1, 110, "Us", 100)
+        pp = PlayerImpactTests._pp
+        # Us: started a 5-point WR, benched a 25-point WR (swap wins by 10).
+        pp("Our Starter", "WR", "Us", 1, 5, True)
+        pp("Our Bencher", "WR", "Us", 1, 25, False)
+        pp("Our QB", "QB", "Us", 1, 85, True)
+        pp("Our WR2", "WR", "Us", 1, 10, True)  # both WR slots filled, like a real lineup
+        # Them: started a 10-point WR and benched a 50-point WR.
+        pp("Their Starter", "WR", "Them", 1, 10, True)
+        pp("Their Bencher", "WR", "Them", 1, 50, False)
+        pp("Their QB", "QB", "Them", 1, 100, True)
+        # Projections for every one of our players; our bencher was projected
+        # higher than the starter he'd replace (a bad call).
+        for yid, (name, proj) in enumerate((("Our Starter", 6.0), ("Our Bencher", 14.0),
+                                            ("Our QB", 20.0), ("Our WR2", 10.0)), start=900001):
+            Player.objects.filter(yahoo_player_id=name).update(yahoo_player_id=str(yid))
+            ProjectedPoint.objects.create(league_key="2025", player_id=yid, week=1,
+                                          source="sleeper", projected_total=proj)
+
+    def test_both_blew_it_when_their_bench_wins_it_back(self):
+        rep = player_impact.costly_benchings(2025)
+        self.assertEqual(len(rep["games"]), 1)
+        g = rep["games"][0]
+        # Our best 120 (85 + 25 + 10) loses to their best 160 (100 + 50 + 10).
+        self.assertEqual(g["verdict"], "both")
+        self.assertEqual(rep["team_counts"], [])
+        self.assertEqual(rep["both_counts"], [{"team": "Us", "games": 1}])
+
+    def test_bad_call_from_projections(self):
+        g = player_impact.costly_benchings(2025)["games"][0]
+        o = g["options"][0]
+        self.assertEqual((o["name"], o["replaced"]), ("Our Bencher", "Our Starter"))
+        self.assertEqual(o["call"], "bad")
+
+    def test_decision_grade_counts_projected_points_given_up(self):
+        dec = player_impact.lineup_decisions(2025)
+        # Started a projected 6 over a projected 14 (8 points), and left the flex
+        # open when the projected-6 receiver could have filled it (6 more).
+        self.assertAlmostEqual(dec["Us"]["given_up"], 14.0)
+        self.assertNotIn("Them", dec)  # no projections for their starters
+
+
+class SleeperMatchingTests(TestCase):
+    def test_normalize_and_match(self):
+        from .projections import build_matcher, normalize_name
+        from .models import Player
+        self.assertEqual(normalize_name("Kenneth Walker III"), "kenneth walker")
+        self.assertEqual(normalize_name("Amon-Ra St. Brown"), "amon ra st brown")
+        sleeper = {
+            "1": {"full_name": "Bijan Robinson", "position": "RB"},
+            "2": {"full_name": "Travis Hunter", "position": "CB", "fantasy_positions": ["CB", "WR"]},
+            "3": {"full_name": "Josh Allen", "position": "QB", "yahoo_id": 30977},
+            "4": {"full_name": "Josh Allen", "position": "LB"},
+        }
+        match = build_matcher(sleeper)
+        mk = lambda name, pos, yid: Player(name=name, position=pos, yahoo_player_id=yid)
+        self.assertEqual(match(mk("Bijan Robinson", "RB", "40000")), "1")
+        self.assertEqual(match(mk("Travis Hunter", "WR", "40001")), "2")   # via fantasy_positions
+        self.assertEqual(match(mk("Josh Allen", "QB", "30977")), "3")       # via yahoo_id
+        self.assertEqual(match(mk("Broncos", "DEF", "100007")), "DEN")
+        self.assertIsNone(match(mk("Nobody Real", "WR", "40002")))

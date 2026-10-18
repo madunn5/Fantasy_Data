@@ -7,8 +7,14 @@
     <h1 class="my-4 text-center">Bench Report <small class="text-muted">{{ selected_year }}</small></h1>
     <p class="text-center text-muted">
         Points scored by players who were sitting on the bench. The higher the number,
-        the more points that team wasted on start/sit calls this season. Games lost counts
-        the losses where starting one of those benched players would have won the game.
+        the more points that team left sitting this season.
+    </p>
+    <p class="text-center text-muted">
+        Games lost counts the losses a benched player would have won, even if the other team
+        had played its best lineup too. Both blew it counts losses where the other team also
+        had a winner on its bench. Bad-call points grades the decisions themselves: projected
+        points given up by starting the wrong players, judged by the projections at kickoff,
+        so a smart start that flopped doesn't count against anyone.
     </p>
 
     {% if has_data %}
@@ -19,6 +25,8 @@
                     <th>Team</th>
                     <th class="text-right">Points on Bench</th>
                     <th class="text-center">Games Lost</th>
+                    <th class="text-center">Both Blew It</th>
+                    <th class="text-right">Bad-Call Points</th>
                     <th class="text-right">Points Started</th>
                     <th class="text-center">Sits</th>
                     <th>Biggest Sit Blunder</th>
@@ -30,6 +38,8 @@
                     <td><strong>{{ r.team }}</strong></td>
                     <td class="text-right"><strong>{{ r.bench_points|floatformat:1 }}</strong></td>
                     <td class="text-center">{% if r.games_lost %}<strong class="text-danger">{{ r.games_lost }}</strong>{% else %}<span class="text-muted">0</span>{% endif %}</td>
+                    <td class="text-center text-muted">{{ r.both_blew_it }}</td>
+                    <td class="text-right">{% if r.given_up is not None %}{{ r.given_up|floatformat:1 }} <span class="text-muted small">({{ r.graded_weeks }} wk)</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
                     <td class="text-right text-muted">{{ r.started_points|floatformat:1 }}</td>
                     <td class="text-center text-muted">{{ r.bench_count }}</td>
                     <td>

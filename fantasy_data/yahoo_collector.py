@@ -856,6 +856,18 @@ class YahooFantasyCollector:
         except Exception as e:
             logger.warning(f"collect_transactions failed: {e}")
 
+        # Player projections for start/sit grades. Sleeper serves past weeks,
+        # so pulling them after the games is fine; a Sleeper outage shouldn't
+        # break the Yahoo collection.
+        try:
+            from .projections import collect_projections
+            rostered = Player.objects.filter(
+                id__in=PlayerPerformance.objects.filter(year=year, week=f"Week {week}")
+                .values('player_id')).distinct()
+            collect_projections(year, [week], players=rostered)
+        except Exception as e:
+            logger.warning(f"collect_projections failed: {e}")
+
         # Count PlayerPerformance records
         perf_count = PlayerPerformance.objects.filter(week=f"Week {week}", year=year).count()
 
