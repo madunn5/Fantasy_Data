@@ -271,7 +271,9 @@ a:hover { color: var(--text); text-decoration: none; }
     vertical-align: middle;
 }
 .table-striped tbody tr:nth-of-type(odd) { background: transparent; }
-.table-hover tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+/* Bootstrap's hover rule also sets color: #212529, which turns row text
+   near-black on the dark theme; keep the row's own text color. */
+.table-hover tbody tr:hover { background: rgba(255, 255, 255, 0.04); color: inherit; }
 .table .num, .table td.dt-type-numeric {
     text-align: right;
     font-variant-numeric: tabular-nums;
@@ -284,7 +286,7 @@ table.dataTable { color: var(--text); }
 table.dataTable thead th { color: var(--text-muted); }
 table.dataTable tbody tr { background: transparent; }
 table.dataTable.stripe tbody tr.odd, table.dataTable.display tbody tr.odd { background: transparent; }
-table.dataTable.hover tbody tr:hover, table.dataTable.display tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+table.dataTable.hover tbody tr:hover, table.dataTable.display tbody tr:hover { background: rgba(255, 255, 255, 0.04); color: inherit; }
 .dt-container .dt-paging .dt-paging-button,
 .dt-container .dt-info,
 .dt-container .dt-length,
