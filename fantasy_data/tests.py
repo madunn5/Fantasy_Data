@@ -487,3 +487,61 @@ class TransactionLogTradeTests(TestCase):
         moves = player_impact.roster_moves(2025)
         self.assertFalse(moves["exact"])
         self.assertEqual(len(moves["trades"]), 2)  # heuristic pairs both swaps
+
+
+class MatchupParsingTests(TestCase):
+    """parse_matchups / matchup_result / owner_resolver against Yahoo's real shape."""
+
+    @staticmethod
+    def _team(key, name, pts, proj):
+        return {"team": [
+            [{"team_key": key}, {"team_id": key[-1]}, {"name": name}, []],
+            {"team_points": {"coverage_type": "week", "week": "5", "total": str(pts)},
+             "team_projected_points": {"coverage_type": "week", "week": "5", "total": str(proj)}},
+        ]}
+
+    def _payload(self, status="postevent", winner="470.l.1.t.1", tied=0):
+        matchup = {"week": "5", "status": status, "is_tied": tied, "winner_team_key": winner,
+                   "0": {"teams": {"0": self._team("470.l.1.t.1", "Prince Charles", 137.94, 105.74),
+                                   "1": self._team("470.l.1.t.2", "Sad Panda", 120.5, 118.0),
+                                   "count": 2}}}
+        return {"fantasy_content": {"league": [
+            {"league_key": "470.l.1"},
+            {"scoreboard": {"week": "5", "0": {"matchups": {"0": {"matchup": matchup}, "count": 1}}}},
+        ]}}
+
+    def test_both_sides_flattened(self):
+        from .yahoo_collector import parse_matchups
+        rows = {r["team_key"]: r for r in parse_matchups(self._payload())}
+        self.assertEqual(len(rows), 2)
+        a = rows["470.l.1.t.1"]
+        self.assertEqual(a["opponent_key"], "470.l.1.t.2")
+        self.assertAlmostEqual(a["points"], 137.94)
+        self.assertAlmostEqual(a["opponent_points"], 120.5)
+        self.assertAlmostEqual(a["projected"], 105.74)
+        self.assertAlmostEqual(a["opponent_projected"], 118.0)
+
+    def test_results_from_winner_and_tie_flags(self):
+        from .yahoo_collector import parse_matchups, matchup_result
+        rows = {r["team_key"]: r for r in parse_matchups(self._payload())}
+        self.assertEqual(matchup_result(rows["470.l.1.t.1"]), "W")
+        self.assertEqual(matchup_result(rows["470.l.1.t.2"]), "L")
+        tied = parse_matchups(self._payload(winner=None, tied=1))
+        self.assertEqual({matchup_result(r) for r in tied}, {"T"})
+        live = parse_matchups(self._payload(status="midevent", winner=None, tied=None))
+        self.assertEqual({matchup_result(r) for r in live}, {"TBD"})
+
+    def test_bad_payload_is_empty_not_an_error(self):
+        from .yahoo_collector import parse_matchups
+        self.assertEqual(parse_matchups([]), [])
+        self.assertEqual(parse_matchups({"fantasy_content": {}}), [])
+
+    def test_owner_resolver_prefers_name_then_team_key(self):
+        from .yahoo_collector import owner_resolver
+        TeamOwnerMapping.objects.create(team_name="470.l.1.t.8", owner_name="Jeff", year=2026)
+        TeamOwnerMapping.objects.create(team_name="Wetbandit", owner_name="Danny", year=2026)
+        resolve = owner_resolver(2026)
+        # A renamed team still resolves through its stable team key.
+        self.assertEqual(resolve("470.l.1.t.8", "All You Need Is Love (6-0)"), "Jeff")
+        self.assertEqual(resolve("470.l.1.t.5", "Wetbandit"), "Danny")
+        self.assertEqual(resolve("470.l.1.t.99", "Unmapped Team"), "Unmapped Team")

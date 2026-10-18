@@ -74,9 +74,100 @@ def parse_transactions(txns):
                 'transaction_type': ttype,
                 'from_team': source,
                 'to_team': dest,
+                'from_team_key': tdata.get('source_team_key'),
+                'to_team_key': tdata.get('destination_team_key'),
                 'timestamp': ts,
             })
     return out
+
+
+def _to_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def parse_matchups(raw):
+    """Flatten Yahoo's scoreboard payload (``league.matchups(week)``) into one
+    dict per team: ``{team_key, name, points, projected, opponent_key,
+    opponent_name, opponent_points, opponent_projected, status, is_tied,
+    winner_team_key}``. ``status`` is 'postevent' once the week is final.
+    """
+    try:
+        league = raw['fantasy_content']['league']
+        scoreboard = next(x['scoreboard'] for x in league
+                          if isinstance(x, dict) and 'scoreboard' in x)
+        matchups = scoreboard['0']['matchups']
+    except (KeyError, TypeError, StopIteration):
+        return []
+    out = []
+    for mkey, mval in matchups.items():
+        if mkey == 'count' or not isinstance(mval, dict):
+            continue
+        m = mval.get('matchup') or {}
+        teams = (m.get('0') or {}).get('teams') or {}
+        sides = []
+        for tkey, tval in teams.items():
+            if tkey == 'count' or not isinstance(tval, dict):
+                continue
+            t = tval.get('team')
+            if not isinstance(t, list) or len(t) < 2:
+                continue
+            meta = {}
+            for item in t[0]:
+                if isinstance(item, dict):
+                    meta.update(item)
+            stats = t[1] if isinstance(t[1], dict) else {}
+            sides.append({
+                'team_key': meta.get('team_key'),
+                'name': meta.get('name'),
+                'points': _to_float((stats.get('team_points') or {}).get('total')),
+                'projected': _to_float((stats.get('team_projected_points') or {}).get('total')),
+            })
+        if len(sides) != 2:
+            continue
+        for me, opp in ((sides[0], sides[1]), (sides[1], sides[0])):
+            out.append({
+                **me,
+                'opponent_key': opp['team_key'],
+                'opponent_name': opp['name'],
+                'opponent_points': opp['points'],
+                'opponent_projected': opp['projected'],
+                'status': m.get('status'),
+                'is_tied': str(m.get('is_tied')) == '1',
+                'winner_team_key': m.get('winner_team_key'),
+            })
+    return out
+
+
+def matchup_result(row):
+    """'W'/'L'/'T' for a final matchup row from parse_matchups, else 'TBD'."""
+    if row.get('status') != 'postevent':
+        return 'TBD'
+    if row.get('is_tied'):
+        return 'T'
+    if row.get('winner_team_key'):
+        return 'W' if row['winner_team_key'] == row['team_key'] else 'L'
+    if row['points'] == row['opponent_points']:
+        return 'T'
+    return 'W' if row['points'] > row['opponent_points'] else 'L'
+
+
+def owner_resolver(year):
+    """Return ``resolve(team_key, team_name) -> owner name`` for a season.
+
+    TeamOwnerMapping rows can be keyed by the Yahoo team name (how 2025 was
+    mapped) or by the Yahoo team key, which stays fixed all season even when
+    a manager renames their team. Unmapped teams keep their Yahoo name.
+    """
+    from .models import TeamOwnerMapping
+    mapping = dict(TeamOwnerMapping.objects.filter(year=year, is_active=True)
+                   .values_list('team_name', 'owner_name'))
+
+    def resolve(team_key, team_name):
+        return mapping.get(team_name) or mapping.get(team_key) or team_name
+    return resolve
 
 
 class YahooFantasyCollector:
@@ -348,24 +439,20 @@ class YahooFantasyCollector:
                 logger.warning(f"Could not read playoff_start_week, assuming 14 weeks: {e}")
                 end_week = 14
 
-        teams = league.teams()
+        resolve = owner_resolver(year)
         saved = 0
         for week in range(start_week, end_week + 1):
             try:
-                matchups = league.matchups(week)
+                rows = parse_matchups(league.matchups(week))
             except Exception as e:
                 logger.warning(f"Could not get schedule matchups for week {week}: {e}")
                 continue
-            for matchup in matchups:
-                teams_in_matchup = matchup.get('teams') if isinstance(matchup, dict) else None
-                if not teams_in_matchup or len(teams_in_matchup) != 2:
+            for row in rows:
+                # Each matchup appears once per side; keep one.
+                if not row['team_key'] or not row['opponent_key'] or row['team_key'] > row['opponent_key']:
                     continue
-                t1, t2 = teams_in_matchup
-                name1 = teams.get(t1.get('team_key'), {}).get('name') or t1.get('name')
-                name2 = teams.get(t2.get('team_key'), {}).get('name') or t2.get('name')
-                if not name1 or not name2:
-                    continue
-                a, b = sorted((name1, name2))
+                a, b = sorted((resolve(row['team_key'], row['name']),
+                               resolve(row['opponent_key'], row['opponent_name'])))
                 ScheduledMatchup.objects.update_or_create(year=year, week=week, team_a=a, team_b=b)
                 saved += 1
 
@@ -385,10 +472,13 @@ class YahooFantasyCollector:
 
         league = self._league()
         txns = league.transactions('add,drop,trade', str(count) if count else '')
+        resolve = owner_resolver(year)
         saved = 0
         for rec in parse_transactions(txns):
             if not rec['player_id']:
                 continue
+            from_team = resolve(rec['from_team_key'], rec['from_team'])
+            to_team = resolve(rec['to_team_key'], rec['to_team'])
             player, _ = Player.objects.get_or_create(
                 yahoo_player_id=str(rec['player_id']),
                 defaults={'name': rec['player_name'],
@@ -401,7 +491,7 @@ class YahooFantasyCollector:
                 transaction_type=rec['transaction_type'],
                 transaction_date=when,
                 year=year,
-                defaults={'from_team': rec['from_team'], 'to_team': rec['to_team']},
+                defaults={'from_team': from_team, 'to_team': to_team},
             )
             saved += 1
         logger.info(f"Stored {saved} transaction rows for {year}")
@@ -433,28 +523,8 @@ class YahooFantasyCollector:
             team_data = []
             teams = league.teams()
 
-            # Create matchup lookup (this block assumes a simplified shape; adjust if needed)
-            matchup_data = {}
-            for matchup in matchups:
-                if 'teams' in matchup:
-                    teams_in_matchup = matchup['teams']
-                    if len(teams_in_matchup) == 2:
-                        team1, team2 = teams_in_matchup
-                        team1_key = team1.get('team_key')
-                        team2_key = team2.get('team_key')
-                        team1_points = float(team1.get('team_points', {}).get('total', 0))
-                        team2_points = float(team2.get('team_points', {}).get('total', 0))
-
-                        matchup_data[team1_key] = {
-                            'opponent_key': team2_key,
-                            'points_for': team1_points,
-                            'points_against': team2_points
-                        }
-                        matchup_data[team2_key] = {
-                            'opponent_key': team1_key,
-                            'points_for': team2_points,
-                            'points_against': team1_points
-                        }
+            matchup_data = {row['team_key']: row for row in parse_matchups(matchups)}
+            resolve = owner_resolver(year)
 
             for team_key, team_info in teams.items():
                 team_name = team_info['name']
@@ -477,19 +547,19 @@ class YahooFantasyCollector:
                 position_points = self.calculate_position_points(roster_with_stats)
 
                 # Get matchup info
-                matchup_info = matchup_data.get(team_key, {})
-                opponent_key = matchup_info.get('opponent_key')
-                opponent_name = teams.get(opponent_key, {}).get('name', 'TBD') if opponent_key else 'TBD'
-                points_for = matchup_info.get('points_for', 0)
-                points_against = matchup_info.get('points_against', 0)
-
-                # Calculate result
-                if points_for > 0 and points_against > 0:
-                    result = 'W' if points_for > points_against else 'L'
-                    margin = points_for - points_against
-                else:
-                    result = 'TBD'
-                    margin = 0
+                matchup_info = matchup_data.get(team_key)
+                if not matchup_info or matchup_info['status'] != 'postevent':
+                    # Partial scores from an unfinished week would skew the
+                    # ratings and luck report, so only final weeks are saved.
+                    logger.warning(f"Week {week} not final for {team_name}; skipping team row")
+                    continue
+                opponent_key = matchup_info['opponent_key']
+                opponent_name = resolve(opponent_key, teams.get(opponent_key, {}).get('name')
+                                        or matchup_info['opponent_name'])
+                points_for = matchup_info['points']
+                points_against = matchup_info['opponent_points']
+                result = matchup_result(matchup_info)
+                margin = points_for - points_against
 
                 # Calculate actual total (fallback to summing starters if team_points missing)
                 if points_for > 0:
@@ -516,12 +586,23 @@ class YahooFantasyCollector:
                             pts = float(proj_pts or 0)
                         projected_points += pts
 
-                # Use actual points if no projected points available (keeps legacy behavior)
-                if projected_points == 0:
+                # Yahoo's team projection is the pre-game number, so prefer it.
+                if matchup_info['projected'] > 0:
+                    projected_points = matchup_info['projected']
+                elif projected_points == 0:
                     projected_points = total_points
 
+                opp_projected = matchup_info['opponent_projected']
+                if projected_points > 0 and opp_projected > 0:
+                    if projected_points == opp_projected:
+                        projected_result = 'T'
+                    else:
+                        projected_result = 'W' if projected_points > opp_projected else 'L'
+                else:
+                    projected_result = result
+
                 team_record = {
-                    'Team': team_name,
+                    'Team': resolve(team_key, team_name),
                     'Week': f"Week {week}",
                     'Total': total_points,
                     'Expected Total': projected_points,
@@ -530,7 +611,7 @@ class YahooFantasyCollector:
                     'Opponent': opponent_name,
                     'Result': result,
                     'Margin of Matchup': margin,
-                    'Projected Result': result,
+                    'Projected Result': projected_result,
                     **position_points
                 }
 
@@ -660,8 +741,9 @@ class YahooFantasyCollector:
         players_updated = 0
         rosters_written = 0
 
+        resolve = owner_resolver(year)
         for team_key, team_info in teams.items():
-            team_name = team_info.get('name', team_key)
+            team_name = resolve(team_key, team_info.get('name', team_key))
             logger.info(f"Fetching roster for team: {team_name} ({team_key})")
 
             # Try week-specific roster; fall back to current if needed

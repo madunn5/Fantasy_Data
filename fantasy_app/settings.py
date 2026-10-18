@@ -160,9 +160,11 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Yahoo Fantasy API Configuration
 YAHOO_FANTASY_CONFIG = {
-    'LEAGUE_ID': '605174',
-    'LEAGUE_KEY': 'nfl.l.605174',
-    'SEASON': 2025,
+    # Yahoo gives the league a new key every season (SNAKES NOT ALIVE:
+    # 461.l.605174 in 2025, renewed as 470.l.773198 in 2026).
+    'LEAGUE_ID': '773198',
+    'LEAGUE_KEY': os.environ.get('YAHOO_LEAGUE_KEY', '470.l.773198'),
+    'SEASON': 2026,
     'CLIENT_ID': os.environ.get('YAHOO_CLIENT_ID', ''),
     'CLIENT_SECRET': os.environ.get('YAHOO_CLIENT_SECRET', '')
 }
