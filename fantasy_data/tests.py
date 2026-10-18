@@ -776,3 +776,49 @@ class LegalSwapTests(TestCase):
         self.assertFalse(legal_swap(starters, starters[1], {"pos": "WR"}))  # would leave 1 RB
         self.assertFalse(legal_swap(starters, starters[0], {"pos": "RB"}))  # QB is like-for-like
         self.assertTrue(legal_swap(starters, starters[7], {"pos": "K"}))
+
+
+class MatchupPredictionTests(TestCase):
+    """Saved predictions: projection forecast, no lookahead, grading."""
+
+    @classmethod
+    def setUpTestData(cls):
+        # 3 weeks, A strong and B weak, with pre-game projections favoring A.
+        for wk, (a, b) in enumerate([(120, 90), (118, 95), (100, 110)], start=1):
+            for team, pts, opp, opp_pts, proj in (("A", a, "B", b, 115.0), ("B", b, "A", a, 100.0)):
+                row = _make_week(team, wk, pts, opp, opp_pts)
+                row.expected_total = proj
+                row.save()
+
+    def test_projection_probability(self):
+        from .matchup_predictions import projection_probability
+        self.assertAlmostEqual(projection_probability(110, 110, 20, 20), 0.5)
+        self.assertGreater(projection_probability(120, 100, 20, 20), 0.5)
+        self.assertIsNone(projection_probability(None, 100, 20, 20))
+
+    def test_backtest_uses_only_earlier_weeks(self):
+        from .matchup_predictions import backtest_season
+        from .models import MatchupPrediction
+        self.assertEqual(backtest_season(2025), 3)
+        wk1 = MatchupPrediction.objects.get(year=2025, week=1)
+        self.assertIsNone(wk1.model_p_a)           # no earlier games to learn from
+        self.assertGreater(wk1.proj_p_a, 0.5)      # projections still give a forecast
+        wk3 = MatchupPrediction.objects.get(year=2025, week=3)
+        self.assertGreater(wk3.model_p_a, 0.5)     # A won weeks 1-2, so the model favors A
+        self.assertEqual(backtest_season(2025), 0)  # existing rows are left alone
+
+    def test_grading_and_summary(self):
+        from .matchup_predictions import accuracy_summary, backtest_season, graded_predictions
+        backtest_season(2025)
+        graded = graded_predictions(2025)
+        self.assertEqual([g["right"] for g in graded], [True, True, False])  # A lost week 3
+        s = accuracy_summary(graded)
+        self.assertEqual((s["forecast"]["right"], s["forecast"]["total"]), (2, 3))
+
+    def test_page_renders(self):
+        from .matchup_predictions import backtest_season
+        backtest_season(2025)
+        resp = self.client.get(reverse("matchups"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Prediction Record")
+        self.assertContains(resp, "2 of 3")

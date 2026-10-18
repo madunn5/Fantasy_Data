@@ -172,3 +172,35 @@ class ScheduledMatchup(models.Model):
 
     def __str__(self):
         return f"{self.year} Week {self.week}: {self.team_a} vs {self.team_b}"
+
+
+class MatchupPrediction(models.Model):
+    """One game's prediction, saved before the result is known.
+
+    model_p_a is the site's win probability for team_a, computed only from
+    games before this week (no peeking). proj_a / proj_b are Yahoo's pre-game
+    projected scores. source is 'live' when saved before kickoff, or
+    'backtest' when computed afterwards for an earlier week (still using only
+    the weeks before it). Results come from TeamPerformance when shown.
+    """
+    SOURCES = [('live', 'Live'), ('backtest', 'Backtest')]
+
+    year = models.IntegerField(db_index=True)
+    week = models.PositiveIntegerField()
+    team_a = models.CharField(max_length=100)
+    team_b = models.CharField(max_length=100)
+    model_p_a = models.FloatField(null=True, blank=True)
+    proj_a = models.FloatField(null=True, blank=True)
+    proj_b = models.FloatField(null=True, blank=True)
+    # The forecast shown: from Yahoo's projected margin when there is one.
+    proj_p_a = models.FloatField(null=True, blank=True)
+    source = models.CharField(max_length=10, choices=SOURCES, default='live')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('year', 'week', 'team_a', 'team_b')
+        indexes = [models.Index(fields=['year', 'week'])]
+
+    def __str__(self):
+        return f"{self.year} Week {self.week}: {self.team_a} vs {self.team_b} ({self.source})"

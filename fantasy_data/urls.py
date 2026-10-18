@@ -21,6 +21,7 @@ urlpatterns = [
     path('luck-report/', views.luck_report, name='luck_report'),
     path('bench-report/', views.bench_report, name='bench_report'),
     path('player-impact/', views.player_impact_report, name='player_impact'),
+    path('matchups/', views.matchups, name='matchups'),
     
     # Player data URLs
     path('collect-data/', views.collect_yahoo_data, name='collect_yahoo_data'),

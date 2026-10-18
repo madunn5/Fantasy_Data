@@ -459,6 +459,40 @@ class YahooFantasyCollector:
         logger.info(f"Stored {saved} scheduled matchups for {year} (weeks {start_week}-{end_week})")
         return saved
 
+    def save_upcoming_predictions(self, year, week):
+        """Save live predictions for a week whose games haven't been played.
+
+        Uses Yahoo's current projected scores and the model through the week
+        before. Weeks already final are skipped, so backfills of old seasons
+        never create "live" rows.
+        """
+        from .matchup_predictions import save_prediction
+        from .predictions import team_stats
+
+        league = self._league()
+        try:
+            end_week = int(league.settings().get('playoff_start_week', 15)) - 1
+        except Exception:
+            end_week = 14
+        if week > end_week:
+            return 0
+        resolve = owner_resolver(year)
+        stats = team_stats(year, through_week=week - 1)
+        saved = 0
+        for row in parse_matchups(league.matchups(week)):
+            if row['status'] == 'postevent' or not row['opponent_key']:
+                continue
+            if row['team_key'] > row['opponent_key']:
+                continue  # each game once
+            save_prediction(year, week,
+                            resolve(row['team_key'], row['name']),
+                            resolve(row['opponent_key'], row['opponent_name']),
+                            row['projected'] or None, row['opponent_projected'] or None,
+                            'live', stats)
+            saved += 1
+        logger.info(f"Saved {saved} live predictions for {year} week {week}")
+        return saved
+
     def collect_transactions(self, year, count=100):
         """Pull the league's transaction log into PlayerTransaction rows.
 
@@ -867,6 +901,12 @@ class YahooFantasyCollector:
             collect_projections(year, [week], players=rostered)
         except Exception as e:
             logger.warning(f"collect_projections failed: {e}")
+
+        # Next week's predictions, saved before its games are played.
+        try:
+            self.save_upcoming_predictions(year, week + 1)
+        except Exception as e:
+            logger.warning(f"save_upcoming_predictions failed: {e}")
 
         # Count PlayerPerformance records
         perf_count = PlayerPerformance.objects.filter(week=f"Week {week}", year=year).count()

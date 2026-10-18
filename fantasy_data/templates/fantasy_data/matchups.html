@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">Matchups <small class="text-muted">{{ selected_year }}</small></h1>
+    <p class="text-center text-muted">
+        Each game's win chance comes from Yahoo's projected scores and how much each team's
+        score usually swings week to week. Every prediction is saved before the games, so the
+        record below is a fair test.
+    </p>
+
+    {% if this_week %}
+    <h3 class="mt-4">Week {{ upcoming_week }}</h3>
+    {% if this_week.0.model_only %}
+    <p class="text-muted">
+        Yahoo's projections for this week come in with the next data collection. Until then these
+        chances come from season scoring alone, which is close to a coin flip.
+    </p>
+    {% endif %}
+    <div class="row">
+        {% for g in this_week %}
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-baseline">
+                        <div>
+                            <strong>{{ g.team_a }}</strong> <span class="text-muted small">{{ g.record_a }}</span>
+                            {% if g.proj_a %}<div class="text-muted small">Projected {{ g.proj_a|floatformat:1 }}</div>{% endif %}
+                        </div>
+                        <div class="text-right">
+                            <strong>{{ g.team_b }}</strong> <span class="text-muted small">{{ g.record_b }}</span>
+                            {% if g.proj_b %}<div class="text-muted small">Projected {{ g.proj_b|floatformat:1 }}</div>{% endif %}
+                        </div>
+                    </div>
+                    {% if g.pct_a is not None %}
+                    <div class="d-flex align-items-center mt-3">
+                        <span class="mr-2" style="width: 42px;">{{ g.pct_a }}%</span>
+                        <div class="progress flex-grow-1" style="height: 14px; background: #eee;">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ g.pct_a }}%;"
+                                 aria-valuenow="{{ g.pct_a }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <span class="ml-2 text-right" style="width: 42px;">{{ g.pct_b }}%</span>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mt-3 mb-0">No prediction for week 1: there are no games yet to go on.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if last_week_games %}
+    <h3 class="mt-5">How Week {{ last_played }} Went</h3>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Game</th>
+                    <th>Picked</th>
+                    <th class="text-center">Chance</th>
+                    <th>Winner</th>
+                    <th class="text-center">Right?</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in last_week_games %}
+                <tr>
+                    <td>{{ g.team_a }} vs {{ g.team_b }}</td>
+                    <td>{{ g.pick|default:"-" }}</td>
+                    <td class="text-center text-muted">{% if g.pick_pct %}{{ g.pick_pct }}%{% else %}-{% endif %}</td>
+                    <td>{{ g.winner|default:"-" }}</td>
+                    <td class="text-center">{% if g.right is True %}<span class="text-success">Yes</span>{% elif g.right is False %}<span class="text-danger">No</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <h3 class="mt-5">Prediction Record</h3>
+    {% if summary.forecast.total %}
+    <p>
+        In {{ selected_year }} the forecast picked <strong>{{ summary.forecast.right }} of {{ summary.forecast.total }}</strong>
+        winners (<strong>{{ summary.forecast.pct|floatformat:0 }}%</strong>).
+        {% if summary.model.total %}Picking by season scoring alone would have gotten
+        {{ summary.model.right }} of {{ summary.model.total }} ({{ summary.model.pct|floatformat:0 }}%).{% endif %}
+        Across every season on the site: {{ all_time.forecast.right }} of {{ all_time.forecast.total }}
+        ({{ all_time.forecast.pct|floatformat:0 }}%).
+    </p>
+
+    {% if summary.calibration %}
+    <h5 class="mt-4">Were the chances honest?</h5>
+    <p class="text-muted">
+        When the forecast gives a team a certain chance, that team should win about that often.
+        This groups every game by how confident the pick was and shows how often the favorite won.
+    </p>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Favorite's Chance</th>
+                    <th class="text-center">Games</th>
+                    <th class="text-center">Average Chance</th>
+                    <th class="text-center">Favorite Won</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in summary.calibration %}
+                <tr>
+                    <td>{{ c.label }}</td>
+                    <td class="text-center text-muted">{{ c.games }}</td>
+                    <td class="text-center">{{ c.avg_conf|floatformat:0 }}%</td>
+                    <td class="text-center"><strong>{{ c.won|floatformat:0 }}%</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <h5 class="mt-4">Week by Week</h5>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Week</th>
+                    <th class="text-center">Right</th>
+                    <th class="text-center">Games</th>
+                    <th class="text-center">Hit Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in summary.by_week %}
+                {% if w.forecast.total %}
+                <tr>
+                    <td>Week {{ w.week }}</td>
+                    <td class="text-center">{{ w.forecast.right }}</td>
+                    <td class="text-center text-muted">{{ w.forecast.total }}</td>
+                    <td class="text-center">{{ w.forecast.pct|floatformat:0 }}%</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No finished games with predictions for {{ selected_year }} yet.</p>
+    {% endif %}
+
+    <p class="text-muted small mt-4">
+        {% if has_live %}Predictions saved before kickoff are live; earlier weeks were filled in afterward
+        as a backtest, using only what was known before each week.{% else %}These predictions were
+        filled in afterward as a backtest, using only what was known before each week.{% endif %}
+        Testing on 2023 through 2026 showed Yahoo's projections pick winners far better than past
+        scoring does: a team's season average says surprisingly little about any one week.
+    </p>
+</div>
+{% endblock %}

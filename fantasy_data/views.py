@@ -21,12 +21,13 @@ from django.core.cache import cache
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.html import escape
 
-from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, TeamOwnerMapping
+from .models import TeamPerformance, Player, PlayerRoster, PlayerPerformance, TeamOwnerMapping, ScheduledMatchup
 from . import plotly_theme  # noqa: F401 — registers the "dunn" default template
 from .year_nav import get_selected_year
 from .predictions import win_probability, power_ratings, team_stats
 from . import analytics
 from . import player_impact
+from . import matchup_predictions
 from .yahoo_collector import YahooFantasyCollector
 
 
@@ -2305,6 +2306,61 @@ def bench_report(request):
         'years': years,
         'selected_year': selected_year,
         'page_title': f'Bench Report ({selected_year})',
+    })
+
+
+def matchups(request):
+    """This week's games with win chances, plus how past predictions did."""
+    selected_year, years = get_selected_year(request)
+    graded = matchup_predictions.graded_predictions(selected_year)
+    summary = matchup_predictions.accuracy_summary(graded)
+
+    played = {analytics.week_number(w) for w in TeamPerformance.objects.filter(
+        year=selected_year).values_list('week', flat=True)}
+    last_played = max(played) if played else 0
+    upcoming = last_played + 1
+    # Games for the next unplayed week, if the schedule has one.
+    this_week = [g for g in graded if g['week'] == upcoming]
+    if not this_week and ScheduledMatchup.objects.filter(year=selected_year, week=upcoming).exists():
+        # No saved prediction yet (collection hasn't run): show the
+        # season-scoring model's chance without saving anything.
+        stats = team_stats(selected_year, through_week=last_played)
+        for m in ScheduledMatchup.objects.filter(year=selected_year, week=upcoming):
+            p = matchup_predictions.model_probability(selected_year, upcoming, m.team_a, m.team_b, stats)
+            this_week.append({'week': upcoming, 'team_a': m.team_a, 'team_b': m.team_b,
+                              'forecast_p_a': p, 'proj_a': None, 'proj_b': None,
+                              'pick': None if p is None else (m.team_a if p >= 0.5 else m.team_b),
+                              'model_only': True})
+    records = {s['team']: f"{s['wins']}-{s['losses']}" + (f"-{s['ties']}" if s['ties'] else '')
+               for s in analytics.standings(selected_year)}
+    for g in this_week:
+        p = g.get('forecast_p_a')
+        g['pct_a'] = round(100 * p) if p is not None else None
+        g['pct_b'] = 100 - g['pct_a'] if p is not None else None
+        g['record_a'] = records.get(g['team_a'], '')
+        g['record_b'] = records.get(g['team_b'], '')
+
+    last_week_games = [g for g in graded if g['week'] == last_played]
+    for g in last_week_games:
+        p = g['forecast_p_a']
+        g['pick_pct'] = round(100 * g['conf']) if g['conf'] else None
+
+    all_graded = []
+    for y in years:
+        all_graded += matchup_predictions.graded_predictions(y)
+    all_time = matchup_predictions.accuracy_summary(all_graded)
+
+    return render(request, 'fantasy_data/matchups.html', {
+        'this_week': this_week,
+        'upcoming_week': upcoming,
+        'last_played': last_played,
+        'last_week_games': last_week_games,
+        'summary': summary,
+        'all_time': all_time,
+        'has_live': any(g['source'] == 'live' for g in graded),
+        'years': years,
+        'selected_year': selected_year,
+        'page_title': f'Matchups ({selected_year})',
     })
 
 

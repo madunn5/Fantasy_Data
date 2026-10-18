@@ -42,8 +42,11 @@ from .models import TeamPerformance
 _MIN_GAMES_FOR_OWN_VARIANCE = 3
 
 # Empirical-Bayes prior weight: the league-average score counts as this many
-# games' worth of evidence when estimating a team's scoring rate.
-_SHRINK_PRIOR_GAMES = 3.0
+# games' worth of evidence when estimating a team's scoring rate. Fit to the
+# league: a team's weeks 1-7 average correlates only about +0.35 with its
+# weeks 8-14 average (2023-2025), which implies a prior of about 12 games.
+# The old value of 3 made the playoff odds and win chances overconfident.
+_SHRINK_PRIOR_GAMES = 12.0
 
 # Recency decay: a game this many weeks old carries half the weight of the
 # most recent week. Covers trades / injuries changing what a team really is.
