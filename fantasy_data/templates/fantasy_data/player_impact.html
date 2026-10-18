@@ -228,7 +228,7 @@
                     <td><strong>{{ m.name }}</strong></td>
                     <td class="text-center text-muted">{{ m.pos }}</td>
                     <td class="text-center text-muted">{{ m.week }}</td>
-                    <td class="text-muted">{{ m.from_team }}</td>
+                    <td class="text-muted">{{ m.from_team }}{% if m.dropped_by %} <span class="small">(dropped by {{ m.dropped_by }})</span>{% endif %}</td>
                     <td>{{ m.to_team }}</td>
                     <td class="text-center text-muted">{{ m.starts_after }}</td>
                     <td class="text-center">{{ m.start_record|default:"-" }}</td>

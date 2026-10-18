@@ -348,9 +348,11 @@ def roster_moves(year):
                 "won_weeks": won_weeks, "lost_weeks": lost_weeks,
             })
 
-    log = _trade_log(year)
-    if log:
-        groups, used = _group_trades_from_log(moves, log)
+    # A collected log is authoritative even when it holds no trades; only fall
+    # back to guessing trades from roster changes when there is no log at all.
+    has_log = PlayerTransaction.objects.filter(year=year).exists()
+    if has_log:
+        groups, used = _group_trades_from_log(moves, _trade_log(year))
     else:
         groups, used = _group_trades_heuristic(moves)
 
@@ -374,8 +376,21 @@ def roster_moves(year):
     trades.sort(key=lambda t: t["week"])
 
     pickups = [m for i, m in enumerate(moves) if i not in used]
+    # Rosters alone can't tell a drop-then-claim from a direct move, so when
+    # the transaction log has the add, credit waivers and note the dropper.
+    adds = _waiver_adds(year) if has_log else set()
+    for m in pickups:
+        if (m["player_id"], m["to_team"]) in adds and m["from_team"] != "Waivers":
+            m["dropped_by"] = m["from_team"]
+            m["from_team"] = "Waivers"
     pickups.sort(key=lambda m: -m["edge_after"])
-    return {"trades": trades, "pickups": pickups, "exact": bool(log)}
+    return {"trades": trades, "pickups": pickups, "exact": has_log}
+
+
+def _waiver_adds(year):
+    """{(player_id, to_owner)} for every waiver or free-agent add in the log."""
+    return set(PlayerTransaction.objects.filter(
+        year=year, transaction_type="PICKUP").values_list("player_id", "to_team"))
 
 
 def _trade_side(games, team, week, got):

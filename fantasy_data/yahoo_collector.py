@@ -848,9 +848,11 @@ class YahooFantasyCollector:
         except Exception as e:
             logger.warning(f"collect_season_schedule failed: {e}")
 
-        # Keep the transaction log fresh so trades are labelled exactly.
+        # Keep the transaction log fresh so trades are labelled exactly. Pull
+        # the whole season: a "latest 100" window silently dropped early
+        # moves (a Sep 22 2026 trade went missing that way).
         try:
-            self.collect_transactions(year)
+            self.collect_transactions(year, count=None)
         except Exception as e:
             logger.warning(f"collect_transactions failed: {e}")
 

@@ -605,3 +605,51 @@ class GameSwingTests(TestCase):
         self.assertEqual(_record(games, "T", last_week=2), "2-0")
         self.assertEqual(_record(games, "T", first_week=3), "0-1-1")
         self.assertEqual(_record(games, "T", first_week=9), "")
+
+
+class WaiverPickupSourceTests(TestCase):
+    """A dropped-then-claimed player is a waiver pickup, not a move from the dropper."""
+
+    def test_claim_after_drop_credits_waivers(self):
+        from datetime import datetime, timezone as dt_tz
+        from .models import Player, PlayerTransaction
+        for wk in (1, 2):
+            _make_week("T1", wk, 100, "T2", 90)
+            _make_week("T2", wk, 90, "T1", 100)
+        pp = PlayerImpactTests._pp
+        pp("Broncos", "DEF", "T2", 1, 5, True)    # on T2 in week 1...
+        pp("Broncos", "DEF", "T1", 2, 12, True)   # ...on T1 in week 2
+        when = datetime(2025, 9, 20, tzinfo=dt_tz.utc)
+        broncos = Player.objects.get(yahoo_player_id="Broncos")
+        PlayerTransaction.objects.create(player=broncos, from_team="T2", to_team="Waivers",
+                                         transaction_type="DROP", week="", year=2025,
+                                         transaction_date=when)
+        PlayerTransaction.objects.create(player=broncos, from_team="Waivers", to_team="T1",
+                                         transaction_type="PICKUP", week="", year=2025,
+                                         transaction_date=when)
+        moves = player_impact.roster_moves(2025)
+        self.assertEqual(moves["trades"], [])
+        m = next(x for x in moves["pickups"] if x["name"] == "Broncos")
+        self.assertEqual(m["from_team"], "Waivers")
+        self.assertEqual(m["dropped_by"], "T2")
+
+    def test_log_without_trades_does_not_guess_trades(self):
+        # Two DEFs swapping teams the same week looks like a trade, but a
+        # collected log with no trade in it means there wasn't one.
+        from datetime import datetime, timezone as dt_tz
+        from .models import Player, PlayerTransaction
+        for wk in (1, 2):
+            _make_week("T1", wk, 100, "T2", 90)
+            _make_week("T2", wk, 90, "T1", 100)
+        pp = PlayerImpactTests._pp
+        pp("DEF A", "DEF", "T1", 1, 5, True)
+        pp("DEF B", "DEF", "T2", 1, 6, True)
+        pp("DEF A", "DEF", "T2", 2, 4, True)
+        pp("DEF B", "DEF", "T1", 2, 8, True)
+        PlayerTransaction.objects.create(
+            player=Player.objects.get(yahoo_player_id="DEF A"), from_team="Waivers",
+            to_team="T2", transaction_type="PICKUP", week="", year=2025,
+            transaction_date=datetime(2025, 9, 20, tzinfo=dt_tz.utc))
+        moves = player_impact.roster_moves(2025)
+        self.assertTrue(moves["exact"])
+        self.assertEqual(moves["trades"], [])
