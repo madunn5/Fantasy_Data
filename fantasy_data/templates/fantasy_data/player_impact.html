@@ -100,10 +100,12 @@
         would have done it.
     </p>
     <p class="text-muted">
-        A bad call means the benched player was projected to outscore the starter, so the
-        warning was there before kickoff. A fair call means the projections liked the starter,
-        so it was bad luck more than a bad decision. Projections are from Sleeper, scored
-        half-PPR like the league.
+        Each swap has to leave a legal lineup, so a benched receiver can't replace the only
+        tight end. A bad call means the benched player was projected to outscore the starter
+        by 2 or more points, so the warning was there before kickoff. A close call means the
+        projections had them within 2 points, basically a coin flip. A fair call means the
+        projections clearly liked the starter, so it was bad luck more than a bad decision.
+        Projections are from Sleeper, scored half-PPR like the league.
     </p>
     {% if benchings_true %}
     <div class="table-responsive">
@@ -128,7 +130,8 @@
                         {% for o in g.options %}
                         {{ o.name }} <span class="text-muted">({{ o.pos }}, {{ o.pts|floatformat:1 }} pts) over {{ o.replaced }} ({{ o.replaced_pts|floatformat:1 }}), wins by {{ o.would_win_by|floatformat:1 }}</span>
                         {% if o.call == "bad" %}<br><span class="text-danger small">Bad call: projected {{ o.proj|floatformat:1 }} vs {{ o.replaced_proj|floatformat:1 }} for {{ o.replaced }}</span>
-                        {% elif o.call == "fair" %}<br><span class="text-muted small">Fair call: projected {{ o.proj|floatformat:1 }} vs {{ o.replaced_proj|floatformat:1 }} for {{ o.replaced }}</span>{% endif %}
+                        {% elif o.call == "fair" %}<br><span class="text-muted small">Fair call: projected {{ o.proj|floatformat:1 }} vs {{ o.replaced_proj|floatformat:1 }} for {{ o.replaced }}</span>
+                        {% elif o.call == "close" %}<br><span class="text-warning small">Close call: projected {{ o.proj|floatformat:1 }} vs {{ o.replaced_proj|floatformat:1 }} for {{ o.replaced }}</span>{% endif %}
                         {% if not forloop.last %}<div class="mb-2"></div>{% endif %}
                         {% endfor %}
                     </td>
@@ -176,7 +179,8 @@
                         {% for o in g.options %}
                         {{ o.name }} <span class="text-muted">({{ o.pos }}, {{ o.pts|floatformat:1 }} pts) over {{ o.replaced }} ({{ o.replaced_pts|floatformat:1 }}), wins by {{ o.would_win_by|floatformat:1 }}</span>
                         {% if o.call == "bad" %}<br><span class="text-danger small">Bad call: projected {{ o.proj|floatformat:1 }} vs {{ o.replaced_proj|floatformat:1 }} for {{ o.replaced }}</span>
-                        {% elif o.call == "fair" %}<br><span class="text-muted small">Fair call: projected {{ o.proj|floatformat:1 }} vs {{ o.replaced_proj|floatformat:1 }} for {{ o.replaced }}</span>{% endif %}
+                        {% elif o.call == "fair" %}<br><span class="text-muted small">Fair call: projected {{ o.proj|floatformat:1 }} vs {{ o.replaced_proj|floatformat:1 }} for {{ o.replaced }}</span>
+                        {% elif o.call == "close" %}<br><span class="text-warning small">Close call: projected {{ o.proj|floatformat:1 }} vs {{ o.replaced_proj|floatformat:1 }} for {{ o.replaced }}</span>{% endif %}
                         {% if not forloop.last %}<div class="mb-2"></div>{% endif %}
                         {% endfor %}
                     </td>

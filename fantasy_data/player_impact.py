@@ -123,9 +123,36 @@ def _rosters(year):
     return grouped
 
 
+# Projections within this many points of each other make a start/sit a
+# coin flip rather than a bad call.
+CLOSE_CALL_POINTS = 2.0
+
 # Starting lineup: QB, 2 RB, 2 WR, TE, one RB/WR/TE flex, K, DEF.
 LINEUP_SLOTS = {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "K": 1, "DEF": 1}
 FLEX_SLOTS = 1
+
+
+def legal_swap(starters, out, incoming):
+    """Can ``incoming`` replace starter ``out`` and leave a legal lineup?
+
+    QB, K, and DEF only swap like for like. RB/WR/TE can trade places through
+    the flex, but the lineup still needs its 2 RBs, 2 WRs, and a TE: a benched
+    WR can't replace the only TE. Requirements a stored lineup already missed
+    (old data quirks) aren't held against the swap.
+    """
+    if out["pos"] not in FLEX_POSITIONS or incoming["pos"] not in FLEX_POSITIONS:
+        return out["pos"] == incoming["pos"]
+    before = defaultdict(int)
+    for p in starters:
+        before[p["pos"]] += 1
+    after = dict(before)
+    after[out["pos"]] -= 1
+    after[incoming["pos"]] = after.get(incoming["pos"], 0) + 1
+    for pos in FLEX_POSITIONS:
+        need = min(LINEUP_SLOTS[pos], before.get(pos, 0))
+        if after.get(pos, 0) < need:
+            return False
+    return True
 
 
 def best_lineup_points(players, value):
@@ -260,8 +287,9 @@ def costly_benchings(year):
     both teams' best possible lineups (actual points): 'bench' when the team
     would still win if the opponent had played their best lineup too, 'both'
     when the opponent's own bench would have won it back. With projections
-    imported, each option is graded as a 'bad' call (the bench player was
-    projected higher than the starter he'd replace) or a 'fair' one.
+    imported, each option is graded 'bad' (the bench player was projected at
+    least CLOSE_CALL_POINTS higher than the starter he'd replace), 'fair'
+    (projected at least that much lower), or 'close' (a coin flip).
 
     Returns ``{'games', 'team_counts', 'both_counts'}``; team_counts counts
     only the 'bench' verdicts.
@@ -277,10 +305,7 @@ def costly_benchings(year):
         margin = game["margin"]  # negative in a loss
         options = []
         for b in g["bench"]:
-            if b["pos"] in FLEX_POSITIONS:
-                legal = [p for p in g["start"] if p["pos"] in FLEX_POSITIONS]
-            else:
-                legal = [p for p in g["start"] if p["pos"] == b["pos"]]
+            legal = [p for p in g["start"] if legal_swap(g["start"], p, b)]
             if not legal:
                 continue
             replaced = min(legal, key=lambda p: p["pts"])
@@ -291,7 +316,13 @@ def costly_benchings(year):
             proj_s = proj(replaced, week)
             call = None
             if proj_b is not None and proj_s is not None:
-                call = "bad" if proj_b > proj_s else "fair"
+                gap = proj_b - proj_s
+                if gap >= CLOSE_CALL_POINTS:
+                    call = "bad"
+                elif gap <= -CLOSE_CALL_POINTS:
+                    call = "fair"
+                else:
+                    call = "close"
             options.append({"name": b["name"], "pos": b["pos"], "pts": b["pts"],
                             "would_win_by": swing + margin,
                             "replaced": replaced["name"], "replaced_pts": replaced["pts"],

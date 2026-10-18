@@ -721,6 +721,13 @@ class BenchVerdictTests(TestCase):
         self.assertAlmostEqual(dec["Us"]["given_up"], 14.0)
         self.assertNotIn("Them", dec)  # no projections for their starters
 
+    def test_close_projections_are_a_close_call(self):
+        from .models import ProjectedPoint
+        # Bencher projected 6.5 vs the starter's 6.0: a coin flip, not a bad call.
+        ProjectedPoint.objects.filter(player_id=900002).update(projected_total=6.5)
+        o = player_impact.costly_benchings(2025)["games"][0]["options"][0]
+        self.assertEqual(o["call"], "close")
+
 
 class SleeperMatchingTests(TestCase):
     def test_normalize_and_match(self):
@@ -741,3 +748,31 @@ class SleeperMatchingTests(TestCase):
         self.assertEqual(match(mk("Josh Allen", "QB", "30977")), "3")       # via yahoo_id
         self.assertEqual(match(mk("Broncos", "DEF", "100007")), "DEN")
         self.assertIsNone(match(mk("Nobody Real", "WR", "40002")))
+
+
+class LegalSwapTests(TestCase):
+    """A benched player can only replace a starter if the lineup stays legal."""
+
+    @staticmethod
+    def _lineup(*positions):
+        return [{"pos": pos, "name": f"{pos}{i}"} for i, pos in enumerate(positions)]
+
+    def test_wr_cannot_replace_the_only_te(self):
+        from .player_impact import legal_swap
+        starters = self._lineup("QB", "RB", "RB", "WR", "WR", "WR", "TE", "K", "DEF")
+        only_te = starters[6]
+        self.assertFalse(legal_swap(starters, only_te, {"pos": "WR"}))
+        self.assertTrue(legal_swap(starters, starters[5], {"pos": "WR"}))   # the flex WR
+        self.assertTrue(legal_swap(starters, only_te, {"pos": "TE"}))
+
+    def test_wr_can_replace_a_flex_te(self):
+        from .player_impact import legal_swap
+        starters = self._lineup("QB", "RB", "RB", "WR", "WR", "TE", "TE", "K", "DEF")
+        self.assertTrue(legal_swap(starters, starters[6], {"pos": "WR"}))
+
+    def test_rb_slots_protected_and_like_for_like_elsewhere(self):
+        from .player_impact import legal_swap
+        starters = self._lineup("QB", "RB", "RB", "WR", "WR", "WR", "TE", "K", "DEF")
+        self.assertFalse(legal_swap(starters, starters[1], {"pos": "WR"}))  # would leave 1 RB
+        self.assertFalse(legal_swap(starters, starters[0], {"pos": "RB"}))  # QB is like-for-like
+        self.assertTrue(legal_swap(starters, starters[7], {"pos": "K"}))
