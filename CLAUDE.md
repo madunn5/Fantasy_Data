@@ -68,8 +68,12 @@ merged in from the old fantasy_project repo July 2026).
   `461.l.605174`, 2026 `470.l.773198`. For past seasons, run collection commands
   with `YAHOO_LEAGUE_KEY` set (e.g. `heroku run --env YAHOO_LEAGUE_KEY=... -- python
   manage.py collect_draft --year 2024`).
-- Re-seed local DB from the Heroku snapshot:
-  `manage.py import_heroku_backup ~/Documents/Fantasy_Website/heroku_backups/dunn-right-fantasy.dump`
+- Re-seed local DB from prod: `heroku pg:backups:capture -a dunn-right-fantasy`,
+  then `heroku pg:backups:download -a dunn-right-fantasy -o
+  ~/Documents/Fantasy_Website/heroku_backups/dunn-right-fantasy-YYYY-MM-DD.dump`,
+  then `manage.py migrate` and `manage.py import_heroku_backup <that file>`. It
+  mirrors every `fantasy_data_*` / `draftgame_*` table, leaves local logins alone
+  (user FKs matched by username), and rolls back on any FK problem.
 
 ## Deploy / config
 - `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` are env-driven

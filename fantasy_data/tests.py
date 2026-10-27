@@ -863,3 +863,59 @@ class DraftValueTests(TestCase):
         resp = self.client.get(reverse("draft_value"), {"year": 2025})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Steal")
+
+
+class ImportHerokuBackupTests(TestCase):
+    """The local re-seed mirrors prod tables and matches users by username."""
+
+    DUMP = (
+        'COPY "public"."auth_user" ("id", "username", "email") FROM stdin;\n'
+        '6\tmatt\tmatt@example.com\n'
+        '9\tnewbie\t\n'
+        '\\.\n'
+        'COPY "public"."fantasy_data_teamownermapping" ("id", "team_name", "owner_name", "year",'
+        ' "is_active", "created_at", "updated_at") FROM stdin;\n'
+        '40\tSnakes\tMatt\t2026\tt\t2026-07-01 12:00:00.5+00\t2026-07-02 12:00:00+00\n'
+        '\\.\n'
+        'COPY "public"."draftgame_punishmentvote" ("id", "created_at", "updated_at", "user_id",'
+        ' "season_id") FROM stdin;\n'
+        '70\t2026-07-10 21:59:07.198675+00\t2026-07-10 21:59:07.198689+00\t6\t\\N\n'
+        '71\t2026-07-11 21:59:07+00\t2026-07-11 21:59:07+00\t9\t\\N\n'
+        '\\.\n'
+    )
+
+    def _run(self, text):
+        import os, tempfile
+        from django.core.management import call_command
+        with tempfile.NamedTemporaryFile("w", suffix=".sql", delete=False) as fh:
+            fh.write(text)
+        try:
+            call_command("import_heroku_backup", fh.name, stdout=open(os.devnull, "w"))
+        finally:
+            os.remove(fh.name)
+
+    def test_mirrors_rows_and_remaps_users(self):
+        from datetime import datetime, timezone
+        from django.contrib.auth.models import User
+        from draftgame.models import PunishmentVote
+        local_matt = User.objects.create_user("matt")
+        TeamOwnerMapping.objects.create(team_name="Stale", owner_name="Gone", year=2020)
+
+        self._run(self.DUMP)
+
+        m = TeamOwnerMapping.objects.get()
+        self.assertEqual((m.id, m.team_name, m.is_active), (40, "Snakes", True))
+        # Timestamps keep the prod values instead of being reset by auto_now.
+        self.assertEqual(m.created_at, datetime(2026, 7, 1, 12, 0, 0, 500000, tzinfo=timezone.utc))
+        votes = {v.id: v.user.username for v in PunishmentVote.objects.all()}
+        self.assertEqual(votes, {70: "matt", 71: "newbie"})
+        self.assertEqual(PunishmentVote.objects.get(id=70).user_id, local_matt.id)
+        self.assertFalse(User.objects.get(username="newbie").has_usable_password())
+
+    def test_column_mismatch_leaves_db_untouched(self):
+        from django.core.management.base import CommandError
+        TeamOwnerMapping.objects.create(team_name="Keep", owner_name="Me", year=2020)
+        bad = self.DUMP.replace('"owner_name", ', '"owner", ')
+        with self.assertRaises(CommandError):
+            self._run(bad)
+        self.assertEqual(list(TeamOwnerMapping.objects.values_list("team_name", flat=True)), ["Keep"])

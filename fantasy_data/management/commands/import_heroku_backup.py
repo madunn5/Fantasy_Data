@@ -1,32 +1,38 @@
-"""Import real production data from the dunn-right-fantasy Heroku Postgres backup.
+"""Mirror production data from a dunn-right-fantasy Heroku Postgres backup into the local DB.
 
-The Heroku Postgres add-on was destroyed on 2026-05-06; the final snapshot lives
-at ~/Documents/Fantasy_Website/heroku_backups/dunn-right-fantasy.dump (a custom
-pg_dump). This command loads that data into the local database so we can work off
-the real season history.
+Grab a fresh backup first:
+    heroku pg:backups:capture -a dunn-right-fantasy
+    heroku pg:backups:download -a dunn-right-fantasy -o ~/Documents/Fantasy_Website/heroku_backups/dunn-right-fantasy-YYYY-MM-DD.dump
 
 It accepts either the custom .dump (converted internally via `pg_restore`) or an
 already-plain .sql file (from `pg_restore -f out.sql <dump>`).
 
-Re-runnable: it clears and reloads the fantasy_data_* tables. It does NOT touch
-auth_user / admin (no fantasy_data model references the user table), so your local
-logins stay intact.
+Every fantasy_data_* and draftgame_* table found in the backup is cleared and
+reloaded row for row (primary keys preserved). Tables missing from the backup are
+left alone. Auth / sessions / admin are NOT touched, so local logins stay intact.
+Prod and local give the same person different user ids, so foreign keys to the
+user table are matched by username; a prod user with no local account gets one
+created (no usable password).
+
+Everything runs in one transaction and finishes with a foreign-key check, so a
+bad backup leaves the local DB as it was. Local DB only: it refuses to run
+against anything but SQLite.
 
 Usage:
-    python manage.py import_heroku_backup ~/Documents/Fantasy_Website/heroku_backups/dunn-right-fantasy.dump
+    python manage.py import_heroku_backup ~/Documents/Fantasy_Website/heroku_backups/dunn-right-fantasy-YYYY-MM-DD.dump
 """
+import json
 import os
 import subprocess
 import tempfile
 
+from django.apps import apps
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
-from django.utils.dateparse import parse_datetime
+from django.db import connection, models, transaction
 
-from fantasy_data.models import (
-    Player, TeamPerformance, PlayerRoster, PlayerPerformance,
-    PlayerTransaction, TeamOwnerMapping, ProjectedPoint,
-)
+MIRRORED_APPS = ("fantasy_data", "draftgame")
 
 
 def _unescape(value):
@@ -53,7 +59,7 @@ def parse_copy_blocks(sql_text):
     while i < len(lines):
         line = lines[i]
         if line.startswith("COPY ") and "FROM stdin;" in line:
-            table = line.split('"."')[1].split('"')[0]
+            table = line[len("COPY "):line.index(" (")].split(".")[-1].strip('"')
             cols = [c.strip().strip('"')
                     for c in line[line.index("(") + 1:line.index(") FROM stdin;")].split(",")]
             rows = []
@@ -66,24 +72,13 @@ def parse_copy_blocks(sql_text):
         i += 1
 
 
-def _f(v):  # float or None
-    return None if v is None else float(v)
-
-
-def _i(v):  # int or None
-    return None if v is None else int(v)
-
-
-def _b(v):  # postgres boolean
-    return v == "t"
-
-
-def _dt(v):
-    return parse_datetime(v) if v else None
+def _is_user_fk(field):
+    return field.is_relation and field.many_to_one and \
+        field.related_model._meta.label == settings.AUTH_USER_MODEL
 
 
 class Command(BaseCommand):
-    help = "Import production data from the dunn-right-fantasy Heroku Postgres backup."
+    help = "Mirror fantasy_data and draftgame tables from a dunn-right-fantasy Heroku Postgres backup."
 
     def add_arguments(self, parser):
         parser.add_argument("backup_path", help="Path to the .dump (custom) or .sql (plain) backup")
@@ -112,100 +107,78 @@ class Command(BaseCommand):
         with open(path, encoding="utf-8", errors="replace") as fh:
             return fh.read()
 
-    @transaction.atomic
+    def _user_map(self, prod_users):
+        """prod user id -> local user id, matched on username (missing users are created)."""
+        User = get_user_model()
+        local_ids = dict(User.objects.values_list("username", "id"))
+        mapping = {}
+        for r in prod_users:
+            if r["username"] not in local_ids:
+                user = User(username=r["username"], email=r.get("email") or "")
+                user.set_unusable_password()
+                user.save()
+                local_ids[user.username] = user.id
+                self.stdout.write(f"  created local user {user.username!r}")
+            mapping[r["id"]] = local_ids[r["username"]]
+        return mapping
+
+    def _convert(self, field, raw, user_map):
+        """Turn one COPY text value into what the local DB column expects."""
+        if raw is None:
+            return None
+        if _is_user_fk(field):
+            return user_map[raw]
+        if isinstance(field, models.JSONField):
+            value = json.loads(raw)
+        elif field.is_relation:
+            value = field.target_field.to_python(raw)
+        else:
+            value = field.to_python(raw)
+        return field.get_db_prep_save(value, connection)
+
     def handle(self, *args, **options):
-        blocks = {tbl: rows for tbl, rows in parse_copy_blocks(self._load_sql_text(options["backup_path"]))}
+        if connection.vendor != "sqlite":
+            raise CommandError("import_heroku_backup only loads into the local SQLite DB.")
 
-        def rows(name):
-            return blocks.get(name, [])
+        blocks = dict(parse_copy_blocks(self._load_sql_text(options["backup_path"])))
+        qn = connection.ops.quote_name
 
-        # Clear current data (FK-safe order) then reload from the backup.
-        for model in (PlayerPerformance, PlayerRoster, PlayerTransaction,
-                      ProjectedPoint, TeamPerformance, TeamOwnerMapping, Player):
-            model.objects.all().delete()
+        with transaction.atomic():
+            user_map = self._user_map(blocks.get("auth_user", []))
+            loaded, skipped = [], []
+            for app_label in MIRRORED_APPS:
+                for model in apps.get_app_config(app_label).get_models(include_auto_created=True):
+                    table = model._meta.db_table
+                    if table not in blocks:
+                        skipped.append(table)
+                        continue
+                    rows = blocks[table]
+                    fields = {f.column: f for f in model._meta.concrete_fields}
+                    if rows and set(rows[0]) != set(fields):
+                        raise CommandError(
+                            f"{table}: backup columns don't match the local model "
+                            f"(backup only: {sorted(set(rows[0]) - set(fields))}, "
+                            f"local only: {sorted(set(fields) - set(rows[0]))}). "
+                            "Run migrate locally or take a newer backup."
+                        )
+                    cols = list(fields)
+                    values = [[self._convert(fields[c], r[c], user_map) for c in cols] for r in rows]
+                    with connection.cursor() as cursor:
+                        cursor.execute(f"DELETE FROM {qn(table)}")
+                        if values:
+                            cursor.executemany(
+                                f"INSERT INTO {qn(table)} ({', '.join(qn(c) for c in cols)}) "
+                                f"VALUES ({', '.join(['%s'] * len(cols))})",
+                                values,
+                            )
+                    loaded.append((table, len(values)))
+            # FKs are deferred on SQLite, so check them before the transaction commits.
+            connection.check_constraints(table_names=[t for t, _ in loaded])
 
-        # --- Players (PKs preserved so roster/performance FKs line up) -------
-        Player.objects.bulk_create([
-            Player(id=_i(r["id"]), yahoo_player_id=r["yahoo_player_id"], name=r["name"],
-                   position=r["position"], nfl_team=r.get("nfl_team"))
-            for r in rows("fantasy_data_player")
-        ])
-
-        # --- Team performance ----------------------------------------------
-        TeamPerformance.objects.bulk_create([
-            TeamPerformance(
-                id=_i(r["id"]), team_name=r["team_name"],
-                qb_points=_f(r["qb_points"]), wr_points=_f(r["wr_points"]),
-                wr_points_total=_f(r["wr_points_total"]), rb_points=_f(r["rb_points"]),
-                rb_points_total=_f(r["rb_points_total"]), te_points=_f(r["te_points"]),
-                te_points_total=_f(r["te_points_total"]), k_points=_f(r["k_points"]),
-                def_points=_f(r["def_points"]), total_points=_f(r["total_points"]),
-                expected_total=_f(r["expected_total"]), difference=_f(r["difference"]),
-                points_against=_f(r["points_against"]), projected_wins=r.get("projected_wins"),
-                actual_wins=_i(r.get("actual_wins")), wins_diff=_i(r.get("wins_diff")),
-                result=r.get("result"), week=r["week"], opponent=r.get("opponent"),
-                margin=_f(r.get("margin")), year=_i(r["year"]),
-            )
-            for r in rows("fantasy_data_teamperformance")
-        ])
-
-        # --- Player rosters -------------------------------------------------
-        PlayerRoster.objects.bulk_create([
-            PlayerRoster(id=_i(r["id"]), player_id=_i(r["player_id"]),
-                         fantasy_team=r["fantasy_team"], week=r["week"],
-                         year=_i(r["year"]), roster_status=r["roster_status"])
-            for r in rows("fantasy_data_playerroster")
-        ])
-
-        # --- Player performances -------------------------------------------
-        PlayerPerformance.objects.bulk_create([
-            PlayerPerformance(id=_i(r["id"]), player_id=_i(r["player_id"]),
-                              fantasy_team=r["fantasy_team"], week=r["week"],
-                              year=_i(r["year"]), points_scored=_f(r["points_scored"]),
-                              was_started=_b(r["was_started"]))
-            for r in rows("fantasy_data_playerperformance")
-        ])
-
-        # --- Player transactions -------------------------------------------
-        for r in rows("fantasy_data_playertransaction"):
-            t = PlayerTransaction.objects.create(
-                id=_i(r["id"]), player_id=_i(r["player_id"]),
-                from_team=r.get("from_team"), to_team=r.get("to_team"),
-                transaction_type=r["transaction_type"], week=r["week"], year=_i(r["year"]),
-            )
-            if r.get("transaction_date"):
-                PlayerTransaction.objects.filter(pk=t.pk).update(transaction_date=_dt(r["transaction_date"]))
-
-        # --- Team-owner mappings (preserve created/updated timestamps) ------
-        for r in rows("fantasy_data_teamownermapping"):
-            m = TeamOwnerMapping.objects.create(
-                id=_i(r["id"]), team_name=r["team_name"], owner_name=r["owner_name"],
-                year=_i(r["year"]), is_active=_b(r["is_active"]),
-            )
-            TeamOwnerMapping.objects.filter(pk=m.pk).update(
-                created_at=_dt(r.get("created_at")) or m.created_at,
-                updated_at=_dt(r.get("updated_at")) or m.updated_at,
-            )
-
-        # --- Projected points (carry over if present) ----------------------
-        ProjectedPoint.objects.bulk_create([
-            ProjectedPoint(
-                id=_i(r["id"]), league_key=r["league_key"], week=_i(r["week"]),
-                player_id=_i(r["player_id"]), player_name=r.get("player_name") or "",
-                position=r.get("position") or "", team_key=r.get("team_key") or "",
-                projected_total=r.get("projected_total"),
-                source=r.get("source") or "yahoo",
-            )
-            for r in rows("fantasy_data_projectedpoint")
-        ])
-
+        width = max((len(t) for t, _ in loaded), default=0)
         self.stdout.write(self.style.SUCCESS(
-            "Heroku backup import complete:\n"
-            f"  players:             {Player.objects.count()}\n"
-            f"  team performances:   {TeamPerformance.objects.count()}\n"
-            f"  player rosters:      {PlayerRoster.objects.count()}\n"
-            f"  player performances: {PlayerPerformance.objects.count()}\n"
-            f"  transactions:        {PlayerTransaction.objects.count()}\n"
-            f"  team-owner mappings: {TeamOwnerMapping.objects.count()}\n"
-            f"  projected points:    {ProjectedPoint.objects.count()}"
+            "Heroku backup import complete:\n" +
+            "\n".join(f"  {t:<{width}}  {n}" for t, n in loaded)
         ))
+        if skipped:
+            self.stdout.write(f"Not in backup, left as is: {', '.join(skipped)}")
