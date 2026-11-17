@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 
 from .models import (
     Season, Punishment, PunishmentVote, PunishmentRanking,
-    WheelResult, BucketWeekResult, BucketTeamResult,
+    WheelResult, BucketSession, BucketWeekResult, BucketTeamResult,
 )
 from .views import (
     parse_team_entry, compute_bucket_standings, retired_norms_for, _norm_punishment,
@@ -535,3 +535,28 @@ class YearSelectorTests(TestCase):
         self.client.get('/punishments/punishment-grid/?year=2025')
         results = self.client.get('/punishments/punishment-results/').content.decode()
         self.assertIn('2025 voting results', results)
+
+
+class BucketCompleteWeekTests(TestCase):
+    """Saving a week twice at once (double click) must not duplicate it."""
+
+    URL = '/punishments/bucket-of-death/?week=20'
+
+    def setUp(self):
+        self.client.force_login(User.objects.create_user('boss', password='pw', is_staff=True))
+        self.client.get(self.URL)  # creates the in-progress session
+        self.session = BucketSession.objects.get()
+        self.session.kept_teams = ["Chicago Bears - Ricky", "Miami Dolphins - Jeff"]
+        self.session.save()
+
+    def test_second_concurrent_save_is_ignored(self):
+        from unittest import mock
+        # The second request read the session before the first one finished and deleted it.
+        stale = BucketSession.objects.get(pk=self.session.pk)
+        self.client.post(self.URL, {'action': 'complete_week'})
+        with mock.patch.object(BucketSession.objects, 'get', return_value=stale):
+            self.client.post(self.URL, {'action': 'complete_week'})
+
+        week = BucketWeekResult.objects.get(week_number=20)
+        self.assertEqual(len(week.kept_teams), 2)
+        self.assertEqual(week.team_results.count(), 2)

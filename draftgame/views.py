@@ -7,6 +7,7 @@ from .models import Season, Punishment, PunishmentVote, PunishmentRanking, Wheel
 from django.contrib.auth.decorators import user_passes_test
 import random
 import json
+from django.db import transaction
 from django.db.models import Avg
 from urllib.parse import quote
 from .context_processors import get_selected_season
@@ -599,53 +600,60 @@ def bucket_of_death(request):
                     pass
             return redirect(f'/punishments/bucket-of-death/?week={current_week}')
         elif action == 'finalize_tbd':
-            # Update TBD teams with final names
-            tbd_count = 0
-            for i, team_entry in enumerate(session.kept_teams):
-                if '(TBD)' in team_entry:
-                    final_name = request.POST.get(f'tbd_team_{tbd_count}', '').strip()
-                    if final_name:
-                        base_team = team_entry.split(' (TBD)')[0]
-                        player_name = parse_team_entry(team_entry)[1]
-                        session.kept_teams[i] = f"{base_team} ({final_name}) - {player_name}"
-                    tbd_count += 1
-            session.save()
+            with transaction.atomic():
+                # Lock the in-progress session so a double click can't save the week twice:
+                # the second request waits here, then finds the session already deleted.
+                session = BucketSession.objects.select_for_update().filter(pk=session.pk).first()
+                if session is None:
+                    messages.info(request, f'Week {current_week} was already saved.')
+                    return redirect(f'/punishments/bucket-of-death/?week={current_week}')
+                # Update TBD teams with final names
+                tbd_count = 0
+                for i, team_entry in enumerate(session.kept_teams):
+                    if '(TBD)' in team_entry:
+                        final_name = request.POST.get(f'tbd_team_{tbd_count}', '').strip()
+                        if final_name:
+                            base_team = team_entry.split(' (TBD)')[0]
+                            player_name = parse_team_entry(team_entry)[1]
+                            session.kept_teams[i] = f"{base_team} ({final_name}) - {player_name}"
+                        tbd_count += 1
+                session.save()
             
-            # Now complete the week with finalized names
-            week_result, created = BucketWeekResult.objects.get_or_create(
-                season=season,
-                week_number=current_week,
-                defaults={
-                    'punishment': session.punishment,
-                    'kept_teams': []
-                }
-            )
-            week_result.kept_teams.extend(session.kept_teams)
-            week_result.save()
-            
-            team_wl_status = request.session.get('team_wl_status', {})
-            for i, team_entry in enumerate(session.kept_teams):
-                team_name, player_name = parse_team_entry(team_entry)
-                is_win, is_tie = mark_status_to_result(team_wl_status.get(str(i)))
-
-                if team_name == "Golden Helmet of Life":
-                    is_win, is_tie = True, False
-                elif team_name == "Instant Death":
-                    is_win, is_tie = False, False
-
-                BucketTeamResult.objects.create(
-                    week_result=week_result,
-                    team_name=team_name,
-                    player_name=player_name,
-                    is_win=is_win,
-                    is_tie=is_tie
+                # Now complete the week with finalized names
+                week_result, created = BucketWeekResult.objects.get_or_create(
+                    season=season,
+                    week_number=current_week,
+                    defaults={
+                        'punishment': session.punishment,
+                        'kept_teams': []
+                    }
                 )
+                week_result.kept_teams.extend(session.kept_teams)
+                week_result.save()
             
-            if 'team_wl_status' in request.session:
-                del request.session['team_wl_status']
-            session.delete()
-            messages.success(request, f'Week {current_week} selections finalized and saved!')
-            return redirect(f'/punishments/bucket-of-death/?week={current_week}')
+                team_wl_status = request.session.get('team_wl_status', {})
+                for i, team_entry in enumerate(session.kept_teams):
+                    team_name, player_name = parse_team_entry(team_entry)
+                    is_win, is_tie = mark_status_to_result(team_wl_status.get(str(i)))
+
+                    if team_name == "Golden Helmet of Life":
+                        is_win, is_tie = True, False
+                    elif team_name == "Instant Death":
+                        is_win, is_tie = False, False
+
+                    BucketTeamResult.objects.create(
+                        week_result=week_result,
+                        team_name=team_name,
+                        player_name=player_name,
+                        is_win=is_win,
+                        is_tie=is_tie
+                    )
+            
+                if 'team_wl_status' in request.session:
+                    del request.session['team_wl_status']
+                session.delete()
+                messages.success(request, f'Week {current_week} selections finalized and saved!')
+                return redirect(f'/punishments/bucket-of-death/?week={current_week}')
         elif action == 'complete_week':
             # Check for TBD teams that need final names
             tbd_teams = [team for team in session.kept_teams if '(TBD)' in team]
@@ -656,42 +664,49 @@ def bucket_of_death(request):
                     'current_week': current_week
                 })
             
-            week_result, created = BucketWeekResult.objects.get_or_create(
-                season=season,
-                week_number=current_week,
-                defaults={
-                    'punishment': session.punishment,
-                    'kept_teams': []
-                }
-            )
-            # Append new teams to existing kept_teams list
-            week_result.kept_teams.extend(session.kept_teams)
-            week_result.save()
-            
-            # Create individual team results (append, don't delete existing)
-            team_wl_status = request.session.get('team_wl_status', {})
-            for i, team_entry in enumerate(session.kept_teams):
-                team_name, player_name = parse_team_entry(team_entry)
-                is_win = team_wl_status.get(str(i))  # Get W/L from session
-                
-                # Auto-set win/loss for special teams
-                if team_name == "Golden Helmet of Life":
-                    is_win = True
-                elif team_name == "Instant Death":
-                    is_win = False
-                
-                BucketTeamResult.objects.create(
-                    week_result=week_result,
-                    team_name=team_name,
-                    player_name=player_name,
-                    is_win=is_win
+            with transaction.atomic():
+                # Lock the in-progress session so a double click can't save the week twice:
+                # the second request waits here, then finds the session already deleted.
+                session = BucketSession.objects.select_for_update().filter(pk=session.pk).first()
+                if session is None:
+                    messages.info(request, f'Week {current_week} was already saved.')
+                    return redirect(f'/punishments/bucket-of-death/?week={current_week}')
+                week_result, created = BucketWeekResult.objects.get_or_create(
+                    season=season,
+                    week_number=current_week,
+                    defaults={
+                        'punishment': session.punishment,
+                        'kept_teams': []
+                    }
                 )
-            # Clear session data but preserve week selection
-            if 'team_wl_status' in request.session:
-                del request.session['team_wl_status']
-            session.delete()
-            messages.success(request, f'Week {current_week} selections appended and saved!')
-            return redirect(f'/punishments/bucket-of-death/?week={current_week}')
+                # Append new teams to existing kept_teams list
+                week_result.kept_teams.extend(session.kept_teams)
+                week_result.save()
+            
+                # Create individual team results (append, don't delete existing)
+                team_wl_status = request.session.get('team_wl_status', {})
+                for i, team_entry in enumerate(session.kept_teams):
+                    team_name, player_name = parse_team_entry(team_entry)
+                    is_win = team_wl_status.get(str(i))  # Get W/L from session
+                
+                    # Auto-set win/loss for special teams
+                    if team_name == "Golden Helmet of Life":
+                        is_win = True
+                    elif team_name == "Instant Death":
+                        is_win = False
+                
+                    BucketTeamResult.objects.create(
+                        week_result=week_result,
+                        team_name=team_name,
+                        player_name=player_name,
+                        is_win=is_win
+                    )
+                # Clear session data but preserve week selection
+                if 'team_wl_status' in request.session:
+                    del request.session['team_wl_status']
+                session.delete()
+                messages.success(request, f'Week {current_week} selections appended and saved!')
+                return redirect(f'/punishments/bucket-of-death/?week={current_week}')
         elif action == 'end_bucket':
             leaderboard, sorted_tallies = compute_bucket_standings(season, session)
             return render(request, 'draftgame/bucket_summary.html', {
