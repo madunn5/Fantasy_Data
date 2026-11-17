@@ -587,7 +587,7 @@ class NFLScheduleTests(TestCase):
     def test_labels(self):
         from .nfl_schedule import week_games, matchup_label
         games = week_games(self.year, 10)
-        self.assertEqual(matchup_label("Washington Commanders", games), "at New York Giants, Thu Nov 12")
+        self.assertEqual(matchup_label("Washington Commanders", games), "@ New York Giants, Thu Nov 12")
         self.assertEqual(matchup_label("New York Giants", games), "vs Washington Commanders, Thu Nov 12")
         self.assertEqual(matchup_label("Chicago Bears", games), "Bye week")
         self.assertIsNone(matchup_label("Golden Helmet of Life", games))
@@ -611,4 +611,4 @@ class NFLScheduleTests(TestCase):
         session.current_player, session.selected_team = "Tobin", "Washington Commanders"
         session.save()
         resp = self.client.get('/punishments/bucket-decision/')
-        self.assertContains(resp, "at New York Giants, Thu Nov 12")
+        self.assertContains(resp, "@ New York Giants, Thu Nov 12")

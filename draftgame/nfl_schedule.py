@@ -113,7 +113,7 @@ def club_for(team_name):
 
 
 def matchup_label(team_name, games):
-    """'at New York Giants, Thu Nov 12', 'Bye week', or None when it doesn't apply.
+    """'@ New York Giants, Thu Nov 12', 'Bye week', or None when it doesn't apply.
 
     ``games`` is week_games() for the week; an empty dict means the schedule
     isn't available, so nothing is shown rather than a false bye.
@@ -124,7 +124,7 @@ def matchup_label(team_name, games):
     if club not in games:
         return "Bye week"
     opponent, is_home, kickoff = games[club]
-    label = f"{'vs' if is_home else 'at'} {opponent}"
+    label = f"{'vs' if is_home else '@'} {opponent}"
     if kickoff:
         local = timezone.localtime(kickoff)
         label += f", {local.strftime('%a %b')} {local.day}"
