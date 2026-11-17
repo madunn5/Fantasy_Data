@@ -11,6 +11,7 @@ from django.db import transaction
 from django.db.models import Avg
 from urllib.parse import quote
 from .context_processors import get_selected_season
+from . import nfl_schedule
 
 def home(request):
     return render(request, 'draftgame/home.html')
@@ -392,15 +393,7 @@ BUCKET_PUNISHMENTS = [
     "Jäger Bomb (Jägermeister + Red Bull)",
 ]
 
-NFL_TEAMS = [
-    "Arizona Cardinals", "Atlanta Falcons", "Baltimore Ravens", "Buffalo Bills",
-    "Carolina Panthers", "Chicago Bears", "Cincinnati Bengals", "Cleveland Browns",
-    "Dallas Cowboys", "Denver Broncos", "Detroit Lions", "Green Bay Packers",
-    "Houston Texans", "Indianapolis Colts", "Jacksonville Jaguars", "Kansas City Chiefs",
-    "Las Vegas Raiders", "Los Angeles Chargers", "Los Angeles Rams", "Miami Dolphins",
-    "Minnesota Vikings", "New England Patriots", "New Orleans Saints", "New York Giants",
-    "New York Jets", "Philadelphia Eagles", "Pittsburgh Steelers", "San Francisco 49ers",
-    "Seattle Seahawks", "Tampa Bay Buccaneers", "Tennessee Titans", "Washington Commanders",
+NFL_TEAMS = nfl_schedule.NFL_CLUBS + [
     "The Big Apple", "The Wizard of Oz (Lions, Tigers, Bears)", "Instant Death", "Thank You For Your Service",
     "Golden Helmet of Life", "Any Underdog"
 ]
@@ -426,6 +419,13 @@ def parse_team_entry(entry):
     if len(parts) == 2:
         return parts[0].strip(), parts[1].strip()
     return entry.strip(), ''
+
+
+def week_matchups(season, week):
+    """NFL games for a bucket week, or {} when there's no season to look up."""
+    if season is None:
+        return {}
+    return nfl_schedule.week_games(season.year, week)
 
 
 def mark_status_to_result(status):
@@ -767,6 +767,7 @@ def bucket_of_death(request):
         for team_result in week_result.team_results.all():
             completed_week_teams.append({
                 'name': f"{team_result.team_name} - {team_result.player_name}",
+                'team_name': team_result.team_name,
                 'is_win': team_result.is_win,
                 'is_tie': team_result.is_tie,
                 'id': team_result.id
@@ -781,11 +782,18 @@ def bucket_of_death(request):
         is_win, is_tie = mark_status_to_result(team_wl_status.get(str(i)))
         current_teams_with_status.append({
             'name': team,
+            'team_name': parse_team_entry(team)[0],
             'index': i,
             'is_win': is_win,
             'is_tie': is_tie
         })
     
+    # Show each pick's NFL opponent (only fetch the schedule when there are picks).
+    if completed_week_teams or current_teams_with_status:
+        games = week_matchups(season, current_week)
+        for team in completed_week_teams + current_teams_with_status:
+            team['matchup'] = nfl_schedule.matchup_label(team['team_name'], games)
+
     # Calculate total teams kept for this week (completed + current session)
     total_teams_kept = len(completed_week_teams) + len(current_kept_teams)
     
@@ -845,7 +853,8 @@ def bucket_rummage(request):
 
     return render(request, 'draftgame/bucket_rummage.html', {
         'session': session,
-        'selected_team': selected_team
+        'selected_team': selected_team,
+        'matchup': nfl_schedule.matchup_label(selected_team, week_matchups(season, session.week_number)),
     })
 
 @user_passes_test(lambda u: u.is_staff)
@@ -892,7 +901,9 @@ def bucket_decision(request):
         'session': session,
         'selected_team': session.selected_team,
         'must_keep': session.must_keep_next,
-        'is_auto_keep': is_auto_keep
+        'is_auto_keep': is_auto_keep,
+        'matchup': nfl_schedule.matchup_label(session.selected_team,
+                                              week_matchups(season, session.week_number)),
     })
 
 @user_passes_test(lambda u: u.is_staff)
@@ -932,7 +943,8 @@ def bucket_rummage_must_keep(request):
     
     return render(request, 'draftgame/bucket_must_keep.html', {
         'session': session,
-        'selected_team': selected_team
+        'selected_team': selected_team,
+        'matchup': nfl_schedule.matchup_label(selected_team, week_matchups(season, session.week_number)),
     })
 
 @user_passes_test(lambda u: u.is_staff)

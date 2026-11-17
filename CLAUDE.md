@@ -35,6 +35,10 @@ merged in from the old fantasy_project repo July 2026).
 - `draftgame/` — punishment voting, wheel, draft lottery, Bucket of Death.
   Its templates live in `draftgame/templates/` (base: `draftgame/base.html`);
   season picker via `draftgame.context_processors.selected_season`.
+- `draftgame/nfl_schedule.py` — shows each Bucket of Death pick's NFL opponent
+  (or bye). Bucket weeks = NFL weeks. Games come from ESPN's public scoreboard
+  into `NFLGame`, fetched per week on first view; preload a season with
+  `manage.py collect_nfl_schedule --year N`.
 - Dev-server note: Django caches templates even with DEBUG on — restart
   `runserver` after editing templates if changes don't show.
 

@@ -139,3 +139,21 @@ class BucketTeamResult(models.Model):
     # from win %. Tie rows keep is_win=None with is_tie=True.
     is_tie = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class NFLGame(models.Model):
+    """One regular-season NFL game, used to show a bucket team's opponent.
+
+    Filled from ESPN's public scoreboard by ``nfl_schedule.ensure_week``.
+    """
+    year = models.IntegerField()
+    week = models.IntegerField()
+    home_team = models.CharField(max_length=50)
+    away_team = models.CharField(max_length=50)
+    kickoff = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = [['year', 'week', 'home_team']]
+
+    def __str__(self):
+        return f"{self.year} wk{self.week}: {self.away_team} at {self.home_team}"

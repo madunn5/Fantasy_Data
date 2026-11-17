@@ -560,3 +560,55 @@ class BucketCompleteWeekTests(TestCase):
         week = BucketWeekResult.objects.get(week_number=20)
         self.assertEqual(len(week.kept_teams), 2)
         self.assertEqual(week.team_results.count(), 2)
+
+
+class NFLScheduleTests(TestCase):
+    """Bucket picks show their NFL opponent for the week."""
+
+    def setUp(self):
+        from datetime import datetime, timezone as dt_tz
+        from .models import NFLGame
+        self.year = Season.get_active().year
+        NFLGame.objects.create(year=self.year, week=10, home_team="New York Giants",
+                               away_team="Washington Commanders",
+                               kickoff=datetime(2026, 11, 13, 1, 15, tzinfo=dt_tz.utc))
+
+    def test_picks_resolve_to_clubs(self):
+        from .nfl_schedule import club_for
+        self.assertEqual(club_for("Chicago Bears"), "Chicago Bears")
+        self.assertEqual(club_for("Any Underdog (Eagles)"), "Philadelphia Eagles")
+        self.assertEqual(club_for("The Wizard of Oz (Lions, Tigers, Bears) (Lions)"), "Detroit Lions")
+        # The Wizard of Oz's own name mentions Bears; only the chosen team counts.
+        self.assertIsNone(club_for("The Wizard of Oz (Lions, Tigers, Bears) (LSU v Auburn)"))
+        self.assertIsNone(club_for("Thank You For Your Service (Army Football)"))
+        self.assertIsNone(club_for("Golden Helmet of Life"))
+        self.assertIsNone(club_for("Instant Death"))
+
+    def test_labels(self):
+        from .nfl_schedule import week_games, matchup_label
+        games = week_games(self.year, 10)
+        self.assertEqual(matchup_label("Washington Commanders", games), "at New York Giants, Thu Nov 12")
+        self.assertEqual(matchup_label("New York Giants", games), "vs Washington Commanders, Thu Nov 12")
+        self.assertEqual(matchup_label("Chicago Bears", games), "Bye week")
+        self.assertIsNone(matchup_label("Golden Helmet of Life", games))
+        # No schedule for the week: show nothing rather than a false bye.
+        self.assertIsNone(matchup_label("Chicago Bears", {}))
+
+    def test_failed_fetch_is_quiet_and_not_retried(self):
+        from unittest import mock
+        from django.core.cache import cache
+        from . import nfl_schedule
+        cache.clear()
+        with mock.patch.object(nfl_schedule, "fetch_week", side_effect=OSError("down")) as fetch:
+            self.assertEqual(nfl_schedule.week_games(self.year, 11), {})
+            self.assertEqual(nfl_schedule.week_games(self.year, 11), {})
+        self.assertEqual(fetch.call_count, 1)
+
+    def test_decision_screen_shows_opponent(self):
+        self.client.force_login(User.objects.create_user('boss', password='pw', is_staff=True))
+        self.client.get('/punishments/bucket-of-death/?week=10')
+        session = BucketSession.objects.get()
+        session.current_player, session.selected_team = "Tobin", "Washington Commanders"
+        session.save()
+        resp = self.client.get('/punishments/bucket-decision/')
+        self.assertContains(resp, "at New York Giants, Thu Nov 12")
