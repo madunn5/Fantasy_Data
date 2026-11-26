@@ -857,6 +857,18 @@ def bucket_rummage(request):
         'matchup': nfl_schedule.matchup_label(selected_team, week_matchups(season, session.week_number)),
     })
 
+def _claim_pick(session):
+    """Lock the in-progress session and return it, or None if no pick is waiting.
+
+    The pick (selected_team) is cleared once it's kept, so a repeat submit of
+    the same pick finds nothing to keep.
+    """
+    session = BucketSession.objects.select_for_update().filter(pk=session.pk).first()
+    if session is None or not session.selected_team:
+        return None
+    return session
+
+
 @user_passes_test(lambda u: u.is_staff)
 def bucket_decision(request):
     season, _ = get_selected_season(request)
@@ -870,29 +882,35 @@ def bucket_decision(request):
         return redirect(f'/punishments/bucket-of-death/?week={week}')
 
     if request.method == 'POST':
-        action = request.POST.get('action')
+        with transaction.atomic():
+            # Re-read the pick under a lock: a double click used to keep it twice,
+            # the second time as a blank ' - ' entry once the first had cleared it.
+            session = _claim_pick(session)
+            if session is None:
+                return redirect(f'/punishments/bucket-of-death/?week={week}')
+            action = request.POST.get('action')
 
-        if action == 'keep':
-            # Check if it's a special team that needs team selection
-            if session.selected_team in ["The Big Apple", "The Wizard of Oz (Lions, Tigers, Bears)", "Thank You For Your Service", "Any Underdog"]:
-                return redirect('draftgame:bucket_special_team')
-            else:
-                # Handle auto-win/loss teams with messages
-                if session.selected_team == "Golden Helmet of Life":
-                    messages.success(request, f'🏆 {session.current_player} got Golden Helmet of Life - automatic win!')
-                elif session.selected_team == "Instant Death":
-                    messages.success(request, f'💀 {session.current_player} got Instant Death - automatic loss!')
+            if action == 'keep':
+                # Check if it's a special team that needs team selection
+                if session.selected_team in ["The Big Apple", "The Wizard of Oz (Lions, Tigers, Bears)", "Thank You For Your Service", "Any Underdog"]:
+                    return redirect('draftgame:bucket_special_team')
+                else:
+                    # Handle auto-win/loss teams with messages
+                    if session.selected_team == "Golden Helmet of Life":
+                        messages.success(request, f'🏆 {session.current_player} got Golden Helmet of Life - automatic win!')
+                    elif session.selected_team == "Instant Death":
+                        messages.success(request, f'💀 {session.current_player} got Instant Death - automatic loss!')
                 
-                session.kept_teams.append(f"{session.selected_team} - {session.current_player}")
-                session.must_keep_next = False
-                session.current_player = ''
-                session.selected_team = ''
+                    session.kept_teams.append(f"{session.selected_team} - {session.current_player}")
+                    session.must_keep_next = False
+                    session.current_player = ''
+                    session.selected_team = ''
+                    session.save()
+                    return redirect(f'/punishments/bucket-of-death/?week={session.week_number}')
+            elif action == 'put_back':
+                session.must_keep_next = True
                 session.save()
-                return redirect(f'/punishments/bucket-of-death/?week={session.week_number}')
-        elif action == 'put_back':
-            session.must_keep_next = True
-            session.save()
-            return redirect('draftgame:bucket_rummage_must_keep')
+                return redirect('draftgame:bucket_rummage_must_keep')
     
     # Check if it's an auto-keep team
     is_auto_keep = session.selected_team in ["Golden Helmet of Life", "Instant Death"]
@@ -960,25 +978,31 @@ def bucket_special_team(request):
         return redirect(f'/punishments/bucket-of-death/?week={week}')
     
     if request.method == 'POST':
-        action = request.POST.get('action')
-        if action == 'decide_later':
-            final_team = f"{session.selected_team} (TBD)"
-            session.kept_teams.append(f"{final_team} - {session.current_player}")
-            session.must_keep_next = False
-            session.current_player = ''
-            session.selected_team = ''
-            session.save()
-            return redirect(f'/punishments/bucket-of-death/?week={session.week_number}')
-        else:
-            chosen_team = request.POST.get('chosen_team', '').strip()
-            if chosen_team:
-                final_team = f"{session.selected_team} ({chosen_team})"
+        with transaction.atomic():
+            # Re-read the pick under a lock: a double click used to keep it twice,
+            # the second time as a blank ' - ' entry once the first had cleared it.
+            session = _claim_pick(session)
+            if session is None:
+                return redirect(f'/punishments/bucket-of-death/?week={week}')
+            action = request.POST.get('action')
+            if action == 'decide_later':
+                final_team = f"{session.selected_team} (TBD)"
                 session.kept_teams.append(f"{final_team} - {session.current_player}")
                 session.must_keep_next = False
                 session.current_player = ''
                 session.selected_team = ''
                 session.save()
                 return redirect(f'/punishments/bucket-of-death/?week={session.week_number}')
+            else:
+                chosen_team = request.POST.get('chosen_team', '').strip()
+                if chosen_team:
+                    final_team = f"{session.selected_team} ({chosen_team})"
+                    session.kept_teams.append(f"{final_team} - {session.current_player}")
+                    session.must_keep_next = False
+                    session.current_player = ''
+                    session.selected_team = ''
+                    session.save()
+                    return redirect(f'/punishments/bucket-of-death/?week={session.week_number}')
     
     return render(request, 'draftgame/bucket_special_team.html', {
         'session': session,

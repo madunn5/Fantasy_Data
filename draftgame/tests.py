@@ -612,3 +612,31 @@ class NFLScheduleTests(TestCase):
         session.save()
         resp = self.client.get('/punishments/bucket-decision/')
         self.assertContains(resp, "@ New York Giants, Thu Nov 12")
+
+
+class BucketKeepTwiceTests(TestCase):
+    """A repeat Keep It submit must not save a blank ' - ' pick."""
+
+    def setUp(self):
+        self.client.force_login(User.objects.create_user('boss', password='pw', is_staff=True))
+        self.client.get('/punishments/bucket-of-death/?week=20')
+        self.session = BucketSession.objects.get()
+
+    def _pick(self, team):
+        self.session.refresh_from_db()
+        self.session.current_player, self.session.selected_team = "Tobin", team
+        self.session.save()
+
+    def test_double_keep_saves_one_pick(self):
+        self._pick("Baltimore Ravens")
+        self.client.post('/punishments/bucket-decision/', {'action': 'keep'})
+        self.client.post('/punishments/bucket-decision/', {'action': 'keep'})
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.kept_teams, ["Baltimore Ravens - Tobin"])
+
+    def test_double_special_team_saves_one_pick(self):
+        self._pick("Any Underdog")
+        self.client.post('/punishments/bucket-special-team/', {'chosen_team': 'Eagles'})
+        self.client.post('/punishments/bucket-special-team/', {'chosen_team': 'Eagles'})
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.kept_teams, ["Any Underdog (Eagles) - Tobin"])
